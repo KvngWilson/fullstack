@@ -8,10 +8,17 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const helmet = require("helmet");
+const passport = require("./config/passport");
+const adminRoutes = require("./routes/admin");
+const userRoutes = require("./routes/user");
 const productRoutes = require("./routes/product");
+const cartRoutes = require("./routes/cart");
+const orderRoutes = require("./routes/orders");
 const swaggerUI = require("swagger-ui-express");
 const yaml = require("js-yaml");
 const { connectDB } = require("./config/db");
+const vhost = require("vhost");
+const { authenticateJWT } = require("./config/auth");
 
 const app = express();
 
@@ -28,6 +35,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(helmet());
 app.use(morgan("dev"));
+app.use(passport.initialize());
+
 
 // Sample route
 app.get("/", (req, res) => {
@@ -35,15 +44,18 @@ app.get("/", (req, res) => {
 });
 
 // Routes
+app.use(vhost("admin.*", adminRoutes));
+app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/products", productRoutes);
+app.use("/api/v1/cart", authenticateJWT, cartRoutes);
+app.use("/api/v1/orders", orderRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({
-    error: "Internal Server Error",
+  res.status(err.status || 500).json({
+    error: err.message || "Internal Server Error",
   });
-  next();
 });
 
 app.listen(PORT, () => {

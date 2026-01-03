@@ -39,7 +39,6 @@ const formatProduct = (row) => ({
   material: row.material || null,
   care_instructions: row.care_instructions || null,
   base_price: row.base_price,
-  price: row.price,
   is_active: row.is_active,
   created_at: row.created_at,
   updated_at: row.updated_at,
@@ -52,6 +51,12 @@ exports.listProducts = async (req, res) => {
     const pageSize = Math.max(1, Math.min(100, parseInt(req.query.pageSize || 20, 10)));
     const sort = req.query.sort || "id";
     const order = (req.query.order || "ASC").toUpperCase();
+
+    // Whitelist allowed sort columns to prevent SQL injection
+    const allowedSortColumns = ["id", "name", "brand", "base_price", "created_at", "updated_at"];
+    if (!allowedSortColumns.includes(sort)) {
+      return res.status(400).json({ error: "Invalid sort column" });
+    }
 
     if (!["ASC", "DESC"].includes(order)) {
       return res.status(400).json({ error: "order must be ASC or DESC" });
@@ -93,11 +98,11 @@ exports.createProduct = async (req, res) => {
       return res.status(400).json({ error: validation.errors.join("; ") });
     }
 
-    const { name, description, brand, material, care_instructions, base_price, price, is_active } = req.body;
+    const { name, description, brand, material, care_instructions, base_price, is_active } = req.body;
 
     const result = await pool.query(
-      `INSERT INTO products (name, description, brand, material, care_instructions, base_price, price, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      `INSERT INTO products (name, description, brand, material, care_instructions, base_price, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [
         name.trim(),
         description || null,
@@ -105,7 +110,6 @@ exports.createProduct = async (req, res) => {
         material || null,
         care_instructions || null,
         base_price,
-        price || base_price,
         is_active !== false,
       ]
     );
@@ -154,13 +158,13 @@ exports.replaceProduct = async (req, res) => {
       return res.status(400).json({ error: bodyValidation.errors.join("; ") });
     }
 
-    const { name, description, brand, material, care_instructions, base_price, price, is_active } = req.body;
+    const { name, description, brand, material, care_instructions, base_price, is_active } = req.body;
 
     const result = await pool.query(
       `UPDATE products 
        SET name = $1, description = $2, brand = $3, material = $4, care_instructions = $5, 
-           base_price = $6, price = $7, is_active = $8, updated_at = NOW()
-       WHERE id = $9 RETURNING *`,
+           base_price = $6, is_active = $7, updated_at = NOW()
+       WHERE id = $8 RETURNING *`,
       [
         name.trim(),
         description || null,
@@ -168,7 +172,6 @@ exports.replaceProduct = async (req, res) => {
         material || null,
         care_instructions || null,
         base_price,
-        price || base_price,
         is_active !== false,
         validation.id,
       ]
@@ -194,7 +197,7 @@ exports.updateProductPartial = async (req, res) => {
       return res.status(400).json({ error: validation.error });
     }
 
-    const { name, description, brand, material, care_instructions, base_price, price, is_active } = req.body;
+    const { name, description, brand, material, care_instructions, base_price, is_active } = req.body;
 
     const updates = [];
     const values = [];
@@ -237,14 +240,6 @@ exports.updateProductPartial = async (req, res) => {
       }
       updates.push(`base_price = $${paramIndex++}`);
       values.push(base_price);
-    }
-
-    if (price !== undefined) {
-      if (typeof price !== "number" || price < 0) {
-        return res.status(400).json({ error: "price must be a positive number" });
-      }
-      updates.push(`price = $${paramIndex++}`);
-      values.push(price);
     }
 
     if (is_active !== undefined) {
