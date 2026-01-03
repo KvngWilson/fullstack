@@ -493,3 +493,124 @@ VALUES
     (4, 5);
 
 -- Suit
+
+-- 15. Bulk synthetic dataset (adds >1000 rows)
+
+-- 15a. Users (+800)
+INSERT INTO users (email, password_hash, first_name, last_name)
+SELECT
+    'user' || gs || '@example.com' AS email,
+    crypt('password' || gs, gen_salt('bf')) AS password_hash,
+    'First' || gs AS first_name,
+    'Last' || gs AS last_name
+FROM generate_series(1, 800) gs;
+
+-- 15b. Addresses (2 per new user)
+INSERT INTO addresses (user_id, type, street, city, state, postal_code, country, is_primary)
+SELECT
+    (SELECT MAX(id) - 800 FROM users) + gs AS user_id,
+    addr_type.type,
+    'Street ' || gs || ' ' || addr_type.type AS street,
+    'City ' || gs AS city,
+    'ST' AS state,
+    lpad(gs::text, 5, '0') AS postal_code,
+    'USA' AS country,
+    (addr_type.type = 'shipping') AS is_primary
+FROM generate_series(1, 800) gs
+CROSS JOIN (VALUES ('shipping'), ('billing')) AS addr_type(type);
+
+-- 15c. Products (+200)
+INSERT INTO products (name, description, brand, material, care_instructions, base_price, price, is_active)
+SELECT
+    'Product ' || gs AS name,
+    'Sample product ' || gs AS description,
+    'Brand' || (gs % 20) AS brand,
+    'Material' || (gs % 10) AS material,
+    'Care instructions ' || (gs % 5) AS care_instructions,
+    50 + gs AS base_price,
+    50 + gs AS price,
+    true AS is_active
+FROM generate_series(1, 200) gs;
+
+-- 15d. Variants (3 per new product => 600)
+INSERT INTO variants (product_id, sku, size, color, price_adjustment)
+SELECT
+    (SELECT MAX(id) - 200 FROM products) + product_no AS product_id,
+    'SKU-' || product_no || '-' || variant_no AS sku,
+    (ARRAY['S', 'M', 'L'])[(variant_no % 3) + 1] AS size,
+    (ARRAY['Red', 'Blue', 'Black'])[(variant_no % 3) + 1] AS color,
+    (variant_no - 2) * 5 AS price_adjustment
+FROM generate_series(1, 200) product_no
+CROSS JOIN generate_series(1, 3) variant_no;
+
+-- 15e. Inventory (1 per variant)
+INSERT INTO inventory (variant_id, stock_quantity, low_stock_threshold, last_restocked)
+SELECT
+    (SELECT MAX(id) - 600 FROM variants) + gs AS variant_id,
+    (gs % 20) + 1 AS stock_quantity,
+    5 AS low_stock_threshold,
+    NOW() - (gs || ' days')::interval AS last_restocked
+FROM generate_series(1, 600) gs;
+
+-- 15f. Orders (+400)
+INSERT INTO orders (user_id, net_amount, tax, shipping_cost, total_amount, status)
+SELECT
+    (SELECT MAX(id) - 800 + 1 FROM users) + (gs % 800) AS user_id,
+    100 + (gs % 200) AS net_amount,
+    10 + (gs % 20) AS tax,
+    5 AS shipping_cost,
+    115 + (gs % 220) AS total_amount,
+    (ARRAY['pending','paid','shipped','delivered'])[(gs % 4) + 1] AS status
+FROM generate_series(1, 400) gs;
+
+-- 15g. Order items (+800)
+INSERT INTO order_items (order_id, variant_id, quantity, price_at_checkout)
+SELECT
+    (SELECT MAX(id) - 400 FROM orders) + ((gs - 1) / 2) + 1 AS order_id,
+    (SELECT MAX(id) - 600 FROM variants) + ((gs - 1) % 600) + 1 AS variant_id,
+    ((gs % 3) + 1) AS quantity,
+    50 + (gs % 200) AS price_at_checkout
+FROM generate_series(1, 800) gs;
+
+-- 15h. Payments (one per order)
+INSERT INTO payments (order_id, processor, transaction_id, amount, status)
+SELECT
+    (SELECT MAX(id) - 400 FROM orders) + gs AS order_id,
+    (ARRAY['stripe','paypal'])[(gs % 2) + 1] AS processor,
+    'bulk_tx_' || gs AS transaction_id,
+    115 + (gs % 220) AS amount,
+    (ARRAY['success','pending'])[(gs % 2) + 1] AS status
+FROM generate_series(1, 400) gs;
+
+-- 15i. Wishlists (800 rows)
+INSERT INTO wishlists (user_id, product_id)
+SELECT
+    (SELECT MAX(id) - 800 FROM users) + (gs % 800) + 1 AS user_id,
+    (SELECT MAX(id) - 200 FROM products) + (gs % 200) + 1 AS product_id
+FROM generate_series(1, 800) gs;
+
+-- 15j. Product-category links for bulk products (2 per product)
+INSERT INTO product_categories (product_id, category_id)
+SELECT DISTINCT
+    (SELECT MAX(id) - 200 FROM products) + product_no AS product_id,
+    ((product_no + slot) % 7) + 1 AS category_id
+FROM generate_series(1, 200) product_no
+CROSS JOIN generate_series(0, 1) slot;
+
+-- 15k. Randomize pricing, inventory, and quantities for synthetic data
+SELECT setseed(0.42);
+
+UPDATE products
+SET base_price = ROUND((base_price * (0.8 + random() * 0.6))::numeric, 2),
+    price = ROUND((price * (0.85 + random() * 0.5))::numeric, 2)
+WHERE id > (SELECT MAX(id) - 200 FROM products);
+
+UPDATE inventory
+SET stock_quantity = GREATEST(0, (random() * 40)::int),
+    low_stock_threshold = LEAST(10, GREATEST(2, (random() * 6)::int)),
+    last_restocked = NOW() - ((random() * 60)::int || ' days')::interval
+WHERE variant_id > (SELECT MAX(id) - 600 FROM variants);
+
+UPDATE order_items
+SET quantity = GREATEST(1, (random() * 4)::int)
+WHERE order_id > (SELECT MAX(id) - 400 FROM orders);

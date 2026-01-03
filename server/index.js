@@ -8,8 +8,10 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const helmet = require("helmet");
+const productRoutes = require("./routes/product");
 const swaggerUI = require("swagger-ui-express");
 const yaml = require("js-yaml");
+const { connectDB } = require("./config/db");
 
 const app = express();
 
@@ -32,6 +34,20 @@ app.get("/", (req, res) => {
   res.send("Welcome to the E-Comm API Server.");
 });
 
+// Routes
+app.use("/api/v1/products", productRoutes);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    error: "Internal Server Error",
+  });
+  next();
+});
+
 app.listen(PORT, () => {
+  // Connect to database
+  connectDB();
   console.log(`Server running on port ${PORT}`);
 });
