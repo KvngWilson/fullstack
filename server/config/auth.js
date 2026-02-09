@@ -1,47 +1,81 @@
-const jwt = require("jsonwebtoken");
-const passport = require("./passport");
+const jwt = require('jsonwebtoken');
+const { errorResponse } = require('../utils/response');
 
-// Generate JWT token
-const generateToken = (user) => {
-  return jwt.sign(
-    { 
-      id: user.id, 
-      email: user.email,
-      role: user.role 
-    },
-    process.env.JWT_SECRET || "jwt-secret-key",
-    { expiresIn: "24h" }
-  );
-};
+const JWT_SECRET = process.env.JWT_SECRET; // No fallback - will fail env validation
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
-// Middleware to authenticate JWT using Passport
-const authenticateJWT = passport.authenticate("jwt", { session: false });
+/**
+ * Generates JWT access token
+ */
+function generateToken(payload, expiresIn = JWT_EXPIRES_IN) {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn });
+}
 
-// Middleware to check if user has required role
-const requireRole = (...allowedRoles) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ error: "Authentication required" });
+/**
+ * Verifies JWT token
+ */
+function verifyToken(token) {
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Middleware: Authenticate JWT from header
+ */
+function authenticateJWT(req, res, next) {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return errorResponse(res, 'No token provided', 401);
+  }
+
+  const parts = authHeader.split(' ');
+
+  if (parts.length !== 2 || parts[0] !== 'Bearer') {
+    return errorResponse(res, 'Invalid token format. Use: Bearer <token>', 401);
+  }
+
+  const token = parts[1];
+
+  const decoded = verifyToken(token);
+
+  if (!decoded) {
+    return errorResponse(res, 'Invalid or expired token', 401);
+  }
+
+  req.user = decoded;
+  next();
+}
+
+/**
+ * Optional authentication - doesn't fail if no token
+ */
+function optionalAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+
+  if (authHeader) {
+    const parts = authHeader.split(' ');
+    if (parts.length === 2 && parts[0] === 'Bearer') {
+      const token = parts[1];
+      const decoded = verifyToken(token);
+      if (decoded) {
+        req.user = decoded;
+      }
     }
-    
-    if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ error: "Insufficient permissions" });
-    }
-    
-    next();
-  };
-};
+  }
 
-// Middleware to require admin role
-const requireAdmin = requireRole("admin");
+  next();
+}
 
-// Middleware to require customer or admin
-const requireCustomer = requireRole("customer", "admin");
-
+// Single module.exports (no mixing)
 module.exports = {
   generateToken,
+  verifyToken,
   authenticateJWT,
-  requireRole,
-  requireAdmin,
-  requireCustomer,
+  optionalAuth,
+  JWT_SECRET, // Export for testing only
+  JWT_EXPIRES_IN,
 };
