@@ -1,0 +1,29 @@
+<tr class="table-row">
+  <td class="table-cell">
+    <input type="checkbox" class="checkbox">
+  </td>
+
+  <td class="table-cell font-medium"><%= order.id %></td>
+
+  <td class="table-cell">
+    <div class="flex items-center gap-3">
+      <img src="<%= order.avatar %>" class="avatar avatar-sm">
+      <span><%= order.customer %></span>
+    </div>
+  </td>
+
+  <td class="table-cell"><%= order.product %></td>
+  <td class="table-cell text-slate-600"><%= order.date %></td>
+  <td class="table-cell font-semibold">$<%= order.amount %></td>
+
+  <td class="table-cell">
+    <% const statusLabel = (order.status || 'pending').toLowerCase(); %>
+    <span class="badge badge-<%= statusLabel %>">
+      <%= statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1) %>
+    </span>
+  </td>
+
+  <td class="table-cell">
+    <button class="btn btn-ghost btn-compact" type="button">View</button>
+  </td>
+</tr>

@@ -1,0 +1,18 @@
+<!-- Form Input Component -->
+<div class="mb-3">
+  <label for="<%= fieldName %>" class="form-label"><%= label %></label>
+  <input
+    type="<%= type || 'text' %>"
+    class="form-control <%= typeof errors !== 'undefined' && errors.find(e => e.path === fieldName) ? 'is-invalid' : '' %>"
+    id="<%= fieldName %>"
+    name="<%= fieldName %>"
+    value="<%= typeof value !== 'undefined' ? value : '' %>"
+    <% if (required) { %>required<% } %>
+    <% if (placeholder) { %>placeholder="<%= placeholder %>"<% } %>
+  />
+  <% if (typeof errors !== 'undefined' && errors.find(e => e.path === fieldName)) { %>
+    <div class="invalid-feedback d-block">
+      <%= errors.find(e => e.path === fieldName).msg %>
+    </div>
+  <% } %>
+</div>

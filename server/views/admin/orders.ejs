@@ -1,0 +1,179 @@
+<% layout('admin/layouts/main') %>
+
+<section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+  <div class="card stat-card">
+    <div class="stat-head">
+      <div>
+        <p class="stat-title">Total Orders</p>
+        <h3 class="stat-value"><%= orderSummary.total %></h3>
+      </div>
+      <div class="stat-icon">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 2l3 7-3 7" />
+          <path d="M21 2l-3 7 3 7" />
+          <path d="M3 9h18" />
+        </svg>
+      </div>
+    </div>
+    <div class="stat-footer">
+      <span class="badge badge-primary">All time</span>
+      <span class="stat-subtitle">Across store</span>
+    </div>
+  </div>
+
+  <div class="card stat-card">
+    <div class="stat-head">
+      <div>
+        <p class="stat-title">Pending Orders</p>
+        <h3 class="stat-value"><%= orderSummary.pending %></h3>
+      </div>
+      <div class="stat-icon">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      </div>
+    </div>
+    <div class="stat-footer">
+      <span class="badge badge-pending">Awaiting</span>
+      <span class="stat-subtitle">Needs attention</span>
+    </div>
+  </div>
+
+  <div class="card stat-card">
+    <div class="stat-head">
+      <div>
+        <p class="stat-title">Paid Orders</p>
+        <h3 class="stat-value"><%= orderSummary.paid %></h3>
+      </div>
+      <div class="stat-icon">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 7h-9" />
+          <path d="M14 17H5" />
+          <circle cx="17" cy="17" r="3" />
+          <circle cx="7" cy="7" r="3" />
+        </svg>
+      </div>
+    </div>
+    <div class="stat-footer">
+      <span class="badge badge-success">Completed</span>
+      <span class="stat-subtitle">Revenue captured</span>
+    </div>
+  </div>
+
+  <div class="card stat-card">
+    <div class="stat-head">
+      <div>
+        <p class="stat-title">Cancelled</p>
+        <h3 class="stat-value"><%= orderSummary.cancelled %></h3>
+      </div>
+      <div class="stat-icon">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </div>
+    </div>
+    <div class="stat-footer">
+      <span class="badge badge-error">Review</span>
+      <span class="stat-subtitle">Investigate</span>
+    </div>
+  </div>
+</section>
+
+<section class="card mb-8">
+  <div class="card-header">
+    <div>
+      <p class="section-kicker">Filters</p>
+      <h3 class="card-title">Order Filters</h3>
+    </div>
+  </div>
+  <div class="card-body">
+    <form method="GET" action="/orders" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="form-group">
+        <label for="status" class="form-label">Status</label>
+        <select id="status" name="status" class="form-select">
+          <option value="" <%= !filter.status ? 'selected' : '' %>>All Statuses</option>
+          <option value="pending" <%= filter.status === 'pending' ? 'selected' : '' %>>Pending</option>
+          <option value="paid" <%= filter.status === 'paid' ? 'selected' : '' %>>Paid</option>
+          <option value="shipped" <%= filter.status === 'shipped' ? 'selected' : '' %>>Shipped</option>
+          <option value="delivered" <%= filter.status === 'delivered' ? 'selected' : '' %>>Delivered</option>
+          <option value="cancelled" <%= filter.status === 'cancelled' ? 'selected' : '' %>>Cancelled</option>
+          <option value="refunded" <%= filter.status === 'refunded' ? 'selected' : '' %>>Refunded</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="pageSize" class="form-label">Items per page</label>
+        <select id="pageSize" name="pageSize" class="form-select">
+          <option value="10" <%= pagination.pageSize === 10 ? 'selected' : '' %>>10</option>
+          <option value="20" <%= pagination.pageSize === 20 ? 'selected' : '' %>>20</option>
+          <option value="50" <%= pagination.pageSize === 50 ? 'selected' : '' %>>50</option>
+        </select>
+      </div>
+      <div class="form-group form-actions">
+        <button type="submit" class="btn btn-primary">Apply Filter</button>
+        <a href="/orders" class="btn btn-ghost">Reset</a>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-header">
+    <div>
+      <p class="section-kicker">Management</p>
+      <h3 class="card-title">Orders</h3>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <% if (orders && orders.length > 0) { %>
+      <table class="table">
+        <thead class="table-header">
+          <tr>
+            <th class="table-header-cell">Order</th>
+            <th class="table-header-cell">Customer</th>
+            <th class="table-header-cell">Status</th>
+            <th class="table-header-cell">Total</th>
+            <th class="table-header-cell">Created</th>
+            <th class="table-header-cell">Update</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% orders.forEach((entry) => { %>
+            <tr class="table-row">
+              <td class="table-cell font-semibold">#<%= entry.id %></td>
+              <td class="table-cell"><%= entry.user_email || '-' %></td>
+              <td class="table-cell">
+                <span class="badge badge-<%= entry.status %>"><%= entry.status.charAt(0).toUpperCase() + entry.status.slice(1) %></span>
+              </td>
+              <td class="table-cell font-semibold">$<%= Number(entry.total_amount || 0).toFixed(2) %></td>
+              <td class="table-cell text-slate-600"><%= entry.created_at ? new Date(entry.created_at).toLocaleDateString() : '-' %></td>
+              <td class="table-cell">
+                <form method="POST" action="/orders/<%= entry.id %>/status" class="flex items-center gap-2">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="returnTo" value="<%= currentUrl %>">
+                  <select name="status" class="form-select">
+                    <option value="pending" <%= entry.status === 'pending' ? 'selected' : '' %>>Pending</option>
+                    <option value="paid" <%= entry.status === 'paid' ? 'selected' : '' %>>Paid</option>
+                    <option value="shipped" <%= entry.status === 'shipped' ? 'selected' : '' %>>Shipped</option>
+                    <option value="delivered" <%= entry.status === 'delivered' ? 'selected' : '' %>>Delivered</option>
+                    <option value="cancelled" <%= entry.status === 'cancelled' ? 'selected' : '' %>>Cancelled</option>
+                    <option value="refunded" <%= entry.status === 'refunded' ? 'selected' : '' %>>Refunded</option>
+                  </select>
+                  <button type="submit" class="btn btn-outline btn-compact">Save</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } else { %>
+      <div class="empty-state">No orders found for this filter.</div>
+    <% } %>
+  </div>
+
+  <div class="card-footer">
+    <%- include('components/pagination', { pagination, label, prevHref, nextHref }) %>
+  </div>
+</section>

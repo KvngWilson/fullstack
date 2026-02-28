@@ -1,4 +1,5 @@
 const redis = require("redis");
+const { logger } = require("../utils/logger");
 
 const redisConfig = {
   socket: {
@@ -16,15 +17,15 @@ if (process.env.NODE_ENV === "production" || process.env.REDIS_PASSWORD) {
 const redisClient = redis.createClient(redisConfig);
 
 redisClient.on("error", (err) => {
-  console.error("Redis Client Error:", err);
+  logger.error("Redis client error", { error: err });
 });
 
 redisClient.on("connect", () => {
-  console.log("Redis connected successfully");
+  logger.info("Redis connected successfully");
 });
 
 redisClient.on("ready", () => {
-  console.log("Redis ready to accept commands");
+  logger.info("Redis ready to accept commands");
 });
 
 // Connection with retry logic
@@ -32,11 +33,11 @@ async function connectRedis() {
   try {
     await redisClient.connect();
   } catch (error) {
-    console.error("Failed to connect to Redis:", error);
+    logger.error("Failed to connect to Redis", { error });
     if (process.env.NODE_ENV === "production") {
       throw error; // Fail fast in production
     } else {
-      console.warn("Running without Redis in development");
+      logger.warn("Running without Redis in development");
     }
   }
 }
@@ -49,7 +50,7 @@ async function connectRedis() {
  */
 async function getOrSetCache(key, fetchFn, ttl = 300) {
   if (!redisClient.isReady) {
-    console.warn("Redis not ready, bypassing cache");
+    logger.warn("Redis not ready, bypassing cache");
     return await fetchFn();
   }
 
@@ -69,15 +70,13 @@ async function getOrSetCache(key, fetchFn, ttl = 300) {
 
     return data;
   } catch (error) {
-    console.error("Cache error:", error);
+    logger.error("Cache error", { error, key });
     // Fallback to fetching data
     return await fetchFn();
   }
 }
 
-/**
- * Invalidate cache by pattern
- */
+// Invalidate cache keys matching a pattern
 async function invalidateCache(pattern) {
   if (!redisClient.isReady) return;
 
@@ -85,12 +84,13 @@ async function invalidateCache(pattern) {
     const keys = await redisClient.keys(pattern);
     if (keys.length > 0) {
       await redisClient.del(keys);
-      console.log(
-        `Invalidated ${keys.length} cache keys matching: ${pattern}`,
-      );
+      logger.info("Cache keys invalidated", {
+        count: keys.length,
+        pattern,
+      });
     }
   } catch (error) {
-    console.error("Cache invalidation error:", error);
+    logger.error("Cache invalidation error", { error, pattern });
   }
 }
 

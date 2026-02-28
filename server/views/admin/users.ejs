@@ -1,0 +1,139 @@
+<% layout('admin/layouts/main') %>
+
+<section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+  <div class="card stat-card">
+    <div class="stat-head">
+      <div>
+        <p class="stat-title">Total Customers</p>
+        <h3 class="stat-value"><%= userSummary.total %></h3>
+      </div>
+      <div class="stat-icon">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      </div>
+    </div>
+    <div class="stat-footer">
+      <span class="badge badge-success">+<%= userSummary.newLast30 %>%</span>
+      <span class="stat-subtitle">New this month</span>
+    </div>
+  </div>
+
+  <div class="card stat-card">
+    <div class="stat-head">
+      <div>
+        <p class="stat-title">Active Customers</p>
+        <h3 class="stat-value"><%= userSummary.active %></h3>
+      </div>
+      <div class="stat-icon">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+          <polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+      </div>
+    </div>
+    <div class="stat-footer">
+      <span class="badge badge-primary">Active now</span>
+      <span class="stat-subtitle">Last 7 days</span>
+    </div>
+  </div>
+
+  <div class="card stat-card">
+    <div class="stat-head">
+      <div>
+        <p class="stat-title">Admins</p>
+        <h3 class="stat-value"><%= userSummary.admins %></h3>
+      </div>
+      <div class="stat-icon">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2l7 4v6c0 5-3 9-7 10-4-1-7-5-7-10V6l7-4z" />
+        </svg>
+      </div>
+    </div>
+    <div class="stat-footer">
+      <span class="badge badge-secondary">Secure</span>
+      <span class="stat-subtitle">Access control</span>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-header">
+    <div>
+      <p class="section-kicker">Team</p>
+      <h3 class="card-title">Customers</h3>
+    </div>
+    <div class="card-actions">
+      <div class="topbar-search">
+        <span class="topbar-search-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="7"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </span>
+        <input type="text" placeholder="Search customers" class="form-input form-input-compact">
+      </div>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <% if (users && users.length > 0) { %>
+      <table class="table">
+        <thead class="table-header">
+          <tr>
+            <th class="table-header-cell">Customer</th>
+            <th class="table-header-cell">Role</th>
+            <th class="table-header-cell">Created</th>
+            <th class="table-header-cell">Last Login</th>
+            <th class="table-header-cell">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% users.forEach((entry) => { %>
+            <tr class="table-row">
+              <td class="table-cell">
+                <div class="flex items-center gap-3">
+                  <img src="https://ui-avatars.com/api/?name=<%= encodeURIComponent(entry.email) %>" class="avatar avatar-sm" alt="Customer">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-900"><%= entry.email %></p>
+                    <p class="text-xs text-slate-500">#<%= entry.id %></p>
+                  </div>
+                </div>
+              </td>
+              <td class="table-cell">
+                <form method="POST" action="/users/<%= entry.id %>/role" class="flex items-center gap-2">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="returnTo" value="<%= currentUrl %>">
+                  <select name="role" class="form-select">
+                    <option value="customer" <%= entry.role === 'customer' ? 'selected' : '' %>>Customer</option>
+                    <option value="vendor" <%= entry.role === 'vendor' ? 'selected' : '' %>>Vendor</option>
+                    <option value="admin" <%= entry.role === 'admin' ? 'selected' : '' %>>Admin</option>
+                  </select>
+                  <button type="submit" class="btn btn-outline btn-compact">Save</button>
+                </form>
+              </td>
+              <td class="table-cell text-slate-600"><%= entry.created_at ? new Date(entry.created_at).toLocaleDateString() : '-' %></td>
+              <td class="table-cell text-slate-600"><%= entry.last_login ? new Date(entry.last_login).toLocaleDateString() : 'Never' %></td>
+              <td class="table-cell">
+                <form method="POST" action="/users/<%= entry.id %>/delete" onsubmit="return confirm('Are you sure you want to delete this user?');" class="inline-flex">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="returnTo" value="<%= currentUrl %>">
+                  <button type="submit" class="btn btn-ghost btn-compact">Delete</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } else { %>
+      <div class="empty-state">No users found.</div>
+    <% } %>
+  </div>
+
+  <div class="card-footer">
+    <%- include('components/pagination', { pagination, label, prevHref, nextHref }) %>
+  </div>
+</section>

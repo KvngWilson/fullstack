@@ -1,0 +1,40 @@
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="brand">
+      <span class="brand-mark">DB</span>
+      <div class="brand-text">
+        <span class="brand-title">DASH.</span>
+        <span class="brand-subtitle">Admin Panel</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar-section">
+    <p class="sidebar-section-title">Menu</p>
+    <nav class="sidebar-nav">
+      <% navItems.forEach(item => { %>
+      <%- include('../components/nav-item', { item, currentRoute }) %>
+      <% }) %>
+    </nav>
+  </div>
+
+  <div class="sidebar-section">
+    <p class="sidebar-section-title">Other</p>
+    <nav class="sidebar-nav">
+      <% secondaryNav.forEach(item => { %>
+      <%- include('../components/nav-item', { item, currentRoute }) %>
+      <% }) %>
+    </nav>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <img src="<%= user.avatar %>" class="avatar avatar-md" alt="User avatar">
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-semibold truncate"><%= user.name %></p>
+        <p class="text-xs text-slate-500 truncate"><%= user.role %></p>
+      </div>
+      <span class="status-dot" aria-hidden="true"></span>
+    </div>
+  </div>
+</aside>

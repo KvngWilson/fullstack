@@ -2,31 +2,51 @@
   "name": "server",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "dev": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest --coverage",
+    "migrate": "node -e \"require('dotenv').config(); require('./utils/migrationRunner').runMigrations().then(() => process.exit(0)).catch(err => { console.error(err); process.exit(1); })\"",
+    "migrate:rollback": "node -e \"require('dotenv').config(); require('./utils/migrationRunner').rollbackMigration().then(() => process.exit(0)).catch(err => { console.error(err); process.exit(1); })\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@api/easyship": "file:.api/apis/easyship",
+    "@paystack/paystack-sdk": "^1.0.1",
     "argon2": "^0.44.0",
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
+    "connect-redis": "^9.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.4",
+    "ejs": "^3.0.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "express-session": "^1.18.2",
     "helmet": "^8.1.0",
+    "joi": "^18.0.2",
     "js-yaml": "^4.1.1",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "nodemailer": "^7.0.12",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
-    "pg": "^8.16.3",
+    "pg": "^8.18.0",
+    "redis": "^5.10.0",
+    "stripe": "^20.1.0",
     "swagger-ui-express": "^5.0.1",
-    "vhost": "^3.0.2"
+    "uuid": "^13.0.0",
+    "vhost": "^3.0.2",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "@types/jest": "^29.5.12",
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.11",
+    "supertest": "^6.3.4"
   }
 }

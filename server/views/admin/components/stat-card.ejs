@@ -1,0 +1,18 @@
+<div class="card stat-card">
+  <div class="stat-head">
+    <div>
+      <p class="stat-title"><%= title %></p>
+      <h3 class="stat-value"><%= value %></h3>
+    </div>
+    <% if (typeof icon !== 'undefined' && icon) { %>
+      <div class="stat-icon"><%- icon %></div>
+    <% } %>
+  </div>
+
+  <div class="stat-footer">
+    <span class="badge <%= trend >= 0 ? 'badge-success' : 'badge-error' %>">
+      <%= trend > 0 ? '+' : '' %><%= trend %>%
+    </span>
+    <span class="stat-subtitle"><%= (typeof subtitle !== 'undefined' && subtitle) ? subtitle : 'vs last month' %></span>
+  </div>
+</div>

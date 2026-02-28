@@ -1,0 +1,83 @@
+<% layout('admin/layouts/main') %>
+
+<%
+  const tintClassMap = {
+    '#ecfeff': 'bg-cyan-50',
+    '#eef2ff': 'bg-indigo-50',
+    '#f0fdf4': 'bg-emerald-50',
+    '#fff7ed': 'bg-orange-50',
+    '#fdf2f8': 'bg-pink-50',
+    '#fef3c7': 'bg-amber-100',
+    '#ede9fe': 'bg-violet-100',
+  };
+%>
+
+<section class="category-grid mb-8">
+  <% categories.forEach((category) => { %>
+    <% const tintClass = tintClassMap[(category.tint || '').toLowerCase()] || 'bg-accent'; %>
+    <div class="card category-card">
+      <div class="category-icon <%= tintClass %>">
+        <img src="<%= category.icon %>" alt="" />
+      </div>
+      <div>
+        <p class="text-sm text-slate-500">Product</p>
+        <h3 class="category-title"><%= category.name %></h3>
+      </div>
+      <p class="category-meta"><%= category.items %> items</p>
+    </div>
+  <% }) %>
+</section>
+
+<section class="card">
+  <div class="card-header">
+    <div>
+      <p class="section-kicker">Discover</p>
+      <h3 class="card-title">Category List</h3>
+    </div>
+    <div class="pill-group">
+      <button class="pill pill-active" type="button">All Product</button>
+      <button class="pill" type="button">Published</button>
+      <button class="pill" type="button">Archived</button>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <table class="table">
+      <thead class="table-header">
+        <tr>
+          <th class="table-header-cell">Category</th>
+          <th class="table-header-cell">Products</th>
+          <th class="table-header-cell">Created</th>
+          <th class="table-header-cell">Status</th>
+          <th class="table-header-cell">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% categories.forEach((category) => { %>
+          <% const tintClass = tintClassMap[(category.tint || '').toLowerCase()] || 'bg-accent'; %>
+          <tr class="table-row">
+            <td class="table-cell">
+              <div class="flex items-center gap-3">
+                <div class="category-icon category-icon-sm <%= tintClass %>">
+                  <img src="<%= category.icon %>" alt="" />
+                </div>
+                <div>
+                  <p class="text-sm font-semibold text-slate-900"><%= category.name %></p>
+                  <p class="text-xs text-slate-500"><%= category.subtitle %></p>
+                </div>
+              </div>
+            </td>
+            <td class="table-cell"><%= category.items %></td>
+            <td class="table-cell text-slate-500"><%= category.createdAt %></td>
+            <td class="table-cell"><span class="badge badge-<%= category.status %>"><%= category.statusLabel %></span></td>
+            <td class="table-cell"><button class="btn btn-ghost btn-compact" type="button">Edit</button></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card-footer">
+    <p class="text-sm text-slate-500">Showing <%= summary.total %> categories</p>
+  </div>
+</section>

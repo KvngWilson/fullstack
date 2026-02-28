@@ -1,0 +1,91 @@
+<% layout('admin/layouts/main') %>
+
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+  <% stats.forEach(stat => { %>
+    <%- include('components/stat-card', stat) %>
+  <% }) %>
+</section>
+
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+  <div class="card lg:col-span-2">
+    <div class="card-header">
+      <div>
+        <p class="section-kicker">Analytics</p>
+        <h3 class="card-title">Sales Overview</h3>
+      </div>
+      <span class="chip">Last 7 days</span>
+    </div>
+    <div class="card-body">
+      <% const maxValue = Math.max(...salesSeries, 1); %>
+      <div class="chart">
+        <div class="chart-bars">
+          <% salesSeries.forEach((value, index) => { %>
+            <% const barHeight = Math.round((value / maxValue) * 100); %>
+            <% const barClass = barHeight >= 85 ? 'chart-bar-fill-xl' : barHeight >= 65 ? 'chart-bar-fill-lg' : barHeight >= 45 ? 'chart-bar-fill-md' : barHeight >= 25 ? 'chart-bar-fill-sm' : 'chart-bar-fill-xs'; %>
+            <div class="chart-bar">
+              <div class="chart-bar-fill <%= barClass %>"></div>
+              <span class="chart-label"><%= salesLabels[index] %></span>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <p class="section-kicker">Store</p>
+        <h3 class="card-title">Top Products</h3>
+      </div>
+      <a class="link" href="/products">View all</a>
+    </div>
+
+    <div class="card-body space-y-4">
+      <% if (topProducts.length > 0) { %>
+        <% topProducts.forEach(product => { %>
+          <%- include('components/product-item', { product }) %>
+        <% }) %>
+      <% } else { %>
+        <div class="empty-state">No products to show yet.</div>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-header">
+    <div>
+      <p class="section-kicker">Activity</p>
+      <h3 class="card-title">Recent Orders</h3>
+    </div>
+    <a class="link" href="/orders">View all</a>
+  </div>
+
+  <div class="table-container">
+    <table class="table">
+      <thead class="table-header">
+        <tr>
+          <th class="table-header-cell"></th>
+          <th class="table-header-cell">Order ID</th>
+          <th class="table-header-cell">Customer</th>
+          <th class="table-header-cell">Product</th>
+          <th class="table-header-cell">Date</th>
+          <th class="table-header-cell">Amount</th>
+          <th class="table-header-cell">Status</th>
+          <th class="table-header-cell"></th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <% orders.forEach(order => { %>
+          <%- include('components/order-row', { order }) %>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card-footer">
+    <%- include('components/pagination', { pagination, label, prevHref, nextHref }) %>
+  </div>
+</section>

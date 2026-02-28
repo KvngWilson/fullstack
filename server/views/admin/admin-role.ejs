@@ -1,0 +1,84 @@
+<% layout('admin/layouts/main') %>
+
+<section class="split-grid">
+  <div class="space-y-6">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <p class="section-kicker">Profile</p>
+          <h3 class="card-title">About</h3>
+        </div>
+        <button class="btn btn-outline btn-compact" type="button">Edit</button>
+      </div>
+      <div class="card-body">
+        <div class="profile-card">
+          <img src="<%= profile.avatar %>" class="avatar avatar-lg" alt="Profile" />
+          <div>
+            <p class="text-sm text-slate-500">Admin</p>
+            <h3 class="text-lg font-semibold text-slate-900"><%= profile.name %></h3>
+            <p class="text-sm text-slate-500"><%= profile.email %></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <p class="section-kicker">Permissions</p>
+          <h3 class="card-title">Role Access</h3>
+        </div>
+      </div>
+      <div class="card-body">
+        <ul class="permission-list">
+          <% permissions.forEach((perm) => { %>
+            <li class="permission-item">
+              <span><%= perm.label %></span>
+              <span class="badge badge-success">Enabled</span>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="space-y-6">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <p class="section-kicker">Profile Update</p>
+          <h3 class="card-title">Account Settings</h3>
+        </div>
+      </div>
+      <div class="card-body grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="form-group">
+          <label class="form-label">First Name</label>
+          <input class="form-input" value="<%= profile.firstName %>" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Last Name</label>
+          <input class="form-input" value="<%= profile.lastName %>" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input class="form-input" value="<%= profile.email %>" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input class="form-input" value="<%= profile.phone %>" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Country</label>
+          <input class="form-input" value="<%= profile.country %>" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">City</label>
+          <input class="form-input" value="<%= profile.city %>" />
+        </div>
+      </div>
+      <div class="card-footer">
+        <button class="btn btn-primary" type="button">Save changes</button>
+      </div>
+    </div>
+  </div>
+</section>

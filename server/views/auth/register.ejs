@@ -1,0 +1,80 @@
+<%- include('../partials/header', { title: title, user: user, cartCount: cartCount }) %>
+
+<section class="auth-wrap">
+  <div class="auth-shell">
+    <aside class="auth-panel" aria-label="Admin onboarding information">
+      <span class="auth-badge">Admin Provisioning</span>
+      <h1 class="auth-heading">Create Administrator Access</h1>
+      <p class="auth-subheading">
+        Use this page only for authorized admin onboarding and internal operations access.
+      </p>
+      <ul class="auth-list">
+        <li>Account creation is restricted to internal team workflows.</li>
+        <li>Choose a strong password with at least 6 characters.</li>
+        <li>All new accounts are subject to role and permission review.</li>
+      </ul>
+    </aside>
+
+    <div class="auth-card">
+      <h2 class="auth-title">Register Admin Account</h2>
+      <p class="auth-note">Complete the form to create a new admin-capable account.</p>
+
+      <%- include('../partials/alert', { error_msg, success_msg }) %>
+
+      <form method="POST" action="/register" novalidate>
+        <input type="hidden" name="returnTo" value="<%= form?.returnTo || '/dashboard' %>">
+
+        <div class="form-group">
+          <label for="email" class="form-label">Admin Email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            class="form-input"
+            value="<%= form?.email || '' %>"
+            required
+            autocomplete="email"
+            placeholder="admin@company.com"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="password" class="form-label">Password</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            class="form-input"
+            required
+            minlength="6"
+            autocomplete="new-password"
+            placeholder="Create a secure password"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="confirmPassword" class="form-label">Confirm Password</label>
+          <input
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            class="form-input"
+            required
+            minlength="6"
+            autocomplete="new-password"
+            placeholder="Re-enter password"
+          >
+        </div>
+
+        <button type="submit" class="btn btn-primary w-full">Create Admin Account</button>
+      </form>
+
+      <p class="auth-help">
+        Already provisioned?
+        <a class="auth-link" href="/login?returnTo=<%= encodeURIComponent(form?.returnTo || '/dashboard') %>">Sign in to admin panel</a>.
+      </p>
+    </div>
+  </div>
+</section>
+
+<%- include('../partials/footer') %>

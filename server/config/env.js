@@ -1,19 +1,5 @@
 const crypto = require("crypto");
-
-const REQURIED_ENV_VARS = [
-  "NODE_ENV",
-  "PORT",
-  "DB_HOST",
-  "DB_PORT",
-  "DB_NAME",
-  "DB_USER",
-  "DB_PASSWORD",
-  "JWT_SECRET",
-  "SESSION_SECRET",
-  "REDIS_HOST",
-  "REDIS_PORT",
-  "REDIS_PASSWORD",
-];
+const { logger } = require("../utils/logger");
 
 const SECRET_MIN_LENGTH = 32;
 
@@ -25,7 +11,7 @@ class EnvValidationError extends Error {
 }
 
 function validateEnv() {
-  console.log("Validating environment variables...");
+  logger.info("Validating environment variables");
   // Check NODE_ENV
   const validEnvs = ["development", "test", "production"];
   if (!validEnvs.includes(process.env.NODE_ENV)) {
@@ -34,55 +20,28 @@ function validateEnv() {
     );
   }
 
-  // Check required variables
-  const missing = REQUIRED_ENV_VARS.filter((varName) => !process.env[varName]);
-
-  if (missing.length > 0) {
-    throw new EnvValidationError(
-      `Missing required environment variables:\n${missing.map((v) => `  - ${v}`).join("\n")}`,
-    );
-  }
-
   // Validate secret strength
   const secrets = ["JWT_SECRET", "SESSION_SECRET"];
   for (const secret of secrets) {
-    if (process.env[secret].length < SECRET_MIN_LENGTH) {
-      throw new EnvValidationError(
-        `${secret} must be at least ${SECRET_MIN_LENGTH} characters (current: ${process.env[secret].length})`,
-      );
+    const secretValue = process.env[secret];
+
+    if (!secretValue) {
+      throw new EnvValidationError(`${secret} is required`);
     }
 
-    // Check for weak defaults
-    const weakDefaults = [
-      "jwt-secret-key",
-      "session-secret-key",
-      "secret",
-      "password",
-      "12345",
-    ];
-    if (
-      weakDefaults.some((weak) =>
-        process.env[secret].toLowerCase().includes(weak),
-      )
-    ) {
+    if (secretValue.length < SECRET_MIN_LENGTH) {
       throw new EnvValidationError(
-        `${secret} appears to be a weak/default value. Use: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`,
+        `${secret} must be at least ${SECRET_MIN_LENGTH} characters (current: ${secretValue.length})`,
       );
     }
-  }
-
-  // Validate database config
-  const dbPort = parseInt(process.env.DB_PORT);
-  if (isNaN(dbPort) || dbPort < 1 || dbPort > 65535) {
-    throw new EnvValidationError(
-      "DB_PORT must be a valid port number (1-65535)",
-    );
   }
 
   // Production-specific checks
   if (process.env.NODE_ENV === "production") {
     if (process.env.DB_HOST === "localhost") {
-      console.warn("WARNING: Using localhost database in production");
+      logger.warn("Using localhost database in production", {
+        dbHost: process.env.DB_HOST,
+      });
     }
 
     if (!process.env.REDIS_PASSWORD) {
@@ -90,7 +49,7 @@ function validateEnv() {
     }
   }
 
-  console.log("Environment validation passed");
+  logger.info("Environment validation passed");
 }
 
 function generateSecrets() {

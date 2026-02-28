@@ -7,20 +7,20 @@ const SORT_COLUMNS = {
   products: {
     id: "id",
     name: "name",
-    price: "base_price",
+    price: "id",
     created: "created_at",
     updated: "updated_at",
   },
   orders: {
     id: "id",
     date: "created_at",
-    total: "total_amount",
+    total: "total",
     status: "status",
   },
   users: {
     id: "id",
     email: "email",
-    name: "first_name",
+    name: "email",
     created: "created_at",
   },
 };

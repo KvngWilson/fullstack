@@ -1,30 +1,42 @@
 const Joi = require("joi");
-const { z } = require("zod");
 
 // Email validation
 function validateEmail(email) {
+  if (!email || typeof email !== "string") return false;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 }
 
-// Password validation (min 8 chars, 1 uppercase, 1 lowercase, 1 number)
+// Password validation contract:
+// { valid: boolean, error?: string }
 function validatePassword(password) {
-  const minLength = 8;
-  const hasUpperCase = /[A-Z]/.test(password);
-  const hasLowerCase = /[a-z]/.test(password);
-  const hasNumber = /\d/.test(password);
+  if (typeof password !== "string" || password.length === 0) {
+    return { valid: false, error: "Password is required" };
+  }
 
-  return (
-    password.length >= minLength && hasUpperCase && hasLowerCase && hasNumber
-  );
+  if (password.length < 6) {
+    return {
+      valid: false,
+      error: "Password must be at least 6 characters",
+    };
+  }
+
+  if (password.length > 100) {
+    return {
+      valid: false,
+      error: "Password must be maximum 100 characters",
+    };
+  }
+
+  return { valid: true };
 }
 
 // Joi Schemas
 const registrationSchema = Joi.object({
   email: Joi.string().email().required(),
-  password: Joi.string().min(8).required(),
-  first_name: Joi.string().min(1).max(50).required(),
-  last_name: Joi.string().min(1).max(50).required(),
+  password: Joi.string().min(6).required(),
+  first_name: Joi.string().min(1).max(50).optional(),
+  last_name: Joi.string().min(1).max(50).optional(),
 });
 
 const loginSchema = Joi.object({
@@ -35,11 +47,9 @@ const loginSchema = Joi.object({
 const addressSchema = Joi.object({
   street: Joi.string().required(),
   city: Joi.string().required(),
-  state: Joi.string().length(2).required(),
-  zip_code: Joi.string()
-    .pattern(/^\d{5}(-\d{4})?$/)
-    .required(),
-  country: Joi.string().default("US"),
+  state: Joi.string().allow("", null).optional(),
+  postal_code: Joi.string().required(),
+  country: Joi.string().required(),
   is_default: Joi.boolean().default(false),
 });
 
@@ -56,37 +66,32 @@ function validateAddress(data) {
   return addressSchema.validate(data);
 }
 
-// Zod schemas for products (more type-safe)
-const productSchema = z.object({
-  name: z.string().min(1).max(200),
-  description: z.string().optional(),
-  base_price: z.number().positive(),
-  category_id: z.number().int().positive().optional(),
-  is_active: z.boolean().default(true),
-});
+// Joi schemas for products and variants
+const productSchema = Joi.object({
+  name: Joi.string().min(1).max(200).required(),
+  brand: Joi.string().min(1).max(200).required(),
+  description: Joi.string().allow("", null).optional(),
+  base_price: Joi.number().positive().required(),
+  category_id: Joi.number().integer().positive().optional(),
+  is_active: Joi.boolean().optional(),
+  material: Joi.string().optional(),
+  care_instructions: Joi.string().optional(),
+}).unknown(true);
 
-const variantSchema = z.object({
-  product_id: z.number().int().positive(),
-  sku: z.string().min(1).max(100),
-  size: z.string().optional(),
-  color: z.string().optional(),
-  price_adjustment: z.number().default(0),
+const variantSchema = Joi.object({
+  product_id: Joi.number().integer().positive().required(),
+  sku: Joi.string().min(1).max(100).required(),
+  size: Joi.string().optional(),
+  color: Joi.string().optional(),
+  price_adjustment: Joi.number().default(0),
 });
 
 function validateProduct(data) {
-  try {
-    return { success: true, data: productSchema.parse(data) };
-  } catch (error) {
-    return { success: false, error: error.errors };
-  }
+  return productSchema.validate(data);
 }
 
 function validateVariant(data) {
-  try {
-    return { success: true, data: variantSchema.parse(data) };
-  } catch (error) {
-    return { success: false, error: error.errors };
-  }
+  return variantSchema.validate(data);
 }
 
 // SINGLE module.exports with ALL exports

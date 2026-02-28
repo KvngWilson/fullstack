@@ -1,0 +1,64 @@
+<%- include('../partials/header', { title: title, user: user, cartCount: cartCount }) %>
+
+<section class="auth-wrap">
+  <div class="auth-shell">
+    <aside class="auth-panel" aria-label="Admin access overview">
+      <span class="auth-badge">Restricted Access</span>
+      <h1 class="auth-heading">Admin Control Center</h1>
+      <p class="auth-subheading">
+        Sign in with your administrator account to manage users, orders, products, and site operations.
+      </p>
+      <ul class="auth-list">
+        <li>Only authorized admin and operations staff are allowed.</li>
+        <li>All access attempts are monitored and rate-limited.</li>
+        <li>Use your assigned work account credentials.</li>
+      </ul>
+    </aside>
+
+    <div class="auth-card">
+      <h2 class="auth-title">Administrator Sign In</h2>
+      <p class="auth-note">Enter your admin credentials to continue.</p>
+
+      <%- include('../partials/alert', { error_msg, success_msg }) %>
+
+      <form method="POST" action="/login" novalidate>
+        <input type="hidden" name="returnTo" value="<%= form?.returnTo || '/dashboard' %>">
+
+        <div class="form-group">
+          <label for="email" class="form-label">Admin Email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            class="form-input"
+            value="<%= form?.email || '' %>"
+            required
+            autocomplete="email"
+            placeholder="admin@company.com"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="password" class="form-label">Password</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            class="form-input"
+            required
+            autocomplete="current-password"
+            placeholder="Enter your password"
+          >
+        </div>
+
+        <button type="submit" class="btn btn-primary w-full">Sign In to Admin Panel</button>
+      </form>
+
+      <p class="auth-help">
+        Not an admin? Return to <a class="auth-link" href="/">the storefront</a>.
+      </p>
+    </div>
+  </div>
+</section>
+
+<%- include('../partials/footer') %>

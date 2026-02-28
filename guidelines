@@ -1,0 +1,215 @@
+
+
+🧱 Tech Stack
+
+React + Vite + TypeScript
+
+TailwindCSS
+
+React Router
+
+Axios
+
+Zustand (or Redux Toolkit)
+
+React Hook Form + Zod
+
+TanStack Table
+
+Headless UI / Radix UI
+
+Stripe.js
+
+🎯 UI Goals
+
+Professional marketplace look (Amazon / Faire / Alibaba style)
+
+Component reusability
+
+Mobile-first responsive design
+
+Loading states, skeletons, error states
+
+Accessible UI (ARIA, keyboard nav)
+
+Clean layout and spacing
+
+Optimized rendering and state management
+
+🗂️ Required Pages
+/                → Home
+/products        → Product listing
+/products/:slug  → Product details
+/cart
+/checkout
+/account
+/account/orders
+/login
+/register
+/vendor/:id      → Vendor store page
+
+🧩 Core Features to Implement
+1. Layout
+
+Header with search bar, cart icon, account menu
+
+Category mega-menu
+
+Footer
+
+Reusable page container
+
+2. Home Page
+
+Hero banner
+
+Featured categories
+
+Featured products
+
+Vendor highlights
+
+3. Product Listing Page
+
+Sidebar filters:
+
+Category
+
+Price range
+
+Rating
+
+Vendor
+
+Sorting dropdown
+
+Pagination
+
+Product cards grid
+
+4. Product Details Page
+
+Image gallery
+
+Variant selector (size, color)
+
+Price, stock
+
+Add to cart
+
+Reviews section
+
+Related products
+
+5. Cart
+
+Update quantity
+
+Remove items
+
+Variant display
+
+Cart summary
+
+6. Checkout
+
+Shipping form with validation
+
+Order summary
+
+Stripe payment button
+
+7. Account
+
+Profile info
+
+Order history
+
+Order details page
+
+🧱 Component Architecture
+
+Create reusable components:
+
+ProductCard
+
+ProductGrid
+
+FilterSidebar
+
+SearchBar
+
+VariantSelector
+
+CartItem
+
+OrderSummary
+
+RatingStars
+
+SkeletonLoader
+
+Pagination
+
+🌐 API Integration Pattern
+
+Central Axios client
+
+API service layer
+
+Loading & error handling
+
+Auth token handling
+
+Persist cart (localStorage for guests, API for users)
+
+🎨 UX Requirements
+
+Toast notifications
+
+Skeleton loading
+
+Empty states
+
+Form validation errors
+
+Disabled states
+
+Mobile drawer for filters
+
+📁 Folder Structure
+src/
+ ├── components/
+ ├── pages/
+ ├── layouts/
+ ├── store/
+ ├── services/
+ ├── hooks/
+ ├── types/
+ └── utils/
+
+📦 Deliverables
+
+Generate step-by-step:
+
+Folder structure
+
+Layout (header, footer)
+
+Home page
+
+Product listing page
+
+Product details page
+
+Cart
+
+Checkout
+
+Account pages
+
+API service layer
+
+Run instructions
+
+Output code in phases, not all at once.

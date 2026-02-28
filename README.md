@@ -252,7 +252,6 @@ fullstack/
 │   │   ├── logger.js            # Logging utility
 │   │   ├── validate.js          # Validation helpers
 │   │   ├── response.js          # Response formatters
-│   │   ├── pagination.js
 │   │   └── tokenManager.js
 │   ├── views/                   # EJS templates (admin SSR)
 │   │   ├── admin/

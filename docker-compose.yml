@@ -1,0 +1,171 @@
+# Full-Stack E-Commerce Application
+# Docker Compose Configuration for Development and Production
+#
+# Services:
+#  - postgres: PostgreSQL database (v16)
+#  - redis: Redis cache/session store (v7)
+#  - server: Node.js Express API server
+#  - client: React frontend served via Nginx
+#
+# Usage:
+#   docker compose up          # Start all services
+#   docker compose down        # Stop all services
+#   docker compose logs -f     # View logs
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: fullstack-postgres
+    labels:
+      description: "PostgreSQL database for e-commerce application"
+    environment:
+      POSTGRES_DB: ${DB_NAME:-ecommerce_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./data/queries.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./data/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - ./server/data/migrations:/docker-entrypoint-initdb.d/migrations:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-ecommerce_db}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - fullstack-network
+
+  # Redis Cache & Session Store
+  redis:
+    image: redis:7-alpine
+    container_name: fullstack-redis
+    labels:
+      description: "Redis cache and session store"
+    command: sh -c 'redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"'
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_1234567890}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", 'redis-cli -a "$${REDIS_PASSWORD}" ping | grep -q PONG']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - fullstack-network
+
+  # Node.js API Server
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV:-production}
+    container_name: fullstack-server
+    labels:
+      description: "Node.js Express API server"
+      version: "1.0.0"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 5000
+
+      # Database Configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-ecommerce_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+
+      # Redis Configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_1234567890}
+
+      # Security
+      JWT_SECRET: ${JWT_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      SESSION_SECRET: ${SESSION_SECRET:-abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789}
+
+      # Application
+      APP_URL: ${APP_URL:-http://localhost:5000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./server/logs:/app/logs
+      - ./server/uploads:/app/uploads
+    restart: unless-stopped
+    networks:
+      - fullstack-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:5000/api/v1/health",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  # React Frontend
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:5000}
+        VITE_API_VERSION: ${VITE_API_VERSION:-v1}
+    container_name: fullstack-client
+    labels:
+      description: "React frontend application via Nginx"
+      version: "1.0.0"
+    depends_on:
+      server:
+        condition: service_healthy
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+    networks:
+      - fullstack-network
+    healthcheck:
+      test:
+        ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  fullstack-network:
+    driver: bridge
