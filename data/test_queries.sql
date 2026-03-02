@@ -1,7 +1,14 @@
 -- ====================
 -- TEST QUERIES FOR SCHEMA VALIDATION
 -- ====================
--- Comprehensive queries for the actual schema in queries.sql
+-- Comprehensive queries for the e-commerce platform
+-- Supports current schema (queries.sql) and future migrations (009-011)
+--
+-- MIGRATION STATUS:
+--   - Queries 1-28:   Current schema (always available)
+--   - Queries 29-35:  Migration 009+ (shipment fields in orders)
+--   - Queries 36-39:  Migration 010+ (webhook_events table)
+--   - Queries 40-44:  Migration 011+ (vendor applications, auth enhancements)
 
 -- ==================== DATABASE HEALTH & PERFORMANCE ====================
 
@@ -616,3 +623,257 @@ SELECT
 FROM orders WHERE deleted_at IS NULL AND created_at > DATE_TRUNC('month', NOW())
 
 ORDER BY metric_category, metric;
+
+-- ==================== FUTURE MIGRATIONS (009+) ====================
+-- Shipment & Shipping Analytics
+-- Available after: Migration 009_add_shipment_fields.sql
+
+-- 29. SHIPMENT STATUS OVERVIEW (requires migration 009)
+-- SELECT 
+--     shipment_status,
+--     COUNT(*) as shipment_count,
+--     ROUND(AVG(EXTRACT(EPOCH FROM (shipment_updated_at - shipment_created_at)) / 3600)::numeric, 2) as avg_hours_in_status,
+--     MIN(shipment_created_at) as earliest_shipment,
+--     MAX(shipment_updated_at) as latest_update
+-- FROM orders
+-- WHERE shipment_id IS NOT NULL AND deleted_at IS NULL
+-- GROUP BY shipment_status
+-- ORDER BY shipment_count DESC;
+
+-- 30. ORDERS WITH SHIPMENT TRACKING (requires migration 009)
+-- SELECT 
+--     o.id as order_id,
+--     u.email,
+--     o.status as order_status,
+--     o.shipment_id,
+--     o.shipment_status,
+--     o.courier_name,
+--     o.label_url,
+--     o.shipping_cost_snapshot,
+--     o.shipment_created_at,
+--     o.shipment_updated_at,
+--     CASE 
+--         WHEN o.shipment_status = 'delivered' THEN 'COMPLETE'
+--         WHEN o.shipment_status IN ('in_transit', 'label_created') THEN 'IN PROGRESS'
+--         WHEN o.shipment_status = 'failed' THEN 'ERROR'
+--         WHEN o.shipment_status = 'pending' THEN 'AWAITING SHIPMENT'
+--         ELSE 'UNKNOWN'
+--     END as shipment_state
+-- FROM orders o
+-- LEFT JOIN users u ON o.user_id = u.id
+-- WHERE o.shipment_id IS NOT NULL AND o.deleted_at IS NULL
+-- ORDER BY o.shipment_created_at DESC;
+
+-- 31. SHIPPING COST ANALYSIS (requires migration 009)
+-- SELECT 
+--     v.store_name,
+--     COUNT(DISTINCT o.id) as total_shipped,
+--     SUM(o.shipping_cost_snapshot)::numeric(12,2) as total_shipping_cost,
+--     AVG(o.shipping_cost_snapshot)::numeric(12,2) as avg_shipping_cost,
+--     MIN(o.shipping_cost_snapshot)::numeric(12,2) as min_shipping_cost,
+--     MAX(o.shipping_cost_snapshot)::numeric(12,2) as max_shipping_cost,
+--     STRING_AGG(DISTINCT o.courier_name, ', ') as couriers_used
+-- FROM orders o
+-- JOIN order_items oi ON o.id = oi.order_id
+-- JOIN product_variants pv ON oi.product_variant_id = pv.id
+-- JOIN products p ON pv.product_id = p.id
+-- JOIN vendors v ON p.vendor_id = v.id
+-- WHERE o.shipment_id IS NOT NULL AND o.deleted_at IS NULL AND v.deleted_at IS NULL
+-- GROUP BY v.id, v.store_name
+-- ORDER BY total_shipping_cost DESC;
+
+-- 32. FAILED SHIPMENTS (requires migration 009)
+-- SELECT 
+--     o.id as order_id,
+--     u.email,
+--     o.shipment_id,
+--     o.easyship_rate_id,
+--     o.courier_name,
+--     o.shipment_created_at,
+--     o.shipment_updated_at,
+--     EXTRACT(EPOCH FROM (NOW() - o.shipment_updated_at)) / 3600 as hours_since_failure
+-- FROM orders o
+-- LEFT JOIN users u ON o.user_id = u.id
+-- WHERE o.shipment_status = 'failed' AND o.deleted_at IS NULL
+-- ORDER BY o.shipment_updated_at DESC;
+
+-- 33. DELIVERY PERFORMANCE METRICS (requires migration 009)
+-- SELECT 
+--     COUNT(DISTINCT o.id) as total_delivered,
+--     ROUND(AVG(EXTRACT(EPOCH FROM (o.shipment_updated_at - o.shipment_created_at)) / 86400)::numeric, 1) as avg_days_to_delivery,
+--     MIN(EXTRACT(EPOCH FROM (o.shipment_updated_at - o.shipment_created_at)) / 86400) as fastest_delivery_days,
+--     MAX(EXTRACT(EPOCH FROM (o.shipment_updated_at - o.shipment_created_at)) / 86400) as slowest_delivery_days,
+--     COUNT(*) FILTER (WHERE EXTRACT(EPOCH FROM (o.shipment_updated_at - o.shipment_created_at)) / 86400 <= 3) as delivered_within_3_days,
+--     COUNT(*) FILTER (WHERE EXTRACT(EPOCH FROM (o.shipment_updated_at - o.shipment_created_at)) / 86400 > 7) as delayed_over_7_days
+-- FROM orders o
+-- WHERE o.shipment_status = 'delivered' AND o.deleted_at IS NULL;
+
+-- 34. SHIPMENT BY COURIER PERFORMANCE (requires migration 009)
+-- SELECT 
+--     o.courier_name,
+--     COUNT(DISTINCT o.id) as total_shipments,
+--     COUNT(*) FILTER (WHERE o.shipment_status = 'delivered') as delivered,
+--     COUNT(*) FILTER (WHERE o.shipment_status = 'failed') as failed,
+--     COUNT(*) FILTER (WHERE o.shipment_status = 'in_transit') as in_transit,
+--     ROUND((COUNT(*) FILTER (WHERE o.shipment_status = 'delivered')::float / COUNT(DISTINCT o.id) * 100)::numeric, 2) as delivery_rate_percent,
+--     AVG(o.shipping_cost_snapshot)::numeric(12,2) as avg_cost
+-- FROM orders o
+-- WHERE o.shipment_id IS NOT NULL AND o.deleted_at IS NULL
+-- GROUP BY o.courier_name
+-- ORDER BY total_shipments DESC;
+
+-- 35. UNSHIPPED ORDERS (requires migration 009)
+-- SELECT 
+--     o.id as order_id,
+--     u.email,
+--     o.created_at as order_created,
+--     EXTRACT(EPOCH FROM (NOW() - o.created_at)) / 86400 as days_since_order,
+--     o.status as order_status,
+--     o.total,
+--     COUNT(DISTINCT oi.id) as item_count
+-- FROM orders o
+-- LEFT JOIN users u ON o.user_id = u.id
+-- LEFT JOIN order_items oi ON o.id = oi.order_id
+-- WHERE (o.shipment_id IS NULL OR o.shipment_status = 'pending') 
+--   AND o.status != 'cancelled'
+--   AND o.deleted_at IS NULL
+-- GROUP BY o.id, u.email, o.created_at, o.status, o.total
+-- ORDER BY o.created_at ASC;
+
+-- ==================== FUTURE MIGRATIONS (010+) ====================
+-- Webhook Event Tracking & Deduplication
+-- Available after: Migration 010_add_webhook_events.sql
+
+-- 36. WEBHOOK EVENTS SUMMARY (requires migration 010)
+-- SELECT 
+--     provider,
+--     event_type,
+--     COUNT(*) as total_events,
+--     COUNT(*) FILTER (WHERE status = 'processed') as processed,
+--     COUNT(*) FILTER (WHERE status = 'pending') as pending,
+--     COUNT(*) FILTER (WHERE status = 'failed') as failed,
+--     MAX(created_at) as latest_event,
+--     AVG(retry_count)::numeric(4,2) as avg_retries
+-- FROM webhook_events
+-- GROUP BY provider, event_type
+-- ORDER BY provider, total_events DESC;
+
+-- 37. FAILED WEBHOOK EVENTS (requires migration 010)
+-- SELECT 
+--     we.id,
+--     we.provider,
+--     we.event_id,
+--     we.event_type,
+--     we.shipment_id,
+--     o.id as order_id,
+--     we.error_message,
+--     we.retry_count,
+--     we.created_at,
+--     we.updated_at
+-- FROM webhook_events we
+-- LEFT JOIN orders o ON we.order_id = o.id
+-- WHERE we.status = 'failed'
+-- ORDER BY we.updated_at DESC
+-- LIMIT 100;
+
+-- 38. WEBHOOK EVENT PROCESSING LATENCY (requires migration 010)
+-- SELECT 
+--     provider,
+--     event_type,
+--     COUNT(*) as total_processed,
+--     ROUND(AVG(EXTRACT(EPOCH FROM (processed_at - created_at)))::numeric, 2) as avg_processing_seconds,
+--     ROUND(MIN(EXTRACT(EPOCH FROM (processed_at - created_at)))::numeric, 2) as min_processing_seconds,
+--     ROUND(MAX(EXTRACT(EPOCH FROM (processed_at - created_at)))::numeric, 2) as max_processing_seconds
+-- FROM webhook_events
+-- WHERE status = 'processed' AND processed_at IS NOT NULL
+-- GROUP BY provider, event_type
+-- ORDER BY avg_processing_seconds DESC;
+
+-- 39. WEBHOOK EVENT RETRY ANALYSIS (requires migration 010)
+-- SELECT 
+--     provider,
+--     COUNT(*) as total_events,
+--     ROUND(AVG(retry_count)::numeric, 2) as avg_retries,
+--     MAX(retry_count) as max_retries,
+--     COUNT(*) FILTER (WHERE retry_count > 0) as events_requiring_retry,
+--     COUNT(*) FILTER (WHERE retry_count > 5) as excessive_retries
+-- FROM webhook_events
+-- GROUP BY provider
+-- ORDER BY excessive_retries DESC;
+
+-- ==================== FUTURE MIGRATIONS (011+) ====================
+-- Authentication & Vendor Onboarding Enhancements
+-- Available after: Migration 011_auth_enhancements.sql
+
+-- 40. VENDOR APPLICATIONS PIPELINE (requires migration 011)
+-- SELECT 
+--     status,
+--     COUNT(*) as application_count,
+--     ROUND(AVG(EXTRACT(EPOCH FROM (reviewed_at - created_at)) / 86400)::numeric, 1) as avg_days_to_review,
+--     STRING_AGG(DISTINCT contact_person, ', ') as applicants,
+--     MIN(created_at) as earliest_app,
+--     MAX(created_at) as latest_app
+-- FROM vendor_applications
+-- GROUP BY status
+-- ORDER BY application_count DESC;
+
+-- 41. VENDOR ONBOARDING PROGRESS (requires migration 011)
+-- SELECT 
+--     vo.vendor_id,
+--     v.store_name,
+--     vo.current_step,
+--     vo.onboarding_completed,
+--     ROUND(((
+--         (CASE WHEN vo.profile_completed THEN 1 ELSE 0 END) +
+--         (CASE WHEN vo.branding_completed THEN 1 ELSE 0 END) +
+--         (CASE WHEN vo.payment_completed THEN 1 ELSE 0 END) +
+--         (CASE WHEN vo.shipping_completed THEN 1 ELSE 0 END) +
+--         (CASE WHEN vo.policies_completed THEN 1 ELSE 0 END) +
+--         (CASE WHEN vo.first_product_added THEN 1 ELSE 0 END) +
+--         (CASE WHEN vo.training_completed THEN 1 ELSE 0 END)
+--     ) / 7.0 * 100)::numeric, 1) as completion_percentage,
+--     vo.completed_at,
+--     EXTRACT(EPOCH FROM (NOW() - vo.created_at)) / 86400 as days_since_onboarding_start
+-- FROM vendor_onboarding vo
+-- JOIN vendors v ON vo.vendor_id = v.id
+-- ORDER BY vo.onboarding_completed, completion_percentage DESC;
+
+-- 42. ACTIVE USER SESSIONS (requires migration 011)
+-- SELECT 
+--     u.email,
+--     u.role,
+--     COUNT(DISTINCT us.id) as active_sessions,
+--     MAX(us.last_activity) as last_active,
+--     STRING_AGG(DISTINCT us.device_info->>'device_type', ', ') as devices,
+--     MIN(us.created_at) as oldest_session_created,
+--     MAX(us.expires_at) as latest_expiration
+-- FROM user_sessions us
+-- JOIN users u ON us.user_id = u.id
+-- WHERE us.expires_at > NOW() AND u.deleted_at IS NULL
+-- GROUP BY u.id, u.email, u.role
+-- ORDER BY last_active DESC;
+
+-- 43. PASSWORD RESET REQUEST ANALYSIS (requires migration 011)
+-- SELECT 
+--     DATE(created_at) as reset_date,
+--     COUNT(*) as reset_requests,
+--     COUNT(*) FILTER (WHERE used_at IS NOT NULL) as completed,
+--     COUNT(*) FILTER (WHERE used_at IS NULL AND expires_at > NOW()) as pending,
+--     COUNT(*) FILTER (WHERE expires_at < NOW() AND used_at IS NULL) as expired
+-- FROM password_reset_tokens
+-- GROUP BY DATE(created_at)
+-- ORDER BY reset_date DESC;
+
+-- 44. EMAIL VERIFICATION STATUS (requires migration 011)
+-- SELECT 
+--     u.role,
+--     COUNT(DISTINCT u.id) as total_users,
+--     COUNT(DISTINCT u.id) FILTER (WHERE u.email_verified) as verified,
+--     COUNT(DISTINCT u.id) FILTER (WHERE NOT u.email_verified) as unverified,
+--     COUNT(DISTINCT ev.id) as pending_verifications,
+--     ROUND((COUNT(DISTINCT u.id) FILTER (WHERE u.email_verified)::float / COUNT(DISTINCT u.id) * 100)::numeric, 2) as verification_rate_percent
+-- FROM users u
+-- LEFT JOIN email_verifications ev ON u.id = ev.user_id AND ev.verified_at IS NULL AND ev.expires_at > NOW()
+-- WHERE u.deleted_at IS NULL
+-- GROUP BY u.role
+-- ORDER BY u.role;

@@ -10,6 +10,8 @@ import {
   selectUserError,
   selectUserIsLoading,
 } from '@/features/user/userSelectors';
+import { EmptyState, ErrorState } from '@/components/common/AsyncState';
+import { TextBlockSkeleton } from '@/components/common/Skeleton';
 
 const initialForm = {
   type: 'shipping',
@@ -135,8 +137,12 @@ export default function Addresses() {
         </button>
       </form>
 
-      {isLoading && <p className="mt-4 text-sm text-muted-foreground">Loading addresses...</p>}
-      {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+      {isLoading && (
+        <div className="mt-4">
+          <TextBlockSkeleton />
+        </div>
+      )}
+      {error && <ErrorState className="mt-4" title="Failed to load addresses" message={error} onRetry={() => dispatch(fetchAddressesThunk())} />}
 
       <div className="mt-6 space-y-3">
         {addresses.map((address) => (
@@ -163,7 +169,10 @@ export default function Addresses() {
           </div>
         ))}
         {!addresses.length && !isLoading && (
-          <p className="text-sm text-muted-foreground">No saved addresses.</p>
+          <EmptyState
+            title="No saved addresses"
+            message="Add a shipping or billing address to speed up checkout."
+          />
         )}
       </div>
     </div>

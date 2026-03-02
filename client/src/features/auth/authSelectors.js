@@ -6,12 +6,11 @@ export const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
 
 export const selectIsLoading = (state) => state.auth.isLoading;
 
-export const selectAuthError = (state) => state.auth.error;
+// Alias for compatibility
+export const selectAuthLoading = (state) => state.auth.isLoading;
 
-export const selectUserRole = (state) => state.auth.user?.role || null;
+export const selectError = (state) => state.auth.error;
+export const selectUserRole = (state) => state.auth.user?.role;
 
-export const selectIsAdmin = (state) => state.auth.user?.role === 'admin';
-
-export const selectIsVendor = (state) => state.auth.user?.role === 'vendor';
-
+// Alias for compatibility
 export const selectIsCustomer = (state) => state.auth.user?.role === 'customer';

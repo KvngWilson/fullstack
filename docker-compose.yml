@@ -1,16 +1,3 @@
-# Full-Stack E-Commerce Application
-# Docker Compose Configuration for Development and Production
-#
-# Services:
-#  - postgres: PostgreSQL database (v16)
-#  - redis: Redis cache/session store (v7)
-#  - server: Node.js Express API server
-#  - client: React frontend served via Nginx
-#
-# Usage:
-#   docker compose up          # Start all services
-#   docker compose down        # Stop all services
-#   docker compose logs -f     # View logs
 services:
   # PostgreSQL Database
   postgres:
@@ -68,19 +55,19 @@ services:
     networks:
       - fullstack-network
 
-  # Node.js API Server
+  # Node.js API Server (primary)
   server:
     build:
       context: ./server
       dockerfile: Dockerfile
       args:
         NODE_ENV: ${NODE_ENV:-production}
-    container_name: fullstack-server
+    container_name: fullstack-server-1
     labels:
       description: "Node.js Express API server"
       version: "1.0.0"
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 5000
 
       # Database Configuration
@@ -109,8 +96,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    ports:
-      - "5000:5000"
+    expose:
+      - "5000"
     volumes:
       - ./server/logs:/app/logs
       - ./server/uploads:/app/uploads
@@ -125,12 +112,102 @@ services:
           "--quiet",
           "--tries=1",
           "--spider",
-          "http://localhost:5000/api/v1/health",
+          "http://localhost:5000/health/live",
         ]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 40s
+
+  # Node.js API Server (replica)
+  server-replica:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV:-production}
+    container_name: fullstack-server-2
+    labels:
+      description: "Node.js Express API server replica"
+      version: "1.0.0"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 5000
+
+      # Database Configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-ecommerce_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+
+      # Redis Configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_1234567890}
+
+      # Security
+      JWT_SECRET: ${JWT_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      SESSION_SECRET: ${SESSION_SECRET:-abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789}
+
+      # Application
+      APP_URL: ${APP_URL:-http://localhost:5000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - "5000"
+    volumes:
+      - ./server/logs:/app/logs
+      - ./server/uploads:/app/uploads
+    restart: unless-stopped
+    networks:
+      - fullstack-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:5000/health/live",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  # NGINX reverse proxy and load balancer for backend APIs
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fullstack-gateway
+    labels:
+      description: "NGINX reverse proxy and load balancer"
+    depends_on:
+      server:
+        condition: service_healthy
+      server-replica:
+        condition: service_healthy
+    ports:
+      - "5000:80"
+    restart: unless-stopped
+    networks:
+      - fullstack-network
+    healthcheck:
+      test:
+        ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   # React Frontend
   client:
@@ -145,7 +222,7 @@ services:
       description: "React frontend application via Nginx"
       version: "1.0.0"
     depends_on:
-      server:
+      gateway:
         condition: service_healthy
     ports:
       - "3000:80"

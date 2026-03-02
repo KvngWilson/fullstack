@@ -12,6 +12,9 @@ import {
   selectProductsIsLoading,
 } from '@/features/products/productsSelectors';
 import WishlistButton from '@/components/product/WishlistButton';
+import { ProductGridSkeleton } from '@/components/common/Skeleton';
+import { ErrorState } from '@/components/common/AsyncState';
+import { notifyInfo } from '@/utils/toast';
 
 const fallbackCategories = [
   { name: 'Grocery', slug: 'grocery', image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=200&q=80' },
@@ -71,6 +74,12 @@ export default function Home() {
     dispatch(fetchCategoriesThunk());
   }, [dispatch]);
 
+  const handleRetryFeatured = () => {
+    notifyInfo('Retrying featured products...');
+    dispatch(fetchFeaturedProductsThunk(8));
+    dispatch(fetchCategoriesThunk());
+  };
+
   const displayCategories = categories.length
     ? categories.map((category) => ({
         name: category.name,
@@ -107,6 +116,8 @@ export default function Home() {
           image: 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=600&q=80',
         },
       ];
+
+  const shouldShowProductSkeleton = isLoading && !featuredProducts.length;
 
   return (
     <div className="landing-surface">
@@ -188,33 +199,43 @@ export default function Home() {
           <Link to="/products" className="btn-ghost">View all</Link>
         </div>
 
-        {isLoading && <p className="mt-4 text-sm text-muted-foreground">Loading featured products...</p>}
-        {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
-
-        <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {displayProducts.map((product) => (
-            <Link key={product.id} to={`/products/${product.id}`} className="product-card">
-              <div className="product-image relative">
-                <img
-                  src={product.image || promoTiles[0].image}
-                  alt={product.name}
-                  className="h-full w-full object-cover"
-                />
-                <div className="absolute right-2 top-2">
-                  <WishlistButton productId={product.id} size="sm" />
+        {shouldShowProductSkeleton ? (
+          <div className="mt-6">
+            <ProductGridSkeleton count={4} />
+          </div>
+        ) : error ? (
+          <ErrorState
+            title="Could not load featured products"
+            message={error}
+            onRetry={handleRetryFeatured}
+            className="mt-6"
+          />
+        ) : (
+          <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {displayProducts.map((product) => (
+              <Link key={product.id} to={`/products/${product.id}`} className="product-card">
+                <div className="product-image relative">
+                  <img
+                    src={product.image || promoTiles[0].image}
+                    alt={product.name}
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute right-2 top-2">
+                    <WishlistButton productId={product.id} size="sm" />
+                  </div>
                 </div>
-              </div>
-              <div className="mt-4">
-                <p className="text-sm font-semibold text-foreground">{product.name}</p>
-                <p className="mt-1 text-sm text-muted-foreground">${product.base_price ?? product.price ?? 0}</p>
-                <div className="mt-3 flex items-center justify-between">
-                  <span className="tag-soft">Top pick</span>
-                  <button className="btn-primary px-4 py-2 text-xs">Add to cart</button>
+                <div className="mt-4">
+                  <p className="text-sm font-semibold text-foreground">{product.name}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">${product.base_price ?? product.price ?? 0}</p>
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="tag-soft">Top pick</span>
+                    <button className="btn-primary px-4 py-2 text-xs">Add to cart</button>
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="landing-container section-wrap">

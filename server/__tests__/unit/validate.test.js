@@ -5,7 +5,7 @@ const {
   validateLogin,
   validateAddress,
   validateProduct,
-} = require('../../utils/validate');
+} = require('../../shared/utils/validate');
 
 describe('Validation Utils - Unit Tests', () => {
   describe('validateEmail', () => {

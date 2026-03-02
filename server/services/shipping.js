@@ -1,134 +1,111 @@
-const easyship = require("@api/easyship");
-const logger = require("../utils/logger");
+const easyship = require('@api/easyship');
 
-// Configure Easyship API key from environment
-if (process.env.EASYSHIP_API_KEY) {
-  easyship.auth(process.env.EASYSHIP_API_KEY);
+const DEFAULT_ORIGIN = {
+  country_code: 'US',
+  city: 'San Francisco',
+  postal_code: '94102',
+  state: 'CA',
+};
+
+function mapAddress(address = {}) {
+  return {
+    country_alpha2: address.country_code || address.country || 'US',
+    city: address.city || '',
+    postal_code: address.postal_code || '',
+    state: address.state || '',
+  };
 }
 
-/**
- * Calculate shipping rates for a given order
- * @param {Object} params - Shipping parameters
- * @param {Object} params.destination - Destination address
- * @param {Array} params.items - Array of items to ship
- * @param {Object} params.origin - Origin address
- * @returns {Promise<Object>} Shipping rates and options
- */
-const calculateShippingRates = async (params) => {
-  try {
-    const { destination, items, origin } = params;
+function mapItem(item = {}) {
+  return {
+    description: item.description || 'Product Item',
+    quantity: item.quantity || 1,
+    actual_weight: item.weight ?? 0.5,
+    declared_customs_value: item.value ?? 0,
+    category: item.category || 'general',
+    height: item.height ?? 10,
+    width: item.width ?? 10,
+    length: item.length ?? 10,
+  };
+}
 
-    const requestPayload = {
-      destination_address: {
-        country_alpha2: destination.country_code || "US",
-        city: destination.city,
-        postal_code: destination.postal_code,
-        state: destination.state,
-      },
-      origin_address: {
-        country_alpha2: origin?.country_code || "US",
-        city: origin?.city,
-        postal_code: origin?.postal_code,
-        state: origin?.state,
-      },
-      incoterms: "DDU", // Delivered Duty Unpaid
-      insurance: { is_insured: false },
-      courier_settings: {
-        show_courier_logo_url: true,
-        apply_shipping_rules: true,
-      },
-      shipping_settings: {
-        units: { weight: "kg", dimensions: "cm" },
-      },
+async function calculateShippingRates(params = {}) {
+  try {
+    const destination = params.destination || {};
+    const origin = params.origin || DEFAULT_ORIGIN;
+    const items = Array.isArray(params.items) ? params.items : [];
+
+    const payload = {
+      destination_address: mapAddress(destination),
+      origin_address: mapAddress(origin),
       parcels: [
         {
-          items: items.map((item) => ({
-            actual_weight: item.weight || 0.5,
-            height: item.height || 10,
-            width: item.width || 10,
-            length: item.length || 10,
-            category: item.category || "general",
-            declared_currency: item.currency || "USD",
-            declared_customs_value: item.value || 0,
-            description: item.description || "Product",
-            quantity: item.quantity || 1,
-            origin_country_alpha2: origin?.country_code || "US",
-          })),
+          box: null,
+          items: items.map(mapItem),
         },
       ],
+      incoterms: 'DDU',
     };
 
-    const { data } = await easyship.rates_request(requestPayload);
+    if (typeof easyship.auth === 'function') {
+      easyship.auth(process.env.EASYSHIP_API_KEY || 'test_key');
+    }
+
+    const response = await easyship.rates_request(payload);
+    const rates = response?.data?.rates || [];
+
     return {
       success: true,
-      rates: data.rates || [],
-      message: "Shipping rates calculated successfully",
+      rates,
+      message: 'Shipping rates retrieved successfully',
     };
   } catch (error) {
-    logger.error("Shipping rate calculation error", { error });
     return {
       success: false,
       rates: [],
-      message: error.message || "Failed to calculate shipping rates",
-      error: error,
+      message: error.message || 'Unable to calculate shipping rates',
     };
   }
-};
+}
 
-/**
- * Get estimated delivery times for shipping options
- * @param {string} countryCode - Destination country code
- * @returns {Promise<Object>} Delivery estimates
- */
-const getDeliveryEstimates = async (countryCode) => {
+async function getDeliveryEstimates(countryCode = 'US') {
   try {
-    // This is a placeholder - implement actual Easyship delivery time API
-    return {
-      success: true,
-      estimates: [
-        { method: "standard", days: "5-7" },
-        { method: "express", days: "2-3" },
-        { method: "overnight", days: "1" },
-      ],
-    };
+    const normalizedCountry = countryCode || 'US';
+    const estimates = [
+      { method: 'standard', min_days: 5, max_days: 8, country: normalizedCountry },
+      { method: 'express', min_days: 2, max_days: 4, country: normalizedCountry },
+      { method: 'overnight', min_days: 1, max_days: 1, country: normalizedCountry },
+    ];
+
+    return { success: true, estimates };
   } catch (error) {
-    logger.error("Delivery estimate error", { error });
-    return {
-      success: false,
-      estimates: [],
-      message: "Failed to get delivery estimates",
-    };
+    return { success: false, estimates: [], message: error.message };
   }
-};
+}
 
-/**
- * Validate shipping address
- * @param {Object} address - Address to validate
- * @returns {Promise<Object>} Validation result
- */
-const validateAddress = async (address) => {
-  try {
-    const required = ["street", "city", "postal_code", "country"];
-    const missing = required.filter((field) => !address[field]);
+async function validateAddress(address = {}) {
+  const safeAddress = address && typeof address === 'object' ? address : {};
+  const requiredFields = ['street', 'city', 'postal_code', 'country'];
+  const missingFields = [];
 
-    if (missing.length > 0) {
-      return {
-        valid: false,
-        message: `Missing required fields: ${missing.join(", ")}`,
-      };
+  for (const field of requiredFields) {
+    if (!safeAddress[field]) {
+      missingFields.push(field);
     }
+  }
 
-    return {
-      valid: true,
-      message: "Address is valid",
-    };
-  } catch (error) {
+  if (missingFields.length > 0) {
     return {
       valid: false,
-      message: "Address validation failed",
+      message: `Address validation failed: missing ${missingFields.join(', ')}`,
     };
   }
-};
+
+  return {
+    valid: true,
+    message: 'Address is valid',
+  };
+}
 
 module.exports = {
   calculateShippingRates,

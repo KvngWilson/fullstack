@@ -8,6 +8,8 @@ import {
   selectOrdersIsLoading,
   selectOrdersPagination,
 } from '@/features/orders/ordersSelectors';
+import { EmptyState, ErrorState } from '@/components/common/AsyncState';
+import { TextBlockSkeleton } from '@/components/common/Skeleton';
 
 export default function Orders() {
   const dispatch = useAppDispatch();
@@ -24,8 +26,13 @@ export default function Orders() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold">Orders</h1>
 
-      {isLoading && <p className="mt-4 text-sm text-muted-foreground">Loading orders...</p>}
-      {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+      {isLoading && (
+        <div className="mt-4 space-y-4">
+          <TextBlockSkeleton />
+          <TextBlockSkeleton />
+        </div>
+      )}
+      {error && <ErrorState className="mt-4" title="Failed to load orders" message={error} onRetry={() => dispatch(fetchOrdersThunk({ page: 1, pageSize: 10 }))} />}
 
       {!isLoading && !error && (
         <div className="mt-4 space-y-3">
@@ -42,7 +49,12 @@ export default function Orders() {
             </Link>
           ))}
 
-          {!orders.length && <p className="text-sm text-muted-foreground">No orders yet.</p>}
+          {!orders.length && (
+            <EmptyState
+              title="No orders yet"
+              message="Your purchases will appear here once you place an order."
+            />
+          )}
 
           {pagination && (
             <p className="text-sm text-muted-foreground">

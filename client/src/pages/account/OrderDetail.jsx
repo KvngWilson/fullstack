@@ -8,6 +8,8 @@ import {
   selectOrdersError,
   selectOrdersIsLoading,
 } from '@/features/orders/ordersSelectors';
+import { EmptyState, ErrorState } from '@/components/common/AsyncState';
+import { TextBlockSkeleton } from '@/components/common/Skeleton';
 
 export default function OrderDetail() {
   const dispatch = useAppDispatch();
@@ -29,8 +31,12 @@ export default function OrderDetail() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold">Order Detail</h1>
 
-      {isLoading && <p className="mt-4 text-sm text-muted-foreground">Loading order...</p>}
-      {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+      {isLoading && (
+        <div className="mt-4">
+          <TextBlockSkeleton />
+        </div>
+      )}
+      {error && <ErrorState className="mt-4" title="Failed to load order" message={error} onRetry={() => dispatch(fetchOrderByIdThunk(Number(id)))} />}
 
       {!isLoading && !error && order && (
         <div className="mt-4 rounded-md border p-4">
@@ -61,7 +67,7 @@ export default function OrderDetail() {
       )}
 
       {!isLoading && !error && !order && (
-        <p className="mt-4 text-sm text-muted-foreground">Order not found.</p>
+        <EmptyState title="Order not found" message="We couldn’t find this order in your account." className="mt-4" />
       )}
     </div>
   );

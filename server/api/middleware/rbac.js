@@ -1,6 +1,10 @@
 const { pool } = require("../../config/db");
-const { logger } = require("../../utils/logger");
+const { logger } = require("../../shared/utils/logger");
 
+/**
+ * Permission Checker.
+ * Resolves employee permissions from roles and overrides.
+ */
 class PermissionChecker {
   /**
    * Get all permissions for an employee

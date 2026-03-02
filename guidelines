@@ -1,215 +1,274 @@
+1️⃣ Architecture Context
 
+Stack: PERN
 
-🧱 Tech Stack
+Frontend: React (Specify: Vite / CRA / Next.js custom server / SSR hybrid)
 
-React + Vite + TypeScript
+Backend: Express REST API
 
-TailwindCSS
+Database: PostgreSQL
 
-React Router
+Auth: (JWT? Cookies? Sessions?)
 
-Axios
+State Management: (Context / Redux / RTK Query / Zustand / React Query)
 
-Zustand (or Redux Toolkit)
+Deployment: (Docker? Nginx? VPS? Cloud?)
 
-React Hook Form + Zod
+🔎 Review Scope
+A. Frontend Architecture & Scalability
 
-TanStack Table
+Evaluate:
 
-Headless UI / Radix UI
+Folder structure (feature-based vs layer-based)
 
-Stripe.js
+API service abstraction (axios wrapper? fetch wrapper?)
 
-🎯 UI Goals
+Separation between:
 
-Professional marketplace look (Amazon / Faire / Alibaba style)
+UI components
 
-Component reusability
+Business logic
 
-Mobile-first responsive design
+API layer
 
-Loading states, skeletons, error states
+Hooks
 
-Accessible UI (ARIA, keyboard nav)
+Utilities
 
-Clean layout and spacing
+Reusability of shared components
 
-Optimized rendering and state management
+Multi-tenant readiness (if applicable)
 
-🗂️ Required Pages
-/                → Home
-/products        → Product listing
-/products/:slug  → Product details
-/cart
-/checkout
-/account
-/account/orders
-/login
-/register
-/vendor/:id      → Vendor store page
+RBAC-aware UI rendering
 
-🧩 Core Features to Implement
-1. Layout
+Layout composition (Admin vs Storefront isolation)
 
-Header with search bar, cart icon, account menu
+Deliver:
 
-Category mega-menu
+Identified anti-patterns
 
-Footer
+Suggested ideal folder structure (tree format)
 
-Reusable page container
+Refactor recommendations
 
-2. Home Page
+B. Data Fetching Strategy (Critical in PERN)
 
-Hero banner
+Audit:
 
-Featured categories
+API request duplication
 
-Featured products
+Waterfall requests
 
-Vendor highlights
+Over-fetching
 
-3. Product Listing Page
+Lack of pagination
 
-Sidebar filters:
+N+1 frontend request patterns
 
-Category
+Client-side filtering instead of server-side filtering
 
-Price range
+Missing caching strategy
 
-Rating
+If using:
 
-Vendor
+React Query → evaluate staleTime, cacheTime, invalidation
 
-Sorting dropdown
+Redux → evaluate normalization
 
-Pagination
+Context → evaluate re-render scope
 
-Product cards grid
+Deliver:
 
-4. Product Details Page
+Performance bottlenecks
 
-Image gallery
+Concrete improvement patterns
 
-Variant selector (size, color)
+Suggested caching strategy
 
-Price, stock
+C. Authentication & Security (PERN-Specific)
 
-Add to cart
+Audit:
 
-Reviews section
+Where JWT is stored (localStorage vs httpOnly cookies)
 
-Related products
+CSRF protection (if cookies)
 
-5. Cart
+XSS exposure risks
 
-Update quantity
+Sensitive data leakage in Redux/store
 
-Remove items
+Role-based UI enforcement vs backend enforcement
 
-Variant display
+Token refresh flow robustness
 
-Cart summary
+Logout invalidation behavior
 
-6. Checkout
+Deliver:
 
-Shipping form with validation
+Security severity rating
 
-Order summary
+Mitigation strategies
 
-Stripe payment button
+Recommended token architecture
 
-7. Account
+D. Performance Engineering
 
-Profile info
+Evaluate:
 
-Order history
+Bundle size
 
-Order details page
+Code splitting
 
-🧱 Component Architecture
+Lazy loading (routes + heavy components)
 
-Create reusable components:
+Suspense usage
 
-ProductCard
+Memoization misuse
 
-ProductGrid
+Context over-rendering
 
-FilterSidebar
+React reconciliation inefficiencies
 
-SearchBar
+Key stability in list rendering
 
-VariantSelector
+Large product list rendering (virtualization?)
 
-CartItem
+Evaluate storefront specifically:
 
-OrderSummary
+Product grid performance
 
-RatingStars
+Image loading strategy
 
-SkeletonLoader
+CLS risk
 
-Pagination
+LCP optimization
 
-🌐 API Integration Pattern
+Deliver:
 
-Central Axios client
+Measurable optimizations
 
-API service layer
+Web Vitals improvement strategy
 
-Loading & error handling
+Optimization roadmap
 
-Auth token handling
+E. Cart & Checkout System
 
-Persist cart (localStorage for guests, API for users)
+Audit:
 
-🎨 UX Requirements
+Cart state persistence (localStorage? server sync?)
 
-Toast notifications
+Race conditions in cart updates
 
-Skeleton loading
+Optimistic UI updates
+
+Inventory sync validation
+
+Duplicate checkout prevention
+
+Idempotent order submission
+
+Error handling UX
+
+Deliver:
+
+Failure scenario analysis
+
+Robust checkout architecture proposal
+
+F. Admin / Vendor Dashboard (If Exists)
+
+Evaluate:
+
+Data table performance
+
+Pagination implementation
+
+Filtering logic
+
+RBAC enforcement
+
+Tenant isolation
+
+Chart rendering performance
+
+Large dataset handling
+
+Deliver:
+
+Scalability risks
+
+Recommended patterns (cursor pagination, server filtering)
+
+G. Database Interaction Awareness (Frontend Perspective)
+
+Even though this is frontend:
+
+Are queries designed to support efficient UI rendering?
+
+Does the frontend force inefficient joins?
+
+Is sorting done server-side?
+
+Are aggregates fetched efficiently?
+
+Identify:
+
+API contract improvements needed for optimal UI performance
+
+H. Error Handling & UX Resilience
+
+Audit:
+
+Global error boundary
+
+API error normalization
+
+Loading states (skeleton vs spinner)
+
+Retry logic
+
+Network failure handling
 
 Empty states
 
-Form validation errors
+Accessibility compliance
 
-Disabled states
+Deliver:
 
-Mobile drawer for filters
+UX gaps
 
-📁 Folder Structure
-src/
- ├── components/
- ├── pages/
- ├── layouts/
- ├── store/
- ├── services/
- ├── hooks/
- ├── types/
- └── utils/
+Production-hardening suggestions
 
-📦 Deliverables
+📊 Required Output Format
 
-Generate step-by-step:
+Structure your audit exactly as:
 
-Folder structure
+Executive Summary
 
-Layout (header, footer)
+Critical High-Severity Issues
 
-Home page
+Medium Priority Issues
 
-Product listing page
+Performance Optimization Plan (Phased)
 
-Product details page
+Security Hardening Plan
 
-Cart
+Architectural Refactor Proposal
 
-Checkout
+Ideal Frontend Folder Structure (Tree Format)
 
-Account pages
+Technical Scorecard:
 
-API service layer
+Architecture
 
-Run instructions
+Performance
 
-Output code in phases, not all at once.
+Security
+
+Maintainability
+
+Scalability
+
+Be specific. Reference likely code patterns. Provide improved code snippets where relevant.
+
+Avoid generic frontend advice.

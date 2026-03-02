@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/store';
 import {
   fetchWishlistThunk,
@@ -13,9 +13,12 @@ import {
 } from '@/features/wishlist/wishlistSelectors';
 import { addToCartThunk } from '@/features/cart/cartThunks';
 import { Trash2, ShoppingCart } from 'lucide-react';
+import { EmptyState, ErrorState } from '@/components/common/AsyncState';
+import { ProductGridSkeleton } from '@/components/common/Skeleton';
 
 export default function Wishlist() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const items = useAppSelector(selectWishlistItems);
   const isLoading = useAppSelector(selectWishlistIsLoading);
   const error = useAppSelector(selectWishlistError);
@@ -57,28 +60,25 @@ export default function Wishlist() {
       </div>
 
       {isLoading && (
-        <div className="flex justify-center py-12">
-          <p className="text-muted-foreground">Loading wishlist...</p>
+        <div className="py-6">
+          <ProductGridSkeleton count={4} />
         </div>
       )}
 
       {error && (
-        <div className="rounded-md border border-destructive bg-destructive/10 p-4 text-sm text-destructive">
-          {error}
-        </div>
+        <ErrorState title="Failed to load wishlist" message={error} onRetry={() => dispatch(fetchWishlistThunk())} />
       )}
 
       {!isLoading && !error && (
         <>
           {items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="mb-4 text-6xl text-gray-300">♡</div>
-              <h2 className="mb-2 text-2xl font-semibold">Your wishlist is empty</h2>
-              <p className="mb-6 text-gray-600">Start adding products you love!</p>
-              <Link to="/products" className="btn-primary">
-                Browse Products
-              </Link>
-            </div>
+            <EmptyState
+              className="py-16"
+              title="Your wishlist is empty"
+              message="Start adding products you love."
+              actionLabel="Browse products"
+              onAction={() => navigate('/products')}
+            />
           ) : (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {items.map((item) => (

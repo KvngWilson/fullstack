@@ -21,6 +21,10 @@ const parsePagination = (query) => {
   return { page, pageSize, offset };
 };
 
+/**
+ * Admin Dashboard Service.
+ * Aggregates overview stats, user management, and order analytics.
+ */
 class AdminDashboardService {
   async getOverview() {
     const [totalsResult, orderStatusResult, recentOrdersResult, recentUsersResult] =

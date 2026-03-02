@@ -42,8 +42,6 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 RUN chown -R nginx:nginx /usr/share/nginx/html /etc/nginx /var/cache/nginx && \
     chmod -R 755 /usr/share/nginx/html
 
-USER nginx
-
 EXPOSE 80
 
 # Health check

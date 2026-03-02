@@ -13,6 +13,8 @@ import {
   removeFromCartThunk,
   updateCartItemThunk,
 } from '@/features/cart/cartThunks';
+import { EmptyState, ErrorState } from '@/components/common/AsyncState';
+import { TextBlockSkeleton } from '@/components/common/Skeleton';
 
 export default function Cart() {
   const dispatch = useAppDispatch();
@@ -87,8 +89,13 @@ export default function Cart() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold">Cart</h1>
 
-      {isLoading && <p className="mt-4 text-sm text-muted-foreground">Loading cart...</p>}
-      {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+      {isLoading && (
+        <div className="mt-6 space-y-4">
+          <TextBlockSkeleton />
+          <TextBlockSkeleton />
+        </div>
+      )}
+      {error && <ErrorState className="mt-4" title="Failed to load cart" message={error} onRetry={() => dispatch(fetchCartThunk())} />}
 
       {!isLoading && !error && (
         <>
@@ -128,7 +135,15 @@ export default function Cart() {
             ))}
           </div>
 
-          {!items.length && <p className="mt-4 text-sm text-muted-foreground">Your cart is empty.</p>}
+          {!items.length && (
+            <EmptyState
+              className="mt-4"
+              title="Your cart is empty"
+              message="Add some products to continue to checkout."
+              actionLabel="Browse products"
+              onAction={() => navigate('/products')}
+            />
+          )}
 
           <div className="mt-6 rounded-md border p-4">
             <p className="font-medium">Subtotal: ${subtotal ?? 0}</p>

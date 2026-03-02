@@ -1,10 +1,23 @@
 import axios from 'axios';
+import { createAuthInterceptor } from './interceptors/auth';
+import { csrfInterceptor } from './interceptors/csrf';
+import { errorInterceptor } from './interceptors/errors';
+import { requestCacheInterceptor } from './requestCache';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1';
 
 /**
- * Axios instance with interceptors
+ * Create Axios instance with secure configuration
+ * 
+ * Security Features:
+ * ✅ httpOnly cookies for token storage (not localStorage)
+ * ✅ CSRF protection with automatic token injection
+ * ✅ Automatic token refresh on 401
+ * ✅ Request deduplication for GET requests
+ * ✅ Unified error handling
+ * 
+ * Do NOT store tokens in localStorage - they will be in httpOnly cookies automatically
  */
 const apiClient = axios.create({
   baseURL: `${API_URL}/api/${API_VERSION}`,
@@ -12,78 +25,77 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // ✅ CRITICAL: Enable cookie sending with requests
+  withCredentials: true,
 });
 
 /**
- * Request interceptor - Add auth token
+ * Request Interceptor Chain
  */
+// 1. Request deduplication (prevents duplicate GET calls)
 apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
+  requestCacheInterceptor.request,
+  (error) => Promise.reject(error)
+);
 
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+// 2. CSRF token injection for POST/PUT/PATCH/DELETE
+apiClient.interceptors.request.use(
+  csrfInterceptor.request,
+  (error) => Promise.reject(error)
+);
 
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
+// 3. Auth token and refresh logic (handled via cookies, but manages refresh)
+const authInterceptor = createAuthInterceptor(apiClient);
+apiClient.interceptors.request.use(
+  authInterceptor.request,
+  (error) => Promise.reject(error)
 );
 
 /**
- * Response interceptor - Handle errors globally
+ * Response Interceptor Chain
  */
+// 1. Auth token refresh and retry logic
 apiClient.interceptors.response.use(
-  (response) => {
-    return response.data; // Return only data
-  },
-  (error) => {
-    // Handle 401 Unauthorized - logout user
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      window.location.href = '/login';
-    }
+  authInterceptor.response,
+  authInterceptor.error
+);
 
-    // Handle 403 Forbidden
-    if (error.response?.status === 403) {
-      console.error('Access denied:', error.response.data);
-    }
+// 2. Cache update on successful responses
+apiClient.interceptors.response.use(
+  requestCacheInterceptor.response,
+  requestCacheInterceptor.error
+);
 
-    // Handle network errors
-    if (!error.response) {
-      console.error('Network error:', error.message);
-      return Promise.reject(new Error('Network error. Please check your connection.'));
-    }
+// 3. CSRF token rotation (if server sends new token)
+apiClient.interceptors.response.use(
+  csrfInterceptor.response,
+  csrfInterceptor.error
+);
 
-    // Return formatted error
-    const errorMessage = error.response.data?.error || 'An error occurred';
-    return Promise.reject(new Error(errorMessage));
-  }
+// 4. Error normalization
+apiClient.interceptors.response.use(
+  (response) => response.data, // Return only data
+  errorInterceptor.error
 );
 
 export default apiClient;
 
 /**
- * Helper function for file uploads
+ * Upload client for file uploads with same security
  */
 export const uploadClient = axios.create({
   baseURL: `${API_URL}/api/${API_VERSION}`,
   timeout: 60000, // 1 minute for uploads
-  headers: {
-    'Content-Type': 'multipart/form-data',
-  },
+  withCredentials: true,
 });
 
-// Add auth interceptor to upload client
-uploadClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+// Apply same interceptor chain to upload client
+uploadClient.interceptors.request.use(
+  csrfInterceptor.request,
+  (error) => Promise.reject(error)
+);
 
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  return config;
-});
+uploadClient.interceptors.response.use(
+  (response) => response.data,
+  errorInterceptor.error
+);

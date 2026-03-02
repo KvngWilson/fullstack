@@ -6,9 +6,18 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "jest --coverage",
-    "migrate": "node -e \"require('dotenv').config(); require('./utils/migrationRunner').runMigrations().then(() => process.exit(0)).catch(err => { console.error(err); process.exit(1); })\"",
-    "migrate:rollback": "node -e \"require('dotenv').config(); require('./utils/migrationRunner').rollbackMigration().then(() => process.exit(0)).catch(err => { console.error(err); process.exit(1); })\""
+    "test": "jest",
+    "test:unit": "jest tests/unit --config=jest.config.prod.js --coverage",
+    "test:integration": "jest tests/integration --config=jest.config.prod.js --coverage",
+    "test:e2e": "jest tests/e2e --config=jest.config.prod.js --coverage",
+    "test:security": "jest tests/security --config=jest.config.prod.js --coverage",
+    "test:all": "jest tests/unit tests/integration tests/e2e tests/security --config=jest.config.prod.js --coverage",
+    "test:coverage": "jest tests/unit tests/integration tests/e2e tests/security --config=jest.config.prod.js --coverage --collectCoverageFrom='src/**/*.js' --collectCoverageFrom='!src/**/*.test.js' --collectCoverageFrom='!src/**/index.js'",
+    "test:debug": "DEBUG_TESTS=true jest --config=jest.config.prod.js --no-coverage",
+    "test:watch": "jest tests/unit --config=jest.config.prod.js --watch",
+    "migrate": "node scripts/migrate.js pending",
+    "migrate:initial": "node scripts/migrate.js initial",
+    "migrate:rollback": "node scripts/migrate.js rollback"
   },
   "keywords": [],
   "author": "",
@@ -39,13 +48,14 @@
     "redis": "^5.10.0",
     "stripe": "^20.1.0",
     "swagger-ui-express": "^5.0.1",
-    "uuid": "^13.0.0",
+    "uuid": "^8.3.2",
     "vhost": "^3.0.2",
     "winston": "^3.19.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "jest": "^29.7.0",
+    "jest-junit": "^16.0.0",
     "nodemon": "^3.1.11",
     "supertest": "^6.3.4"
   }

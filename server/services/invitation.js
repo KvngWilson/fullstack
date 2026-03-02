@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const { pool } = require("../config/db");
-const { logger } = require("../utils/logger");
-const { sendEmployeeInvitation } = require("../infrastructure/email/email");
+const { logger } = require("../shared/utils/logger");
+const { sendEmailJob } = require("../infrastructure/email/email");
 
 /**
  * Employee Invitation Service
@@ -101,12 +101,16 @@ class InvitationService {
       const invitationUrl = `${process.env.APP_URL || "http://localhost:5000"}/api/v1/employees/accept-invitation?token=${token}`;
       
       try {
-        await sendEmployeeInvitation({
+        await sendEmailJob({
           to: email,
-          inviterName,
-          roleName,
-          invitationUrl,
-          expiryHours,
+          templateName: 'employeeInvitation',
+          templateData: {
+            to: email,
+            inviterName,
+            roleName,
+            invitationUrl,
+            expiryHours,
+          },
         });
         logger.info("Invitation email sent successfully", {
           invitationId: result.rows[0].id,

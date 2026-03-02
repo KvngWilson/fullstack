@@ -1,6 +1,6 @@
 const { testConnection, closePool } = require("../config/db");
 const { connectRedis, redisClient } = require("../config/redis");
-const { logger } = require("../utils/logger");
+const { logger } = require("../shared/utils/logger");
 
 const SHUTDOWN_TIMEOUT_MS = 30_000;
 

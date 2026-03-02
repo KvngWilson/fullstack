@@ -1,8 +1,11 @@
 const crypto = require("crypto");
-const { logger } = require("../utils/logger");
+const { logger } = require("../shared/utils/logger");
 
 const SECRET_MIN_LENGTH = 32;
 
+/**
+ * Environment validation error for missing or invalid config.
+ */
 class EnvValidationError extends Error {
   constructor(message) {
     super(message);
@@ -53,7 +56,7 @@ function validateEnv() {
 }
 
 function generateSecrets() {
-  console.log("\n🔐 Generate secure secrets for .env file:\n");
+  console.log("\n[SECURE] Generate secure secrets for .env file:\n");
   console.log(`JWT_SECRET=${crypto.randomBytes(32).toString("hex")}`);
   console.log(`SESSION_SECRET=${crypto.randomBytes(32).toString("hex")}`);
   console.log(`REDIS_PASSWORD=${crypto.randomBytes(16).toString("hex")}`);

@@ -5,6 +5,8 @@ import ProtectedRoute from './ProtectedRoute';
 import RoleBasedRoute from './RoleBasedRoute';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 
+const routeFallback = <LoadingSpinner fullscreen={false} text="Loading page..." className="py-24" />;
+
 // Lazy load pages for code splitting
 const Home = lazy(() => import('@/pages/shop/Home'));
 const ProductList = lazy(() => import('@/pages/shop/ProductList'));
@@ -52,7 +54,7 @@ const router = createBrowserRouter([
       {
         index: true,
         element: (
-          <Suspense fallback={<LoadingSpinner />}>
+          <Suspense fallback={routeFallback}>
             <Home />
           </Suspense>
         ),
@@ -60,7 +62,7 @@ const router = createBrowserRouter([
       {
         path: 'products',
         element: (
-          <Suspense fallback={<LoadingSpinner />}>
+          <Suspense fallback={routeFallback}>
             <ProductList />
           </Suspense>
         ),
@@ -68,7 +70,7 @@ const router = createBrowserRouter([
       {
         path: 'products/:id',
         element: (
-          <Suspense fallback={<LoadingSpinner />}>
+          <Suspense fallback={routeFallback}>
             <ProductDetail />
           </Suspense>
         ),
@@ -76,7 +78,7 @@ const router = createBrowserRouter([
       {
         path: 'category/:slug',
         element: (
-          <Suspense fallback={<LoadingSpinner />}>
+          <Suspense fallback={routeFallback}>
             <CategoryPage />
           </Suspense>
         ),
@@ -84,7 +86,7 @@ const router = createBrowserRouter([
       {
         path: 'search',
         element: (
-          <Suspense fallback={<LoadingSpinner />}>
+          <Suspense fallback={routeFallback}>
             <SearchResults />
           </Suspense>
         ),
@@ -94,7 +96,7 @@ const router = createBrowserRouter([
       {
         path: 'login',
         element: (
-          <Suspense fallback={<LoadingSpinner />}>
+          <Suspense fallback={routeFallback}>
             <Login />
           </Suspense>
         ),
@@ -102,7 +104,7 @@ const router = createBrowserRouter([
       {
         path: 'register',
         element: (
-          <Suspense fallback={<LoadingSpinner />}>
+          <Suspense fallback={routeFallback}>
             <Register />
           </Suspense>
         ),
@@ -110,7 +112,7 @@ const router = createBrowserRouter([
       {
         path: 'forgot-password',
         element: (
-          <Suspense fallback={<LoadingSpinner />}>
+          <Suspense fallback={routeFallback}>
             <ForgotPassword />
           </Suspense>
         ),
@@ -118,7 +120,7 @@ const router = createBrowserRouter([
       {
         path: 'reset-password/:token',
         element: (
-          <Suspense fallback={<LoadingSpinner />}>
+          <Suspense fallback={routeFallback}>
             <ResetPassword />
           </Suspense>
         ),
@@ -129,7 +131,7 @@ const router = createBrowserRouter([
         path: 'cart',
         element: (
           <ProtectedRoute>
-            <Suspense fallback={<LoadingSpinner />}>
+            <Suspense fallback={routeFallback}>
               <Cart />
             </Suspense>
           </ProtectedRoute>
@@ -139,7 +141,7 @@ const router = createBrowserRouter([
         path: 'checkout',
         element: (
           <ProtectedRoute>
-            <Suspense fallback={<LoadingSpinner />}>
+            <Suspense fallback={routeFallback}>
               <Checkout />
             </Suspense>
           </ProtectedRoute>
@@ -154,7 +156,7 @@ const router = createBrowserRouter([
           {
             path: 'profile',
             element: (
-              <Suspense fallback={<LoadingSpinner />}>
+              <Suspense fallback={routeFallback}>
                 <Profile />
               </Suspense>
             ),
@@ -162,7 +164,7 @@ const router = createBrowserRouter([
           {
             path: 'orders',
             element: (
-              <Suspense fallback={<LoadingSpinner />}>
+              <Suspense fallback={routeFallback}>
                 <Orders />
               </Suspense>
             ),
@@ -170,7 +172,7 @@ const router = createBrowserRouter([
           {
             path: 'orders/:id',
             element: (
-              <Suspense fallback={<LoadingSpinner />}>
+              <Suspense fallback={routeFallback}>
                 <OrderDetail />
               </Suspense>
             ),
@@ -178,7 +180,7 @@ const router = createBrowserRouter([
           {
             path: 'wishlist',
             element: (
-              <Suspense fallback={<LoadingSpinner />}>
+              <Suspense fallback={routeFallback}>
                 <Wishlist />
               </Suspense>
             ),
@@ -186,7 +188,7 @@ const router = createBrowserRouter([
           {
             path: 'addresses',
             element: (
-              <Suspense fallback={<LoadingSpinner />}>
+              <Suspense fallback={routeFallback}>
                 <Addresses />
               </Suspense>
             ),
@@ -194,7 +196,7 @@ const router = createBrowserRouter([
           {
             path: 'saved-cards',
             element: (
-              <Suspense fallback={<LoadingSpinner />}>
+              <Suspense fallback={routeFallback}>
                 <SavedCards />
               </Suspense>
             ),
@@ -210,7 +212,7 @@ const router = createBrowserRouter([
           {
             index: true,
             element: (
-              <Suspense fallback={<LoadingSpinner />}>
+              <Suspense fallback={routeFallback}>
                 <VendorDashboard />
               </Suspense>
             ),
@@ -218,7 +220,7 @@ const router = createBrowserRouter([
           {
             path: 'products',
             element: (
-              <Suspense fallback={<LoadingSpinner />}>
+              <Suspense fallback={routeFallback}>
                 <VendorProducts />
               </Suspense>
             ),
@@ -226,7 +228,7 @@ const router = createBrowserRouter([
           {
             path: 'orders',
             element: (
-              <Suspense fallback={<LoadingSpinner />}>
+              <Suspense fallback={routeFallback}>
                 <VendorOrders />
               </Suspense>
             ),
@@ -234,7 +236,7 @@ const router = createBrowserRouter([
           {
             path: 'inventory',
             element: (
-              <Suspense fallback={<LoadingSpinner />}>
+              <Suspense fallback={routeFallback}>
                 <VendorInventory />
               </Suspense>
             ),
@@ -242,7 +244,7 @@ const router = createBrowserRouter([
           {
             path: 'analytics',
             element: (
-              <Suspense fallback={<LoadingSpinner />}>
+              <Suspense fallback={routeFallback}>
                 <VendorAnalytics />
               </Suspense>
             ),
@@ -258,7 +260,7 @@ const router = createBrowserRouter([
           {
             index: true,
             element: (
-              <Suspense fallback={<LoadingSpinner />}>
+              <Suspense fallback={routeFallback}>
                 <AdminDashboard />
               </Suspense>
             ),
@@ -266,7 +268,7 @@ const router = createBrowserRouter([
           {
             path: 'vendors',
             element: (
-              <Suspense fallback={<LoadingSpinner />}>
+              <Suspense fallback={routeFallback}>
                 <AdminVendors />
               </Suspense>
             ),
@@ -274,7 +276,7 @@ const router = createBrowserRouter([
           {
             path: 'users',
             element: (
-              <Suspense fallback={<LoadingSpinner />}>
+              <Suspense fallback={routeFallback}>
                 <AdminUsers />
               </Suspense>
             ),
@@ -282,7 +284,7 @@ const router = createBrowserRouter([
           {
             path: 'support',
             element: (
-              <Suspense fallback={<LoadingSpinner />}>
+              <Suspense fallback={routeFallback}>
                 <AdminSupport />
               </Suspense>
             ),
@@ -290,7 +292,7 @@ const router = createBrowserRouter([
           {
             path: 'settings',
             element: (
-              <Suspense fallback={<LoadingSpinner />}>
+              <Suspense fallback={routeFallback}>
                 <AdminSettings />
               </Suspense>
             ),
@@ -301,7 +303,7 @@ const router = createBrowserRouter([
       {
         path: 'unauthorized',
         element: (
-          <Suspense fallback={<LoadingSpinner />}>
+          <Suspense fallback={routeFallback}>
             <Unauthorized />
           </Suspense>
         ),
@@ -311,7 +313,7 @@ const router = createBrowserRouter([
       {
         path: '*',
         element: (
-          <Suspense fallback={<LoadingSpinner />}>
+          <Suspense fallback={routeFallback}>
             <NotFound />
           </Suspense>
         ),

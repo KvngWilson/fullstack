@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { fetchProductByIdThunk } from '@/features/products/productsThunks';
 import { addToCartThunk } from '@/features/cart/cartThunks';
@@ -10,9 +10,12 @@ import {
 } from '@/features/products/productsSelectors';
 import { selectCartIsLoading } from '@/features/cart/cartSelectors';
 import WishlistButton from '@/components/product/WishlistButton';
+import { EmptyState, ErrorState } from '@/components/common/AsyncState';
+import { Skeleton, TextBlockSkeleton } from '@/components/common/Skeleton';
 
 export default function ProductDetail() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { id } = useParams();
   const [quantity, setQuantity] = useState(1);
   const product = useAppSelector(selectCurrentProduct);
@@ -44,15 +47,19 @@ export default function ProductDetail() {
   return (
     <div className="landing-container py-12">
       {isLoading && (
-        <div className="flex justify-center py-12">
-          <p className="text-muted-foreground">Loading product...</p>
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+          <Skeleton className="h-[420px] w-full rounded-lg" />
+          <div className="space-y-4">
+            <Skeleton className="h-4 w-1/4" />
+            <Skeleton className="h-10 w-2/3" />
+            <Skeleton className="h-8 w-1/3" />
+            <TextBlockSkeleton />
+          </div>
         </div>
       )}
 
       {error && (
-        <div className="rounded-md border border-destructive bg-destructive/10 p-4 text-sm text-destructive">
-          {error}
-        </div>
+        <ErrorState title="Failed to load product" message={error} onRetry={() => dispatch(fetchProductByIdThunk(Number(id)))} />
       )}
 
       {!isLoading && !error && product && (
@@ -160,12 +167,12 @@ export default function ProductDetail() {
       )}
 
       {!isLoading && !error && !product && (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-lg text-muted-foreground">Product not found.</p>
-          <Link to="/products" className="btn-primary mt-4">
-            Browse All Products
-          </Link>
-        </div>
+        <EmptyState
+          title="Product not found"
+          message="The item may have been removed or is no longer available."
+          actionLabel="Browse all products"
+          onAction={() => navigate('/products')}
+        />
       )}
     </div>
   );

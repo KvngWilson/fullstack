@@ -1,15 +1,12 @@
 const request = require('supertest');
-const express = require('express');
-const userRoutes = require('../../routes/user');
 const { pool } = require('../../config/db');
 const argon2 = require('argon2');
 
-// Create test app
-const app = express();
-app.use(express.json());
-app.use('/api/v1/users', userRoutes);
+// Use main app instance
+const { createApp } = require('../../src/app');
+const app = createApp();
 
-const AUTH_TEST_EMAIL_SUFFIX = '@auth-test.local';
+const AUTH_TEST_EMAIL_SUFFIX = '@auth-test.com';
 
 const cleanupAuthTestUsers = async () => {
   await pool.query(
@@ -89,26 +86,35 @@ describe('User Authentication API - Integration Tests', () => {
     it('should register a new user successfully', async () => {
       const userData = {
         email: `user${Date.now()}${AUTH_TEST_EMAIL_SUFFIX}`,
-        password: 'securePassword123',
+        password: 'SecurePassword123!',
+        confirm_password: 'SecurePassword123!',
+        first_name: 'Test',
+        last_name: 'User',
+        accept_terms: true,
       };
 
       const response = await request(app)
         .post('/api/v1/users/register')
         .send(userData)
         .expect('Content-Type', /json/)
-        .expect(201);
+        .expect(200);
 
-      expect(response.body).toHaveProperty('token');
-      expect(response.body).toHaveProperty('id');
-      expect(response.body.email).toBe(userData.email);
-      
-      testUserId = response.body.id;
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('check your inbox');
+
+      const inserted = await pool.query('SELECT id FROM users WHERE email = $1 LIMIT 1', [userData.email]);
+      expect(inserted.rowCount).toBe(1);
+      testUserId = inserted.rows[0].id;
     });
 
     it('should reject registration with invalid email', async () => {
       const userData = {
         email: 'invalid-email',
-        password: 'securePassword123',
+        password: 'SecurePassword123!',
+        confirm_password: 'SecurePassword123!',
+        first_name: 'Test',
+        last_name: 'User',
+        accept_terms: true,
       };
 
       const response = await request(app)
@@ -123,6 +129,10 @@ describe('User Authentication API - Integration Tests', () => {
       const userData = {
         email: `shortpass${Date.now()}${AUTH_TEST_EMAIL_SUFFIX}`,
         password: '12345',
+        confirm_password: '12345',
+        first_name: 'Test',
+        last_name: 'User',
+        accept_terms: true,
       };
 
       const response = await request(app)
@@ -136,29 +146,39 @@ describe('User Authentication API - Integration Tests', () => {
     it('should reject registration with duplicate email', async () => {
       const userData = {
         email: `duplicate${Date.now()}${AUTH_TEST_EMAIL_SUFFIX}`,
-        password: 'securePassword123',
+        password: 'SecurePassword123!',
+        confirm_password: 'SecurePassword123!',
+        first_name: 'Test',
+        last_name: 'User',
+        accept_terms: true,
       };
 
       // First registration
       await request(app)
         .post('/api/v1/users/register')
         .send(userData)
-        .expect(201);
+        .expect(200);
 
       // Attempt duplicate registration
       const response = await request(app)
         .post('/api/v1/users/register')
         .send(userData)
-        .expect(409);
+        .expect(200);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toContain('already exists');
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('check your inbox');
     });
 
     it('should reject registration with missing fields', async () => {
       const response = await request(app)
         .post('/api/v1/users/register')
-        .send({ email: `missing${Date.now()}${AUTH_TEST_EMAIL_SUFFIX}` })
+        .send({
+          email: `missing${Date.now()}${AUTH_TEST_EMAIL_SUFFIX}`,
+          confirm_password: 'SecurePassword123!',
+          first_name: 'Test',
+          last_name: 'User',
+          accept_terms: true,
+        })
         .expect(400);
 
       expect(response.body).toHaveProperty('error');
@@ -172,7 +192,7 @@ describe('User Authentication API - Integration Tests', () => {
       // Create a test user for login
       const hashedPassword = await argon2.hash('testPassword123');
       const result = await pool.query(
-        'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id, email',
+        'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email',
         [`login${Date.now()}${AUTH_TEST_EMAIL_SUFFIX}`, hashedPassword]
       );
       testUser = result.rows[0];

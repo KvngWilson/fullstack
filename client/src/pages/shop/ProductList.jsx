@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { fetchProductsThunk, searchProductsThunk } from '@/features/products/productsThunks';
@@ -9,6 +9,9 @@ import {
   selectProductsPagination,
 } from '@/features/products/productsSelectors';
 import WishlistButton from '@/components/product/WishlistButton';
+import { ProductGridSkeleton } from '@/components/common/Skeleton';
+import { EmptyState, ErrorState } from '@/components/common/AsyncState';
+import { notifyInfo } from '@/utils/toast';
 
 export default function ProductList() {
   const dispatch = useAppDispatch();
@@ -21,7 +24,7 @@ export default function ProductList() {
   const category = searchParams.get('category');
   const query = searchParams.get('q');
 
-  useEffect(() => {
+  const loadProducts = useCallback(() => {
     if (query) {
       dispatch(searchProductsThunk({ query, filters: category ? { category: category } : {} }));
       return;
@@ -29,6 +32,15 @@ export default function ProductList() {
 
     dispatch(fetchProductsThunk(category ? { category: category } : {}));
   }, [dispatch, category, query]);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
+
+  const handleRetry = () => {
+    notifyInfo('Retrying product request...');
+    loadProducts();
+  };
 
   return (
     <div className="landing-container py-12">
@@ -44,15 +56,18 @@ export default function ProductList() {
       </div>
 
       {isLoading && (
-        <div className="flex justify-center py-12">
-          <p className="text-muted-foreground">Loading products...</p>
+        <div className="py-2">
+          <ProductGridSkeleton count={8} />
         </div>
       )}
 
       {error && (
-        <div className="rounded-md border border-destructive bg-destructive/10 p-4 text-sm text-destructive">
-          {error}
-        </div>
+        <ErrorState
+          title="Unable to load products"
+          message={error}
+          onRetry={handleRetry}
+          className="mb-6"
+        />
       )}
 
       {!isLoading && !error && (
@@ -88,12 +103,15 @@ export default function ProductList() {
           </div>
 
           {!products.length && (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <p className="text-lg text-muted-foreground">No products found.</p>
-              <Link to="/products" className="btn-primary mt-4">
-                Browse All Products
-              </Link>
-            </div>
+            <EmptyState
+              title="No products found"
+              message="Try changing category filters or search terms."
+              actionLabel="Browse All Products"
+              onAction={() => {
+                window.location.href = '/products';
+              }}
+              className="mt-6"
+            />
           )}
 
           {pagination && pagination.totalPages > 1 && (

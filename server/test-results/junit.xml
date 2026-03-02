@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="36" failures="12" errors="0" time="6.945">
+  <testsuite name="User Registration Flow (Integration)" errors="0" failures="0" skipped="10" timestamp="2026-03-01T10:22:52" time="0.489" tests="10">
+    <testcase classname="User Registration Flow (Integration) POST /api/v1/identity/users/register should successfully register a new user with valid credentials" name="User Registration Flow (Integration) POST /api/v1/identity/users/register should successfully register a new user with valid credentials" time="0">
+      <skipped/>
+    </testcase>
+    <testcase classname="User Registration Flow (Integration) POST /api/v1/identity/users/register should reject duplicate email registration" name="User Registration Flow (Integration) POST /api/v1/identity/users/register should reject duplicate email registration" time="0">
+      <skipped/>
+    </testcase>
+    <testcase classname="User Registration Flow (Integration) POST /api/v1/identity/users/register should reject invalid password" name="User Registration Flow (Integration) POST /api/v1/identity/users/register should reject invalid password" time="0">
+      <skipped/>
+    </testcase>
+    <testcase classname="User Registration Flow (Integration) POST /api/v1/identity/users/register should reject mismatched passwords" name="User Registration Flow (Integration) POST /api/v1/identity/users/register should reject mismatched passwords" time="0">
+      <skipped/>
+    </testcase>
+    <testcase classname="User Registration Flow (Integration) POST /api/v1/identity/users/register should reject when terms are not accepted" name="User Registration Flow (Integration) POST /api/v1/identity/users/register should reject when terms are not accepted" time="0">
+      <skipped/>
+    </testcase>
+    <testcase classname="User Registration Flow (Integration) GET /api/v1/identity/profile should retrieve authenticated user profile" name="User Registration Flow (Integration) GET /api/v1/identity/profile should retrieve authenticated user profile" time="0">
+      <skipped/>
+    </testcase>
+    <testcase classname="User Registration Flow (Integration) GET /api/v1/identity/profile should reject request without authentication token" name="User Registration Flow (Integration) GET /api/v1/identity/profile should reject request without authentication token" time="0">
+      <skipped/>
+    </testcase>
+    <testcase classname="User Registration Flow (Integration) GET /api/v1/identity/profile should reject invalid JWT token" name="User Registration Flow (Integration) GET /api/v1/identity/profile should reject invalid JWT token" time="0">
+      <skipped/>
+    </testcase>
+    <testcase classname="User Registration Flow (Integration) PATCH /api/v1/identity/profile should update user profile with valid data" name="User Registration Flow (Integration) PATCH /api/v1/identity/profile should update user profile with valid data" time="0">
+      <skipped/>
+    </testcase>
+    <testcase classname="User Registration Flow (Integration) PATCH /api/v1/identity/profile should not allow email change via profile update" name="User Registration Flow (Integration) PATCH /api/v1/identity/profile should not allow email change via profile update" time="0">
+      <skipped/>
+    </testcase>
+  </testsuite>
+  <testsuite name="Identity Endpoints (Integration)" errors="0" failures="3" skipped="0" timestamp="2026-03-01T10:22:53" time="3.958" tests="8">
+    <testcase classname="Identity Endpoints (Integration) POST /api/v1/identity/users/register returns success message for new user registration" name="Identity Endpoints (Integration) POST /api/v1/identity/users/register returns success message for new user registration" time="0.066">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 200
+Received: 400
+    at Object.toBe (/home/wilson/Desktop/fullstack/server/tests/integration/identity.endpoints.integration.test.js:22:31)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+    </testcase>
+    <testcase classname="Identity Endpoints (Integration) POST /api/v1/identity/users/register validates password requirements during registration" name="Identity Endpoints (Integration) POST /api/v1/identity/users/register validates password requirements during registration" time="0.014">
+    </testcase>
+    <testcase classname="Identity Endpoints (Integration) POST /api/v1/identity/users/register validates email format on registration" name="Identity Endpoints (Integration) POST /api/v1/identity/users/register validates email format on registration" time="0.014">
+    </testcase>
+    <testcase classname="Identity Endpoints (Integration) POST /api/v1/identity/users/login returns token on successful login when user exists" name="Identity Endpoints (Integration) POST /api/v1/identity/users/login returns token on successful login when user exists" time="0.03">
+      <failure>Error: expect(received).toContain(expected) // indexOf
+
+Expected value: 500
+Received array: [200, 401, 404]
+    at Object.toContain (/home/wilson/Desktop/fullstack/server/tests/integration/identity.endpoints.integration.test.js:49:31)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+    </testcase>
+    <testcase classname="Identity Endpoints (Integration) POST /api/v1/identity/users/login rejects invalid credentials" name="Identity Endpoints (Integration) POST /api/v1/identity/users/login rejects invalid credentials" time="0.024">
+      <failure>Error: expect(received).toContain(expected) // indexOf
+
+Expected value: 500
+Received array: [401, 404]
+    at Object.toContain (/home/wilson/Desktop/fullstack/server/tests/integration/identity.endpoints.integration.test.js:60:26)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+    </testcase>
+    <testcase classname="Identity Endpoints (Integration) Profile endpoints GET /api/v1/identity/profile returns 401 without token" name="Identity Endpoints (Integration) Profile endpoints GET /api/v1/identity/profile returns 401 without token" time="0.021">
+    </testcase>
+    <testcase classname="Identity Endpoints (Integration) Profile endpoints GET /api/v1/identity/profile returns 401 with invalid token" name="Identity Endpoints (Integration) Profile endpoints GET /api/v1/identity/profile returns 401 with invalid token" time="0.014">
+    </testcase>
+    <testcase classname="Identity Endpoints (Integration) Profile endpoints PATCH /api/v1/identity/profile returns 401 without authentication" name="Identity Endpoints (Integration) Profile endpoints PATCH /api/v1/identity/profile returns 401 without authentication" time="0.013">
+    </testcase>
+  </testsuite>
+  <testsuite name="Ordering Endpoints (Integration)" errors="0" failures="5" skipped="0" timestamp="2026-03-01T10:22:57" time="0.637" tests="6">
+    <testcase classname="Ordering Endpoints (Integration) GET /api/v1/ordering/carts/:id returns 401 without authentication" name="Ordering Endpoints (Integration) GET /api/v1/ordering/carts/:id returns 401 without authentication" time="0.018">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 401
+Received: 404
+    at Object.toBe (/home/wilson/Desktop/fullstack/server/tests/integration/ordering.endpoints.integration.test.js:13:29)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+    </testcase>
+    <testcase classname="Ordering Endpoints (Integration) POST /api/v1/ordering/carts/:id/items returns 401 without authentication" name="Ordering Endpoints (Integration) POST /api/v1/ordering/carts/:id/items returns 401 without authentication" time="0.019">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 401
+Received: 404
+    at Object.toBe (/home/wilson/Desktop/fullstack/server/tests/integration/ordering.endpoints.integration.test.js:21:29)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+    </testcase>
+    <testcase classname="Ordering Endpoints (Integration) POST /api/v1/ordering/addresses returns 401 without authentication" name="Ordering Endpoints (Integration) POST /api/v1/ordering/addresses returns 401 without authentication" time="0.015">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 401
+Received: 404
+    at Object.toBe (/home/wilson/Desktop/fullstack/server/tests/integration/ordering.endpoints.integration.test.js:35:29)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+    </testcase>
+    <testcase classname="Ordering Endpoints (Integration) GET /api/v1/ordering/addresses returns 401 without authentication" name="Ordering Endpoints (Integration) GET /api/v1/ordering/addresses returns 401 without authentication" time="0.01">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 401
+Received: 404
+    at Object.toBe (/home/wilson/Desktop/fullstack/server/tests/integration/ordering.endpoints.integration.test.js:40:29)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+    </testcase>
+    <testcase classname="Ordering Endpoints (Integration) POST /api/v1/ordering/payments/methods returns 401 without authentication" name="Ordering Endpoints (Integration) POST /api/v1/ordering/payments/methods returns 401 without authentication" time="0.012">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 401
+Received: 404
+    at Object.toBe (/home/wilson/Desktop/fullstack/server/tests/integration/ordering.endpoints.integration.test.js:54:29)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+    </testcase>
+    <testcase classname="Ordering Endpoints (Integration) POST /api/v1/ordering/orders returns 401 without authentication" name="Ordering Endpoints (Integration) POST /api/v1/ordering/orders returns 401 without authentication" time="0.012">
+    </testcase>
+  </testsuite>
+  <testsuite name="Catalog Endpoints (Integration)" errors="0" failures="4" skipped="0" timestamp="2026-03-01T10:22:57" time="0.588" tests="4">
+    <testcase classname="Catalog Endpoints (Integration) GET /api/v1/catalog/products supports listing" name="Catalog Endpoints (Integration) GET /api/v1/catalog/products supports listing" time="0.026">
+      <failure>Error: expect(received).toContain(expected) // indexOf
+
+Expected value: 500
+Received array: [200, 404]
+    at Object.toContain (/home/wilson/Desktop/fullstack/server/tests/integration/catalog.endpoints.integration.test.js:13:24)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+    </testcase>
+    <testcase classname="Catalog Endpoints (Integration) GET /api/v1/catalog/products supports pagination" name="Catalog Endpoints (Integration) GET /api/v1/catalog/products supports pagination" time="0.015">
+      <failure>Error: expect(received).toContain(expected) // indexOf
+
+Expected value: 500
+Received array: [200, 404]
+    at Object.toContain (/home/wilson/Desktop/fullstack/server/tests/integration/catalog.endpoints.integration.test.js:21:24)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+    </testcase>
+    <testcase classname="Catalog Endpoints (Integration) GET /api/v1/catalog/products supports category filtering" name="Catalog Endpoints (Integration) GET /api/v1/catalog/products supports category filtering" time="0.016">
+      <failure>Error: expect(received).toContain(expected) // indexOf
+
+Expected value: 500
+Received array: [200, 404]
+    at Object.toContain (/home/wilson/Desktop/fullstack/server/tests/integration/catalog.endpoints.integration.test.js:26:24)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+    </testcase>
+    <testcase classname="Catalog Endpoints (Integration) GET /api/v1/catalog/products/:id handles missing product" name="Catalog Endpoints (Integration) GET /api/v1/catalog/products/:id handles missing product" time="0.015">
+      <failure>Error: expect(received).toContain(expected) // indexOf
+
+Expected value: 500
+Received array: [400, 404]
+    at Object.toContain (/home/wilson/Desktop/fullstack/server/tests/integration/catalog.endpoints.integration.test.js:31:24)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Admin Endpoints (Integration)" errors="0" failures="0" skipped="0" timestamp="2026-03-01T10:22:58" time="0.598" tests="4">
+    <testcase classname="Admin Endpoints (Integration) GET /api/v1/admin/users denies unauthenticated access" name="Admin Endpoints (Integration) GET /api/v1/admin/users denies unauthenticated access" time="0.016">
+    </testcase>
+    <testcase classname="Admin Endpoints (Integration) GET /api/v1/admin/users rejects non-admin bearer token" name="Admin Endpoints (Integration) GET /api/v1/admin/users rejects non-admin bearer token" time="0.015">
+    </testcase>
+    <testcase classname="Admin Endpoints (Integration) GET /api/v1/admin/orders denies unauthenticated access" name="Admin Endpoints (Integration) GET /api/v1/admin/orders denies unauthenticated access" time="0.01">
+    </testcase>
+    <testcase classname="Admin Endpoints (Integration) GET /api/v1/admin/products denies unauthenticated access" name="Admin Endpoints (Integration) GET /api/v1/admin/products denies unauthenticated access" time="0.01">
+    </testcase>
+  </testsuite>
+  <testsuite name="Health Endpoints (Integration)" errors="0" failures="0" skipped="0" timestamp="2026-03-01T10:22:58" time="0.576" tests="4">
+    <testcase classname="Health Endpoints (Integration) GET /health returns 200" name="Health Endpoints (Integration) GET /health returns 200" time="0.019">
+    </testcase>
+    <testcase classname="Health Endpoints (Integration) GET /health/live returns 200" name="Health Endpoints (Integration) GET /health/live returns 200" time="0.014">
+    </testcase>
+    <testcase classname="Health Endpoints (Integration) GET /health/ready returns readiness status" name="Health Endpoints (Integration) GET /health/ready returns readiness status" time="0.014">
+    </testcase>
+    <testcase classname="Health Endpoints (Integration) GET /health/detailed returns detailed status" name="Health Endpoints (Integration) GET /health/detailed returns detailed status" time="0.025">
+    </testcase>
+  </testsuite>
+</testsuites>

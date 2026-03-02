@@ -7,7 +7,7 @@ const {
   ConflictError,
   asyncHandler,
   handleDatabaseError,
-} = require('../../utils/errors');
+} = require('../../shared/utils/errors');
 
 describe('Error Utils - Unit Tests', () => {
   describe('AppError', () => {

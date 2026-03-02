@@ -7,6 +7,8 @@ import {
   selectProductsError,
   selectProductsIsLoading,
 } from '@/features/products/productsSelectors';
+import { EmptyState, ErrorState } from '@/components/common/AsyncState';
+import { ProductGridSkeleton } from '@/components/common/Skeleton';
 
 export default function CategoryPage() {
   const dispatch = useAppDispatch();
@@ -24,8 +26,20 @@ export default function CategoryPage() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold">Category: {slug}</h1>
 
-      {isLoading && <p className="mt-4 text-sm text-muted-foreground">Loading category products...</p>}
-      {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+      {isLoading && (
+        <div className="mt-6">
+          <ProductGridSkeleton count={6} />
+        </div>
+      )}
+
+      {error && (
+        <ErrorState
+          className="mt-4"
+          title="Failed to load category products"
+          message={error}
+          onRetry={() => dispatch(fetchProductsThunk({ category: slug }))}
+        />
+      )}
 
       {!isLoading && !error && (
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -42,7 +56,12 @@ export default function CategoryPage() {
           ))}
 
           {!products.length && (
-            <p className="text-sm text-muted-foreground">No products found for this category.</p>
+            <div className="sm:col-span-2 lg:col-span-3">
+              <EmptyState
+                title="No products in this category"
+                message="Try a different category or browse all products."
+              />
+            </div>
           )}
         </div>
       )}

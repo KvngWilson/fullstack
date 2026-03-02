@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const { errorResponse } = require("../utils/response");
+const { errorResponse } = require("../shared/utils/response");
 
 const JWT_SECRET = process.env.JWT_SECRET; // No fallback - will fail env validation
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "24h";

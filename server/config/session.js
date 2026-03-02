@@ -1,6 +1,6 @@
 const session = require("express-session");
 const RedisStore = require("connect-redis").default;
-const { logger } = require("../utils/logger");
+const { logger } = require("../shared/utils/logger");
 
 function buildSessionConfig() {
   return {

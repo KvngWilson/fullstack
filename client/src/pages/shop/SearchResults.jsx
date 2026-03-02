@@ -8,6 +8,9 @@ import {
   selectProductsIsLoading,
   selectProductsPagination,
 } from '@/features/products/productsSelectors';
+import { ProductGridSkeleton } from '@/components/common/Skeleton';
+import { EmptyState, ErrorState } from '@/components/common/AsyncState';
+import { notifyInfo } from '@/utils/toast';
 
 export default function SearchResults() {
   const dispatch = useAppDispatch();
@@ -24,6 +27,12 @@ export default function SearchResults() {
     dispatch(searchProductsThunk({ query }));
   }, [dispatch, query]);
 
+  const handleRetry = () => {
+    if (!query.trim()) return;
+    notifyInfo('Retrying search...');
+    dispatch(searchProductsThunk({ query }));
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold">Search Results</h1>
@@ -34,10 +43,19 @@ export default function SearchResults() {
       )}
 
       {query.trim() && isLoading && (
-        <p className="mt-4 text-sm text-muted-foreground">Searching products...</p>
+        <div className="mt-4">
+          <ProductGridSkeleton count={6} />
+        </div>
       )}
 
-      {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+      {error && (
+        <ErrorState
+          title="Search failed"
+          message={error}
+          onRetry={handleRetry}
+          className="mt-4"
+        />
+      )}
 
       {query.trim() && !isLoading && !error && (
         <>
@@ -55,7 +73,13 @@ export default function SearchResults() {
             ))}
           </div>
 
-          {!products.length && <p className="mt-4 text-sm text-muted-foreground">No results found.</p>}
+          {!products.length && (
+            <EmptyState
+              title="No search results"
+              message={`No products matched "${query}". Try a different keyword.`}
+              className="mt-4"
+            />
+          )}
 
           {pagination && (
             <p className="mt-4 text-sm text-muted-foreground">

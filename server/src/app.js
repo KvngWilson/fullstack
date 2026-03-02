@@ -5,37 +5,40 @@ const cors = require("cors");
 const morgan = require("morgan");
 const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
-const swaggerUI = require("swagger-ui-express");
-const yaml = require("js-yaml");
+const setupSwagger = require("../config/swagger");
 const vhost = require("vhost");
+const yaml = require("js-yaml");
 
 const passport = require("../config/passport");
-const { authenticateJWT } = require("../config/auth");
 const {
   errorHandler,
   notFoundHandler,
-} = require("../api/middleware/errorHandler");
-const { handleStripeWebhook } = require("../api/controllers/payment");
+} = require("../api/middleware/error");
+const { csrfProtection } = require("../api/middleware/csrf");
+const { payment } = require("../api/controllers/v1/payments");
+const { handleStripeWebhook } = payment;
 const { applySessionMiddleware } = require("../config/session");
+const { getSecurityMiddleware, getCorsOptions } = require("../config/security");
+const { correlationIdMiddleware, requestTimingMiddleware } = require("../api/middleware/requestContext");
+const { metricsMiddleware, metricsEndpoint } = require("../api/middleware/metrics");
+const { 
+  healthCheck, 
+  detailedHealthCheck, 
+  readinessCheck, 
+  livenessCheck 
+} = require("../api/controllers/health");
 
 const adminRoutes = require("../api/routes/admin");
-const healthRoutes = require("../api/routes/health");
-const authRoutes = require("../api/routes/auth");
-const userRoutes = require("../api/routes/user");
-const employeeRoutes = require("../api/routes/employees");
-const productRoutes = require("../api/routes/product");
-const cartRoutes = require("../api/routes/cart");
-const orderRoutes = require("../api/routes/orders");
-const shippingRoutes = require("../api/routes/shipping");
-const paymentRoutes = require("../api/routes/payment");
-const profileRoutes = require("../api/routes/profile");
-const wishlistRoutes = require("../api/routes/wishlist");
+const authRoutes = require("../api/routes/v1/auth");
+const identityRoutes = require("../api/routes/v1/identity");
+const catalogRoutes = require("../api/routes/v1/catalog");
+const orderingRoutes = require("../api/routes/v1/ordering");
+const paymentsRoutes = require("../api/routes/v1/payments");
+const vendorRoutes = require("../api/routes/v1/vendor");
+const wishlistRoutes = require("../api/routes/v1/wishlist");
+const platformRoutes = require("../api/routes/v1/platform");
 
-function loadSwaggerSpec() {
-  const swaggerPath = path.join(__dirname, "../swagger.yml");
-  return yaml.load(fs.readFileSync(swaggerPath, "utf8"));
-}
-
+// Build isolated admin sub-application for vhost mounting
 function createAdminApp() {
   const adminApp = express();
 
@@ -48,12 +51,22 @@ function createAdminApp() {
 
 function registerCoreMiddleware(app) {
   app.set("trust proxy", 1);
-  app.use(helmet());
-  app.use(cors());
+  
+  // Enhanced security middleware
+  const securityMiddleware = getSecurityMiddleware();
+  securityMiddleware.forEach(middleware => app.use(middleware));
+  
+  app.use(cors(getCorsOptions()));
+  
+  app.use(correlationIdMiddleware);
+  app.use(requestTimingMiddleware);
+  
+  app.use(metricsMiddleware);
+  
   app.use(morgan("dev"));
 
   app.post(
-    "/api/v1/payments/webhook/stripe",
+    "/api/v1/ordering/payments/webhook/stripe",
     express.raw({ type: "application/json" }),
     handleStripeWebhook,
   );
@@ -64,7 +77,9 @@ function registerCoreMiddleware(app) {
 }
 
 function registerAppSettings(app) {
-  app.use("/api-docs", swaggerUI.serve, swaggerUI.setup(loadSwaggerSpec()));
+  // Setup Swagger/OpenAPI documentation
+  setupSwagger(app);
+  
   app.set("view engine", "ejs");
   app.set("views", path.join(__dirname, "../views"));
 }
@@ -76,23 +91,30 @@ function registerRoutes(app) {
   app.use("/uploads", express.static("uploads"));
   app.use(passport.initialize());
 
+  app.get("/health", healthCheck);
+  app.get("/health/detailed", detailedHealthCheck);
+  app.get("/health/ready", readinessCheck);
+  app.get("/health/live", livenessCheck);
+  app.get("/metrics", metricsEndpoint);
+
   app.use(vhost("admin.localhost", adminApp));
   app.use(vhost("admin.*", adminApp));
 
+  // ✅ CSRF protection middleware for all API state-changing requests
+  app.use("/api/v1", csrfProtection());
 
-  app.use("/api/auth", authRoutes);
-  app.use("/api/v1/health", healthRoutes);
-  app.use("/api/v1/users", userRoutes);
-  app.use("/api/v1/employees", employeeRoutes);
-  app.use("/api/v1/products", productRoutes);
-  app.use("/api/v1/cart", authenticateJWT, cartRoutes);
-  app.use("/api/v1/orders", orderRoutes);
-  app.use("/api/v1/shipping", authenticateJWT, shippingRoutes);
-  app.use("/api/v1/payments", paymentRoutes);
-  app.use("/api/v1/profile", profileRoutes);
+  // Domain-specific routes
+  app.use("/api/v1/auth", authRoutes);
+  app.use("/api/v1/identity", identityRoutes);
+  app.use("/api/v1/catalog", catalogRoutes);
+  app.use("/api/v1/ordering", orderingRoutes);
+  app.use("/api/v1/payments", paymentsRoutes);
+  app.use("/api/v1/vendors", vendorRoutes);
   app.use("/api/v1/wishlist", wishlistRoutes);
+  app.use("/api/v1/platform", platformRoutes);
 }
 
+// Register terminal middleware last in chain
 function registerErrorHandlers(app) {
   app.use(notFoundHandler);
   app.use(errorHandler);
@@ -113,3 +135,8 @@ function createApp() {
 module.exports = {
   createApp,
 };
+
+// Export app instance for testing
+if (process.env.NODE_ENV === 'test') {
+  module.exports.app = createApp();
+}

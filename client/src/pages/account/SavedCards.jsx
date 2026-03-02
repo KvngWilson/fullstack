@@ -11,6 +11,8 @@ import {
   selectUserIsLoading,
   selectUserSavedCards,
 } from '@/features/user/userSelectors';
+import { EmptyState, ErrorState } from '@/components/common/AsyncState';
+import { TextBlockSkeleton } from '@/components/common/Skeleton';
 
 const initialCard = {
   card_brand: 'visa',
@@ -125,8 +127,12 @@ export default function SavedCards() {
         </button>
       </form>
 
-      {isLoading && <p className="mt-4 text-sm text-muted-foreground">Loading cards...</p>}
-      {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+      {isLoading && (
+        <div className="mt-4">
+          <TextBlockSkeleton />
+        </div>
+      )}
+      {error && <ErrorState className="mt-4" title="Failed to load saved cards" message={error} onRetry={() => dispatch(fetchSavedCardsThunk())} />}
 
       <div className="mt-6 space-y-3">
         {savedCards.map((card) => (
@@ -163,7 +169,10 @@ export default function SavedCards() {
           </div>
         ))}
         {!savedCards.length && !isLoading && (
-          <p className="text-sm text-muted-foreground">No saved cards.</p>
+          <EmptyState
+            title="No saved cards"
+            message="Add a card now for faster checkout next time."
+          />
         )}
       </div>
     </div>

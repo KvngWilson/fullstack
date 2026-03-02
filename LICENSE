@@ -1,0 +1,103 @@
+MIT License
+
+Copyright (c) 2024-2026 Fullstack E-Commerce Platform Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+LICENSE SUMMARY
+================================================================================
+
+What You Can Do:
+✅ Use the software for any purpose (commercial or personal)
+✅ Modify and create derivative works
+✅ Distribute the software
+✅ Include the software in proprietary applications
+✅ Use the software privately
+
+What You Must Do:
+✓ Include a copy of this license with any distribution
+✓ Include the copyright notice
+✓ State significant changes made to the software
+
+What You Cannot Do:
+✗ Hold the authors/contributors liable for any issues
+✗ Claim trademark rights to the software
+
+================================================================================
+THIRD-PARTY LICENSES
+================================================================================
+
+This project includes the following third-party components, each licensed
+under their respective licenses:
+
+Express.js              - MIT License
+PostgreSQL             - PostgreSQL License
+Redis                  - BSD 3-Clause License
+Jest                   - MIT License
+Stripe SDK             - MIT License
+Passport              - MIT License
+Node.js               - MIT License
+
+For a complete list of dependencies and their licenses, run:
+  npm license
+
+================================================================================
+CONTRIBUTING
+================================================================================
+
+By contributing to this project, you agree that your contributions will be
+licensed under the same MIT License that covers the project.
+
+Please see CONTRIBUTING.md for more information about contributing to this
+project.
+
+================================================================================
+DISCLAIMER
+================================================================================
+
+This software is provided as-is without any warranty. The authors and
+contributors are not responsible for any damages, data loss, or other issues
+that may arise from the use of this software.
+
+For production use, please conduct your own security audit and testing.
+
+================================================================================
+ADDITIONAL TERMS
+================================================================================
+
+While the MIT License covers the source code, please note:
+
+1. BRAND & TRADEMARKS: The names, logos, and trademarks of the project are
+   not covered by the MIT License and remain the exclusive property of the
+   original creators.
+
+2. DATA PROTECTION: If you use this software to process personal data, you
+   are responsible for compliance with all applicable data protection laws
+   (GDPR, CCPA, etc.).
+
+3. SECURITY: The authors make no warranty regarding the security of the
+   software. Regular security audits are recommended for production deployments.
+
+4. WARRANTY DISCLAIMER: This software is provided on an "as-is" basis without
+   any warranties, express or implied.
+
+For legal concerns, please consult with a qualified attorney.
+
+================================================================================

@@ -1,5 +1,5 @@
 const redis = require("redis");
-const { logger } = require("../utils/logger");
+const { logger } = require("../shared/utils/logger");
 
 const redisConfig = {
   socket: {
@@ -42,61 +42,7 @@ async function connectRedis() {
   }
 }
 
-/**
- * Cache wrapper with automatic expiration
- * @param {string} key - Cache key
- * @param {Function} fetchFn - Function to fetch data if cache miss
- * @param {number} ttl - Time to live in seconds (default: 5 minutes)
- */
-async function getOrSetCache(key, fetchFn, ttl = 300) {
-  if (!redisClient.isReady) {
-    logger.warn("Redis not ready, bypassing cache");
-    return await fetchFn();
-  }
-
-  try {
-    // Try to get from cache
-    const cached = await redisClient.get(key);
-
-    if (cached) {
-      return JSON.parse(cached);
-    }
-
-    // Cache miss - fetch data
-    const data = await fetchFn();
-
-    // Store in cache
-    await redisClient.setEx(key, ttl, JSON.stringify(data));
-
-    return data;
-  } catch (error) {
-    logger.error("Cache error", { error, key });
-    // Fallback to fetching data
-    return await fetchFn();
-  }
-}
-
-// Invalidate cache keys matching a pattern
-async function invalidateCache(pattern) {
-  if (!redisClient.isReady) return;
-
-  try {
-    const keys = await redisClient.keys(pattern);
-    if (keys.length > 0) {
-      await redisClient.del(keys);
-      logger.info("Cache keys invalidated", {
-        count: keys.length,
-        pattern,
-      });
-    }
-  } catch (error) {
-    logger.error("Cache invalidation error", { error, pattern });
-  }
-}
-
 module.exports = {
   redisClient,
   connectRedis,
-  getOrSetCache,
-  invalidateCache,
 };

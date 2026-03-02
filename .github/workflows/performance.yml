@@ -1,0 +1,182 @@
+name: Performance Tests
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  quality-gates:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./client
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'client/package-lock.json'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint code
+        run: npm run lint
+
+      - name: Run unit tests
+        run: npm run test:coverage
+
+      - name: Enforce coverage threshold
+        env:
+          COVERAGE_THRESHOLD: '60'
+        run: npm run ci:coverage
+
+      - name: Build production bundle
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Enforce bundle-size budget
+        env:
+          BUNDLE_SIZE_LIMIT_BYTES: '3145728'
+        run: npm run ci:bundle
+
+      - name: Start preview server for a11y checks
+        run: npm run preview:ci > ../preview.log 2>&1 &
+
+      - name: Wait for preview server
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173 >/dev/null; then
+              echo "Preview server is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Preview server failed to start"
+          cat ../preview.log || true
+          exit 1
+
+      - name: Accessibility gate (axe-core)
+        run: npm run a11y:ci
+
+      - name: Upload quality artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-quality-artifacts
+          path: |
+            client/dist
+            client/coverage
+            preview.log
+          retention-days: 7
+
+      - name: Comment quality gate results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const buildSize = require('child_process')
+              .execSync('du -sh client/dist')
+              .toString()
+              .split('\t')[0];
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `✅ Frontend quality gates passed\n\n📦 Build Size: ${buildSize}\n🧪 Coverage: threshold 60%\n♿ Accessibility: axe-core checks passed`
+            });
+
+  lighthouse:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: quality-gates
+    defaults:
+      run:
+        working-directory: ./client
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'client/package-lock.json'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Start preview server for Lighthouse
+        run: npm run preview:ci > ../lighthouse-preview.log 2>&1 &
+
+      - name: Wait for preview server
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173 >/dev/null; then
+              echo "Preview server is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Preview server failed to start"
+          cat ../lighthouse-preview.log || true
+          exit 1
+
+      - name: Run Lighthouse
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          configPath: './client/lighthouserc.json'
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+  bundle-analysis:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'client/package-lock.json'
+      
+      - name: Install dependencies
+        working-directory: ./client
+        run: npm ci
+      
+      - name: Build
+        working-directory: ./client
+        run: npm run build
+        env:
+          NODE_ENV: production
+      
+      - name: Install source-map-explorer
+        run: npm install -g source-map-explorer
+      
+      - name: Analyze bundle
+        working-directory: ./client
+        run: |
+          source-map-explorer 'dist/assets/*.js' --json > bundle-analysis.json || true
+      
+      - name: Upload bundle analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-analysis
+          path: client/bundle-analysis.json
+          retention-days: 30
