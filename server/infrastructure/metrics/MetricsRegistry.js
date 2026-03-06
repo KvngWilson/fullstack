@@ -1,12 +1,10 @@
 /**
- * Metrics Registry - For observability (Phase 5)
+ * Metrics Registry
  *
  * Tracks:
  * - Counters (requests, errors, etc.)
  * - Histograms (latencies)
  * - Gauges (active connections)
- *
- * For now: stub for migration compatibility
  */
 
 class MetricsRegistry {

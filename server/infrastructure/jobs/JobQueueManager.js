@@ -1,8 +1,3 @@
-/**
- * Job Queue Factory
- * Creates and manages Bull job queues for async task processing
- */
-
 const Queue = require('bull');
 const { logger } = require('../../shared/utils/logger');
 
@@ -41,7 +36,7 @@ class JobQueueManager {
           type: 'exponential',
           delay: 2000
         },
-        timeout: 30000 // Job timeout in ms
+        timeout: 30000
       },
       settings: {
         stalledInterval: 5000,
@@ -63,7 +58,6 @@ class JobQueueManager {
 
     const queue = new Queue(queueName, queueOptions);
 
-    // Event handlers
     queue.on('error', (error) => {
       logger.error(`Queue error [${queueName}]`, {
         error: error.message,

@@ -37,8 +37,6 @@ export default defineConfig({
 
   server: {
     port: 5173,
-    // ✅ Preload modules for faster dev startup
-    middlewareMode: false,
     // ✅ Enable HTTP/2
     middlewareMode: false,
     // ✅ Optimize for faster HMR

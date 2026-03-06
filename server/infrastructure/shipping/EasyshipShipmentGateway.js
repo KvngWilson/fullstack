@@ -11,10 +11,24 @@
 
 const easyship = require('@api/easyship');
 const logger = require('../../shared/utils/logger');
+const CircuitBreaker = require('../resilience/CircuitBreaker');
+const RateLimiter = require('../resilience/RateLimiter');
 
 class EasyshipShipmentGateway {
   constructor(defaultApiKey = null) {
     this.defaultApiKey = defaultApiKey || process.env.EASYSHIP_API_KEY;
+    this.rateLimiter = new RateLimiter({
+      name: 'EasyshipShipmentRateLimiter',
+      capacity: Number(process.env.EASYSHIP_RATE_LIMIT_CAPACITY) || 100,
+      refillRate: Number(process.env.EASYSHIP_RATE_LIMIT_REFILL_RATE) || 10,
+      maxWaitTime: Number(process.env.EASYSHIP_RATE_LIMIT_WAIT_MS) || 5000,
+    });
+    this.circuitBreaker = new CircuitBreaker({
+      name: 'EasyshipShipmentCircuitBreaker',
+      failureThreshold: Number(process.env.EASYSHIP_CIRCUIT_FAILURE_THRESHOLD) || 5,
+      successThreshold: Number(process.env.EASYSHIP_CIRCUIT_SUCCESS_THRESHOLD) || 2,
+      timeout: Number(process.env.EASYSHIP_CIRCUIT_TIMEOUT_MS) || 60000,
+    });
     
     if (this.defaultApiKey) {
       easyship.auth(this.defaultApiKey);
@@ -52,7 +66,10 @@ class EasyshipShipmentGateway {
         destination: shipmentData.destination_address?.country_alpha2,
       });
 
-      const response = await easyship.shipments(shipmentData);
+      const response = await this.circuitBreaker.execute(async () => {
+        await this.rateLimiter.acquireToken();
+        return easyship.shipments(shipmentData);
+      });
 
       const normalizedShipment = this._normalizeShipmentResponse(
         response.data || response
@@ -181,7 +198,10 @@ class EasyshipShipmentGateway {
         easyship.auth(apiKey);
       }
 
-      const response = await easyship.shipment_id(shipmentId);
+      const response = await this.circuitBreaker.execute(async () => {
+        await this.rateLimiter.acquireToken();
+        return easyship.shipment_id(shipmentId);
+      });
       return this._normalizeShipmentResponse(response.data || response);
     } catch (error) {
       logger.error('Failed to fetch shipment', {
@@ -216,9 +236,12 @@ class EasyshipShipmentGateway {
   async healthCheck() {
     try {
       // Try to fetch a known shipment or use rates as health check
-      await easyship.rates_request({
-        destination_address: { country_alpha2: 'US' },
-        parcels: [{ items: [] }],
+      await this.circuitBreaker.execute(async () => {
+        await this.rateLimiter.acquireToken();
+        return easyship.rates_request({
+          destination_address: { country_alpha2: 'US' },
+          parcels: [{ items: [] }],
+        });
       });
 
       return { healthy: true, gateway: 'easyship-shipment' };

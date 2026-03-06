@@ -4,6 +4,10 @@ const { pool } = require("../../../config/db");
 const { logger } = require("../../../shared/utils/logger");
 const { validateEmail } = require("../../../shared/utils/validate");
 const { sendEmailJob } = require("../../../infrastructure/email/email");
+const {
+  generateToken,
+  generateRefreshToken,
+} = require("../../../infrastructure/security/tokenManager");
 
 /**
  * Enhanced Authentication Service
@@ -23,7 +27,7 @@ class EnhancedAuthService {
    */
   static async sendEmailVerification(userId, email) {
     // Generate verification token
-    const token = crypto.randomBytes(32).toString("hex");
+    const token = generateToken();
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
@@ -35,7 +39,7 @@ class EnhancedAuthService {
     );
 
     // Send email
-    const verificationUrl = `${process.env.APP_URL || "http://localhost:3000"}/auth/verify-email?token=${token}`;
+    const verificationUrl = `${process.env.APP_URL || "http://localhost:5000"}/auth/verify-email?token=${token}`;
 
     try {
       await sendEmailJob({
@@ -157,7 +161,7 @@ class EnhancedAuthService {
     const user = userResult.rows[0];
 
     // Generate reset token
-    const token = crypto.randomBytes(32).toString("hex");
+    const token = generateToken();
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
@@ -169,7 +173,7 @@ class EnhancedAuthService {
     );
 
     // Send email
-    const resetUrl = `${process.env.APP_URL || "http://localhost:3000"}/auth/reset-password?token=${token}`;
+    const resetUrl = `${process.env.APP_URL || "http://localhost:5000"}/auth/reset-password?token=${token}`;
 
     try {
       await sendEmailJob({
@@ -322,7 +326,7 @@ class EnhancedAuthService {
    */
   static async generateRefreshToken(userId, ipAddress, userAgent, deviceInfo = {}) {
     // Generate token
-    const token = crypto.randomBytes(64).toString("hex");
+    const token = generateRefreshToken();
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
@@ -382,7 +386,7 @@ class EnhancedAuthService {
       );
 
       // Generate new refresh token
-      const newToken = crypto.randomBytes(64).toString("hex");
+      const newToken = generateRefreshToken();
       const newTokenHash = crypto.createHash("sha256").update(newToken).digest("hex");
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 

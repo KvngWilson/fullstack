@@ -24,7 +24,7 @@ const ResponseTimeTracker = (slowThreshold = 200) => {
       // Log slow requests
       if (duration > slowThreshold) {
         console.warn(
-          `⚠️  SLOW: ${req.method} ${req.path} - ${duration.toFixed(2)}ms`
+          `  SLOW: ${req.method} ${req.path} - ${duration.toFixed(2)}ms`
         );
       }
       

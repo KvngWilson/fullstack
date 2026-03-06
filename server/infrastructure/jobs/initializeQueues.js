@@ -1,8 +1,3 @@
-/**
- * Job Queue Initialization
- * Sets up and initializes all job queues
- */
-
 const JobQueueManager = require('./JobQueueManager');
 const EmailJobQueue = require('./handlers/emailQueue');
 const WebhookJobQueue = require('./handlers/webhookQueue');
@@ -21,7 +16,6 @@ async function initializeJobQueues(emailService, webhookHandlers = {}) {
 
     const queueManager = new JobQueueManager(redisConfig);
 
-    // Create email queue
     const emailQueue = queueManager.createQueue('email', {
       defaultJobOptions: {
         attempts: 3,
@@ -35,10 +29,9 @@ async function initializeJobQueues(emailService, webhookHandlers = {}) {
 
     const emailJobQueue = new EmailJobQueue(emailQueue, emailService);
 
-    // Create webhook queue
     const webhookQueue = queueManager.createQueue('webhooks', {
       defaultJobOptions: {
-        attempts: 5, // Webhooks need more retries
+        attempts: 5,
         backoff: {
           type: 'exponential',
           delay: 5000
@@ -49,7 +42,6 @@ async function initializeJobQueues(emailService, webhookHandlers = {}) {
 
     const webhookJobQueue = new WebhookJobQueue(webhookQueue, webhookHandlers);
 
-    // Create reporting queue (lower priority)
     const reportingQueue = queueManager.createQueue('reporting', {
       defaultJobOptions: {
         attempts: 2,
@@ -57,11 +49,10 @@ async function initializeJobQueues(emailService, webhookHandlers = {}) {
       }
     });
 
-    // Create cleanup queue (for background maintenance)
     const cleanupQueue = queueManager.createQueue('cleanup', {
       defaultJobOptions: {
         attempts: 1,
-        timeout: 3600000 // 1 hour
+        timeout: 3600000
       }
     });
 

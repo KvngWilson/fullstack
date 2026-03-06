@@ -11,6 +11,7 @@ const AggregateRoot = require('./entities/AggregateRoot');
 // Events
 const DomainEvent = require('./events/DomainEvent');
 const EventBus = require('./events/EventBus');
+const eventDispatcher = require('./events/dispatcher');
 
 // Value Objects
 const ValueObject = require('./value-objects/ValueObject');
@@ -30,6 +31,7 @@ module.exports = {
   // Events
   DomainEvent,
   EventBus,
+  eventDispatcher,
 
   // Value Objects
   ValueObject,

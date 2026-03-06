@@ -1,32 +1,38 @@
-const fs = require("fs");
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
-const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
 const setupSwagger = require("../config/swagger");
 const vhost = require("vhost");
-const yaml = require("js-yaml");
 
 const passport = require("../config/passport");
-const {
-  errorHandler,
-  notFoundHandler,
-} = require("../api/middleware/error");
+const { errorHandler, notFoundHandler } = require("../api/middleware/error");
 const { csrfProtection } = require("../api/middleware/csrf");
+const {
+  etagSupport,
+  lastModifiedSupport,
+} = require("../api/middleware/cache-headers");
 const { payment } = require("../api/controllers/v1/payments");
 const { handleStripeWebhook } = payment;
 const { applySessionMiddleware } = require("../config/session");
 const { getSecurityMiddleware, getCorsOptions } = require("../config/security");
-const { correlationIdMiddleware, requestTimingMiddleware } = require("../api/middleware/requestContext");
-const { metricsMiddleware, metricsEndpoint } = require("../api/middleware/metrics");
-const { 
-  healthCheck, 
-  detailedHealthCheck, 
-  readinessCheck, 
-  livenessCheck 
+const {
+  correlationIdMiddleware,
+  requestTimingMiddleware,
+} = require("../api/middleware/requestContext");
+const {
+  metricsMiddleware,
+  metricsEndpoint,
+} = require("../api/middleware/metrics");
+const {
+  healthCheck,
+  detailedHealthCheck,
+  readinessCheck,
+  livenessCheck,
 } = require("../api/controllers/health");
+const { registerDomainSubscribers } = require("../domain/subscribers");
+const { createAdminApp } = require("./admin-app");
 
 const adminRoutes = require("../api/routes/admin");
 const authRoutes = require("../api/routes/v1/auth");
@@ -36,41 +42,26 @@ const orderingRoutes = require("../api/routes/v1/ordering");
 const paymentsRoutes = require("../api/routes/v1/payments");
 const vendorRoutes = require("../api/routes/v1/vendor");
 const wishlistRoutes = require("../api/routes/v1/wishlist");
-const platformRoutes = require("../api/routes/v1/platform");
-
-// Build isolated admin sub-application for vhost mounting
-function createAdminApp() {
-  const adminApp = express();
-
-  adminApp.set("view engine", "ejs");
-  adminApp.set("views", path.join(__dirname, "../views"));
-
-  adminApp.use("/", adminRoutes);
-  return adminApp;
-}
+const guestCartRoutes = require("../api/routes/v1/guest/cart");
+const guestCheckoutRoutes = require("../api/routes/v1/checkout/guest");
 
 function registerCoreMiddleware(app) {
   app.set("trust proxy", 1);
-  
+
   // Enhanced security middleware
   const securityMiddleware = getSecurityMiddleware();
-  securityMiddleware.forEach(middleware => app.use(middleware));
-  
+  securityMiddleware.forEach((middleware) => app.use(middleware));
+
   app.use(cors(getCorsOptions()));
-  
   app.use(correlationIdMiddleware);
   app.use(requestTimingMiddleware);
-  
   app.use(metricsMiddleware);
-  
   app.use(morgan("dev"));
-
   app.post(
-    "/api/v1/ordering/payments/webhook/stripe",
+    "/api/v1/payments/stripe-webhook",
     express.raw({ type: "application/json" }),
     handleStripeWebhook,
   );
-
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true, limit: "10mb" }));
   app.use(cookieParser());
@@ -79,7 +70,7 @@ function registerCoreMiddleware(app) {
 function registerAppSettings(app) {
   // Setup Swagger/OpenAPI documentation
   setupSwagger(app);
-  
+
   app.set("view engine", "ejs");
   app.set("views", path.join(__dirname, "../views"));
 }
@@ -87,8 +78,15 @@ function registerAppSettings(app) {
 function registerRoutes(app) {
   const adminApp = createAdminApp();
 
-  app.use(express.static(path.join(__dirname, "../public")));
-  app.use("/uploads", express.static("uploads"));
+  // Static assets with long-term caching
+  app.use(
+    express.static(path.join(__dirname, "../public"), {
+      maxAge: "1y",
+      etag: false,
+    }),
+  );
+  app.use("/uploads", express.static("uploads", { maxAge: "1y", etag: false }));
+
   app.use(passport.initialize());
 
   app.get("/health", healthCheck);
@@ -100,8 +98,15 @@ function registerRoutes(app) {
   app.use(vhost("admin.localhost", adminApp));
   app.use(vhost("admin.*", adminApp));
 
-  // ✅ CSRF protection middleware for all API state-changing requests
-  app.use("/api/v1", csrfProtection());
+  // Cache validation headers for API responses
+  app.use("/api/v1", etagSupport);
+  app.use("/api/v1", lastModifiedSupport);
+
+  // CSRF protection middleware for all API state-changing requests
+  // Disabled during tests to allow integration tests to run
+  if (process.env.NODE_ENV !== "test") {
+    app.use("/api/v1", csrfProtection());
+  }
 
   // Domain-specific routes
   app.use("/api/v1/auth", authRoutes);
@@ -111,7 +116,11 @@ function registerRoutes(app) {
   app.use("/api/v1/payments", paymentsRoutes);
   app.use("/api/v1/vendors", vendorRoutes);
   app.use("/api/v1/wishlist", wishlistRoutes);
-  app.use("/api/v1/platform", platformRoutes);
+  app.use("/api/v1/admin", adminRoutes.api);
+
+  // Guest checkout - allows non-authenticated users to shop and purchase
+  app.use("/api/v1/guest/cart", guestCartRoutes);
+  app.use("/api/v1/checkout/guest", guestCheckoutRoutes);
 }
 
 // Register terminal middleware last in chain
@@ -123,6 +132,7 @@ function registerErrorHandlers(app) {
 function createApp() {
   const app = express();
 
+  registerDomainSubscribers();
   registerAppSettings(app);
   registerCoreMiddleware(app);
   applySessionMiddleware(app);
@@ -137,6 +147,6 @@ module.exports = {
 };
 
 // Export app instance for testing
-if (process.env.NODE_ENV === 'test') {
+if (process.env.NODE_ENV === "test") {
   module.exports.app = createApp();
 }

@@ -1,5 +1,5 @@
 /**
- * Order & Cart Validation Schemas - Phase 7
+ * Order & Cart Validation Schemas
  * Joi validators for order and cart operations (Ordering domain)
  */
 
@@ -13,22 +13,14 @@ const { idSchema, optionalIdSchema, statusSchema } = require("./common");
  * Validates order creation request
  */
 const createOrderSchema = Joi.object({
-  shipping_address_id: Joi.number()
-    .integer()
-    .positive()
-    .required()
-    .messages({
-      "number.positive": "shipping_address_id must be a positive number",
-      "any.required": "shipping_address_id is required",
-    }),
-  billing_address_id: Joi.number()
-    .integer()
-    .positive()
-    .required()
-    .messages({
-      "number.positive": "billing_address_id must be a positive number",
-      "any.required": "billing_address_id is required",
-    }),
+  shipping_address_id: Joi.number().integer().positive().required().messages({
+    "number.positive": "shipping_address_id must be a positive number",
+    "any.required": "shipping_address_id is required",
+  }),
+  billing_address_id: Joi.number().integer().positive().required().messages({
+    "number.positive": "billing_address_id must be a positive number",
+    "any.required": "billing_address_id is required",
+  }),
   coupon_code: Joi.string().trim().optional().max(50),
   notes: Joi.string().trim().optional().max(500),
 }).unknown(false);
@@ -40,7 +32,9 @@ const createOrderSchema = Joi.object({
 const updateOrderSchema = Joi.object({
   status: statusSchema.optional(),
   notes: Joi.string().trim().optional().max(500),
-}).unknown(false).min(1);
+})
+  .unknown(false)
+  .min(1);
 
 /**
  * Get orders list schema
@@ -77,16 +71,11 @@ const addOrderItemSchema = Joi.object({
     "number.positive": "product_variant_id must be a positive number",
     "any.required": "product_variant_id is required",
   }),
-  quantity: Joi.number()
-    .integer()
-    .min(1)
-    .max(1000)
-    .required()
-    .messages({
-      "number.min": "quantity must be at least 1",
-      "number.max": "quantity cannot exceed 1000",
-      "any.required": "quantity is required",
-    }),
+  quantity: Joi.number().integer().min(1).max(1000).required().messages({
+    "number.min": "quantity must be at least 1",
+    "number.max": "quantity cannot exceed 1000",
+    "any.required": "quantity is required",
+  }),
 }).unknown(false);
 
 // ===== CART SCHEMAS =====
@@ -106,16 +95,11 @@ const addToCartSchema = Joi.object({
     "number.positive": "product_variant_id must be a positive number",
     "any.required": "product_variant_id is required",
   }),
-  quantity: Joi.number()
-    .integer()
-    .min(1)
-    .max(1000)
-    .required()
-    .messages({
-      "number.min": "quantity must be at least 1",
-      "number.max": "Quantity cannot exceed 1000",
-      "any.required": "quantity is required",
-    }),
+  quantity: Joi.number().integer().min(1).max(1000).required().messages({
+    "number.min": "quantity must be at least 1",
+    "number.max": "Quantity cannot exceed 1000",
+    "any.required": "quantity is required",
+  }),
 }).unknown(false);
 
 /**
@@ -123,15 +107,10 @@ const addToCartSchema = Joi.object({
  * Validates cart item quantity update
  */
 const updateCartItemSchema = Joi.object({
-  quantity: Joi.number()
-    .integer()
-    .min(0)
-    .max(1000)
-    .required()
-    .messages({
-      "number.max": "quantity cannot exceed 1000",
-      "any.required": "quantity is required",
-    }),
+  quantity: Joi.number().integer().min(0).max(1000).required().messages({
+    "number.max": "quantity cannot exceed 1000",
+    "any.required": "quantity is required",
+  }),
 }).unknown(false);
 
 /**
@@ -198,7 +177,9 @@ const updateAddressSchema = Joi.object({
     .pattern(/^[A-Za-z0-9\s\-]{3,10}$/),
   country: Joi.string().trim().optional().max(100),
   is_default: Joi.boolean().optional(),
-}).unknown(false).min(1);
+})
+  .unknown(false)
+  .min(1);
 
 /**
  * Get addresses list schema
@@ -235,7 +216,14 @@ const createShipmentSchema = Joi.object({
  */
 const updateShipmentStatusSchema = Joi.object({
   status: Joi.string()
-    .valid("pending", "processing", "shipped", "in_transit", "delivered", "failed")
+    .valid(
+      "pending",
+      "processing",
+      "shipped",
+      "in_transit",
+      "delivered",
+      "failed",
+    )
     .required()
     .messages({
       "any.only":

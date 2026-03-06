@@ -128,7 +128,7 @@ test.describe('Cart & Checkout Flow', () => {
       await waitForNetworkIdle(page);
 
       // Check for empty cart message
-      const emptyMsg = page.locator('text=/empty|no|cart/i');
+      const emptyMsg = page.locator('main').locator('text=/your cart is empty|empty cart|no items in your cart/i').first();
       await expect(emptyMsg).toBeVisible();
 
       // Check for CTA button
@@ -201,11 +201,12 @@ test.describe('Cart & Checkout Flow', () => {
 
       const checkoutButton = page.locator('button:has-text("Checkout"), button:has-text("Continue to Checkout")').first();
       await checkoutButton.click();
+      await page.waitForTimeout(300);
 
       // Check if redirected to login or if guest checkout is available
       const url = page.url();
       const requiresLogin = url.includes('/login');
-      const guestCheckout = page.locator('text=guest|continue as guest').count() > 0;
+      const guestCheckout = (await page.locator('text=/guest|continue as guest/i').count()) > 0;
 
       expect(requiresLogin || guestCheckout).toBeTruthy();
     });
@@ -290,7 +291,7 @@ test.describe('Cart & Checkout Flow', () => {
       await waitForNetworkIdle(page);
 
       // Check if payment section is visible
-      const paymentSection = page.locator('text=/payment|card|credit/i');
+      const paymentSection = page.getByRole('heading', { name: /payment/i });
       await expect(paymentSection).toBeVisible();
     });
 

@@ -1,3 +1,66 @@
+x-server-env: &server-env
+  NODE_ENV: ${NODE_ENV:-development}
+  PORT: 5000
+
+  # Database Configuration
+  DB_HOST: postgres
+  DB_PORT: 5432
+  DB_NAME: ${DB_NAME:-ecommerce_db}
+  DB_USER: ${DB_USER:-postgres}
+  DB_PASSWORD: ${DB_PASSWORD:-postgres}
+
+  # Redis Configuration
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  REDIS_DB: 0
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_1234567890}
+
+  # Security
+  JWT_SECRET: ${JWT_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+  JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+  SESSION_SECRET: ${SESSION_SECRET:-abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789}
+
+  # Application
+  APP_URL: ${APP_URL:-http://localhost:5000}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+
+x-server-healthcheck: &server-healthcheck
+  test:
+    [
+      "CMD",
+      "wget",
+      "--quiet",
+      "--tries=1",
+      "--spider",
+      "http://localhost:5000/health/live",
+    ]
+  interval: 30s
+  timeout: 5s
+  retries: 3
+  start_period: 40s
+
+x-server-common: &server-common
+  build:
+    context: ./server
+    dockerfile: Dockerfile
+    args:
+      NODE_ENV: ${NODE_ENV:-production}
+  environment: *server-env
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  expose:
+    - "5000"
+  volumes:
+    - ./server/logs:/app/logs
+    - ./server/uploads:/app/uploads
+  restart: unless-stopped
+  networks:
+    - fullstack-network
+  healthcheck: *server-healthcheck
+
 services:
   # PostgreSQL Database
   postgres:
@@ -16,7 +79,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./data/queries.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./data/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
-      - ./server/data/migrations:/docker-entrypoint-initdb.d/migrations:ro
+      - ./server/infrastructure/database/migrations:/docker-entrypoint-initdb.d/migrations:ro
     healthcheck:
       test:
         [
@@ -57,131 +120,19 @@ services:
 
   # Node.js API Server (primary)
   server:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
-      args:
-        NODE_ENV: ${NODE_ENV:-production}
+    <<: *server-common
     container_name: fullstack-server-1
     labels:
       description: "Node.js Express API server"
       version: "1.0.0"
-    environment:
-      NODE_ENV: ${NODE_ENV:-development}
-      PORT: 5000
-
-      # Database Configuration
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-ecommerce_db}
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-
-      # Redis Configuration
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_DB: 0
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_1234567890}
-
-      # Security
-      JWT_SECRET: ${JWT_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      SESSION_SECRET: ${SESSION_SECRET:-abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789}
-
-      # Application
-      APP_URL: ${APP_URL:-http://localhost:5000}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    expose:
-      - "5000"
-    volumes:
-      - ./server/logs:/app/logs
-      - ./server/uploads:/app/uploads
-    restart: unless-stopped
-    networks:
-      - fullstack-network
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--quiet",
-          "--tries=1",
-          "--spider",
-          "http://localhost:5000/health/live",
-        ]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 40s
 
   # Node.js API Server (replica)
   server-replica:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
-      args:
-        NODE_ENV: ${NODE_ENV:-production}
+    <<: *server-common
     container_name: fullstack-server-2
     labels:
       description: "Node.js Express API server replica"
       version: "1.0.0"
-    environment:
-      NODE_ENV: ${NODE_ENV:-development}
-      PORT: 5000
-
-      # Database Configuration
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-ecommerce_db}
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-
-      # Redis Configuration
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_DB: 0
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_1234567890}
-
-      # Security
-      JWT_SECRET: ${JWT_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      SESSION_SECRET: ${SESSION_SECRET:-abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789}
-
-      # Application
-      APP_URL: ${APP_URL:-http://localhost:5000}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    expose:
-      - "5000"
-    volumes:
-      - ./server/logs:/app/logs
-      - ./server/uploads:/app/uploads
-    restart: unless-stopped
-    networks:
-      - fullstack-network
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--quiet",
-          "--tries=1",
-          "--spider",
-          "http://localhost:5000/health/live",
-        ]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 40s
 
   # NGINX reverse proxy and load balancer for backend APIs
   gateway:
@@ -203,7 +154,14 @@ services:
       - fullstack-network
     healthcheck:
       test:
-        ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health/live"]
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://127.0.0.1/health/live",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -225,13 +183,13 @@ services:
       gateway:
         condition: service_healthy
     ports:
-      - "3000:80"
+      - "${CLIENT_PORT:-5173}:80"
     restart: unless-stopped
     networks:
       - fullstack-network
     healthcheck:
       test:
-        ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+        ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/"]
       interval: 30s
       timeout: 5s
       retries: 3

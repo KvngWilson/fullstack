@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS cart_items (
   cart_id INTEGER NOT NULL REFERENCES carts(id) ON DELETE CASCADE,
   product_id INTEGER NOT NULL REFERENCES products(id),
   quantity INTEGER NOT NULL DEFAULT 1,
-  price DECIMAL(10, 2) NOT NULL,
+  price_cents INTEGER NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -97,10 +97,10 @@ CREATE TABLE IF NOT EXISTS orders (
   order_number VARCHAR(50) NOT NULL UNIQUE,
   address_id INTEGER REFERENCES addresses(id),
   status VARCHAR(50) DEFAULT 'pending',
-  subtotal DECIMAL(10, 2) DEFAULT 0,
-  tax DECIMAL(10, 2) DEFAULT 0,
-  shipping_cost DECIMAL(10, 2) DEFAULT 0,
-  total DECIMAL(10, 2) DEFAULT 0,
+  subtotal_cents INTEGER DEFAULT 0,
+  tax_cents INTEGER DEFAULT 0,
+  shipping_cents INTEGER DEFAULT 0,
+  total_cents INTEGER DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
   product_id INTEGER NOT NULL REFERENCES products(id),
   quantity INTEGER NOT NULL DEFAULT 1,
-  unit_price DECIMAL(10, 2) NOT NULL,
+  unit_price_cents INTEGER NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS payments (
   id SERIAL PRIMARY KEY,
   order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
   payment_method_id INTEGER REFERENCES payment_methods(id),
-  amount DECIMAL(10, 2) NOT NULL,
+  amount_cents INTEGER NOT NULL,
   status VARCHAR(50) DEFAULT 'pending',
   webhook_event_id VARCHAR(255),
   transaction_id VARCHAR(255),
@@ -160,3 +160,31 @@ CREATE TABLE IF NOT EXISTS shipment_tracking (
 );
 
 CREATE INDEX idx_shipment_tracking_shipment_id ON shipment_tracking(shipment_id);
+-- Roles Table
+CREATE TABLE IF NOT EXISTS roles (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL UNIQUE,
+  description TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Employee Invitations Table
+CREATE TABLE IF NOT EXISTS employee_invitations (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(255) NOT NULL,
+  role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+  invitation_token VARCHAR(255) NOT NULL UNIQUE,
+  token_hash VARCHAR(255) NOT NULL UNIQUE,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  invited_by_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  accepted_at TIMESTAMP,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_employee_invitations_email ON employee_invitations(email);
+CREATE INDEX idx_employee_invitations_status ON employee_invitations(status);
+CREATE INDEX idx_employee_invitations_expires_at ON employee_invitations(expires_at);

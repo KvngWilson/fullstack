@@ -1,5 +1,5 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import { authApi } from '@/api/endpoints/auth';
+import { authService } from '@/services/api/authService';
 import { getErrorMessage } from '@/utils/getErrorMessage';
 
 /**
@@ -11,7 +11,7 @@ export const loginThunk = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
     try {
-      const response = await authApi.login(credentials);
+      const response = await authService.login(credentials);
       // Backend automatically sets httpOnly cookie
       // We only return user data for Redux state
       return { user: response.user };
@@ -30,7 +30,7 @@ export const registerThunk = createAsyncThunk(
   'auth/register',
   async (data, { rejectWithValue }) => {
     try {
-      const response = await authApi.register(data);
+      const response = await authService.register(data);
       // Backend automatically sets httpOnly cookie
       // We only return user data for Redux state
       return { user: response.user };
@@ -48,7 +48,7 @@ export const logoutThunk = createAsyncThunk(
   'auth/logout',
   async (_, { rejectWithValue }) => {
     try {
-      await authApi.logout();
+      await authService.logout();
       // Backend cleared httpOnly cookies
       return null;
     } catch (error) {
@@ -68,7 +68,7 @@ export const refreshTokenThunk = createAsyncThunk(
   'auth/refreshToken',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await authApi.refreshToken();
+      const response = await authService.refreshToken();
       // Backend automatically updates httpOnly cookies
       // We return user data if available
       return response.user ? { user: response.user } : null;
@@ -86,7 +86,7 @@ export const fetchCurrentUserThunk = createAsyncThunk(
   'auth/fetchCurrentUser',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await authApi.me();
+      const response = await authService.me();
       return { user: response.user };
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));

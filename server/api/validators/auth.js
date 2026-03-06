@@ -1,10 +1,14 @@
 /**
- * Authentication Validation Schemas - Phase 7
+ * Authentication Validation Schemas
  * Joi validators for authentication operations (Identity domain)
  */
 
 const Joi = require("joi");
-const { emailSchema, passwordSchema, strongPasswordSchema } = require("./common");
+const {
+  emailSchema,
+  passwordSchema,
+  strongPasswordSchema,
+} = require("./common");
 
 // ===== REGISTRATION & LOGIN SCHEMAS =====
 
@@ -15,10 +19,13 @@ const { emailSchema, passwordSchema, strongPasswordSchema } = require("./common"
 const registerSchema = Joi.object({
   email: emailSchema,
   password: strongPasswordSchema,
-  confirm_password: Joi.string().valid(Joi.ref("password")).required().messages({
-    "any.only": "Passwords do not match",
-    "any.required": "Confirm password is required",
-  }),
+  confirm_password: Joi.string()
+    .valid(Joi.ref("password"))
+    .required()
+    .messages({
+      "any.only": "Passwords do not match",
+      "any.required": "Confirm password is required",
+    }),
   first_name: Joi.string().trim().max(100).required().messages({
     "any.required": "First name is required",
   }),
@@ -59,10 +66,13 @@ const resetPasswordSchema = Joi.object({
     "any.required": "Reset token is required",
   }),
   password: strongPasswordSchema,
-  confirm_password: Joi.string().valid(Joi.ref("password")).required().messages({
-    "any.only": "Passwords do not match",
-    "any.required": "Confirm password is required",
-  }),
+  confirm_password: Joi.string()
+    .valid(Joi.ref("password"))
+    .required()
+    .messages({
+      "any.only": "Passwords do not match",
+      "any.required": "Confirm password is required",
+    }),
 }).unknown(false);
 
 /**
@@ -70,9 +80,7 @@ const resetPasswordSchema = Joi.object({
  * Validates refresh token request
  */
 const refreshTokenSchema = Joi.object({
-  refresh_token: Joi.string().trim().required().messages({
-    "any.required": "Refresh token is required",
-  }),
+  refresh_token: Joi.string().trim().optional(),
 }).unknown(false);
 
 /**
@@ -110,16 +118,11 @@ const enableTwoFactorSchema = Joi.object({
  * Validates 2FA code verification
  */
 const verifyTwoFactorSchema = Joi.object({
-  code: Joi.string()
-    .trim()
-    .length(6)
-    .pattern(/^\d+$/)
-    .required()
-    .messages({
-      "string.length": "Code must be 6 digits",
-      "string.pattern.base": "Code must contain only numbers",
-      "any.required": "Verification code is required",
-    }),
+  code: Joi.string().trim().length(6).pattern(/^\d+$/).required().messages({
+    "string.length": "Code must be 6 digits",
+    "string.pattern.base": "Code must contain only numbers",
+    "any.required": "Verification code is required",
+  }),
 }).unknown(false);
 
 /**
@@ -173,7 +176,10 @@ const sessionRefreshSchema = Joi.object({
  * @returns {Object} Validation result
  */
 function validateRegister(payload) {
-  return registerSchema.validate(payload, { abortEarly: true, stripUnknown: true });
+  return registerSchema.validate(payload, {
+    abortEarly: true,
+    stripUnknown: true,
+  });
 }
 
 /**
@@ -182,7 +188,10 @@ function validateRegister(payload) {
  * @returns {Object} Validation result
  */
 function validateLogin(payload) {
-  return loginSchema.validate(payload, { abortEarly: true, stripUnknown: true });
+  return loginSchema.validate(payload, {
+    abortEarly: true,
+    stripUnknown: true,
+  });
 }
 
 /**
@@ -191,7 +200,10 @@ function validateLogin(payload) {
  * @returns {Object} Validation result
  */
 function validateForgotPassword(payload) {
-  return forgotPasswordSchema.validate(payload, { abortEarly: true, stripUnknown: true });
+  return forgotPasswordSchema.validate(payload, {
+    abortEarly: true,
+    stripUnknown: true,
+  });
 }
 
 /**
@@ -200,7 +212,10 @@ function validateForgotPassword(payload) {
  * @returns {Object} Validation result
  */
 function validateResetPassword(payload) {
-  return resetPasswordSchema.validate(payload, { abortEarly: true, stripUnknown: true });
+  return resetPasswordSchema.validate(payload, {
+    abortEarly: true,
+    stripUnknown: true,
+  });
 }
 
 /**
@@ -209,7 +224,10 @@ function validateResetPassword(payload) {
  * @returns {Object} Validation result
  */
 function validateRefreshToken(payload) {
-  return refreshTokenSchema.validate(payload, { abortEarly: true, stripUnknown: true });
+  return refreshTokenSchema.validate(payload, {
+    abortEarly: true,
+    stripUnknown: true,
+  });
 }
 
 /**
@@ -218,7 +236,10 @@ function validateRefreshToken(payload) {
  * @returns {Object} Validation result
  */
 function validateVerifyEmail(payload) {
-  return verifyEmailSchema.validate(payload, { abortEarly: true, stripUnknown: true });
+  return verifyEmailSchema.validate(payload, {
+    abortEarly: true,
+    stripUnknown: true,
+  });
 }
 
 /**
@@ -227,7 +248,10 @@ function validateVerifyEmail(payload) {
  * @returns {Object} Validation result
  */
 function validateResendVerificationEmail(payload) {
-  return resendVerificationEmailSchema.validate(payload, { abortEarly: true, stripUnknown: true });
+  return resendVerificationEmailSchema.validate(payload, {
+    abortEarly: true,
+    stripUnknown: true,
+  });
 }
 
 /**
@@ -236,7 +260,10 @@ function validateResendVerificationEmail(payload) {
  * @returns {Object} Validation result
  */
 function validateEnableTwoFactor(payload) {
-  return enableTwoFactorSchema.validate(payload, { abortEarly: true, stripUnknown: true });
+  return enableTwoFactorSchema.validate(payload, {
+    abortEarly: true,
+    stripUnknown: true,
+  });
 }
 
 /**
@@ -245,7 +272,10 @@ function validateEnableTwoFactor(payload) {
  * @returns {Object} Validation result
  */
 function validateVerifyTwoFactor(payload) {
-  return verifyTwoFactorSchema.validate(payload, { abortEarly: true, stripUnknown: true });
+  return verifyTwoFactorSchema.validate(payload, {
+    abortEarly: true,
+    stripUnknown: true,
+  });
 }
 
 /**
@@ -254,7 +284,10 @@ function validateVerifyTwoFactor(payload) {
  * @returns {Object} Validation result
  */
 function validateDisableTwoFactor(payload) {
-  return disableTwoFactorSchema.validate(payload, { abortEarly: true, stripUnknown: true });
+  return disableTwoFactorSchema.validate(payload, {
+    abortEarly: true,
+    stripUnknown: true,
+  });
 }
 
 /**
@@ -263,7 +296,10 @@ function validateDisableTwoFactor(payload) {
  * @returns {Object} Validation result
  */
 function validateOAuthLogin(payload) {
-  return oauthLoginSchema.validate(payload, { abortEarly: true, stripUnknown: true });
+  return oauthLoginSchema.validate(payload, {
+    abortEarly: true,
+    stripUnknown: true,
+  });
 }
 
 /**
@@ -272,7 +308,10 @@ function validateOAuthLogin(payload) {
  * @returns {Object} Validation result
  */
 function validateLogout(payload) {
-  return logoutSchema.validate(payload, { abortEarly: true, stripUnknown: true });
+  return logoutSchema.validate(payload, {
+    abortEarly: true,
+    stripUnknown: true,
+  });
 }
 
 /**
@@ -281,7 +320,10 @@ function validateLogout(payload) {
  * @returns {Object} Validation result
  */
 function validateSessionRefresh(payload) {
-  return sessionRefreshSchema.validate(payload, { abortEarly: true, stripUnknown: true });
+  return sessionRefreshSchema.validate(payload, {
+    abortEarly: true,
+    stripUnknown: true,
+  });
 }
 
 // ===== MODULE EXPORTS =====

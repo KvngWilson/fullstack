@@ -1,4 +1,5 @@
 const { pool } = require("../../../config/db");
+const BaseService = require("../../base/BaseService");
 const { orderRepository } = require("../repositories");
 const {
   InvalidOrderError,
@@ -6,17 +7,34 @@ const {
   AuthorizationError,
 } = require("../../../shared/utils/errors");
 const logger = require("../../../shared/utils/logger");
+const orderPolicy = require("../../../policies/orderPolicy");
+const taxService = require("./TaxService");
+const { getJobQueuesRuntime } = require("../../../infrastructure/jobs/runtime");
+const eventDispatcher = require("../../shared/events/dispatcher");
 
 /**
  * Order Service.
  * Coordinates checkout, stock reservation, and order creation transactions.
+ * Extends BaseService for permission validation and cross-tenant isolation.
  */
-class OrderService {
+class OrderService extends BaseService {
   constructor(emailQueue = null) {
+    super();
     this.emailQueue = emailQueue;
   }
 
-  async createOrder(userId, shippingAddressId, billingAddressId) {
+  /**
+   * Create a new order from user's cart.
+   * For customer orders: userId required, employeeId optional (for admin override)
+   * For admin orders: employeeId required with 'order:create' permission
+   */
+  async createOrder(userId, shippingAddressId, billingAddressId, employeeId = null) {
+    // If called by employee, validate permission
+    if (employeeId) {
+      await this.validatePermission(employeeId, orderPolicy.create);
+      await this.auditLog(employeeId, 'create', 'order', null, { userId, shippingAddressId });
+    }
+
     const cart = await orderRepository.getCartByUserId(userId);
 
     if (!cart || cart.items.length === 0) {
@@ -94,6 +112,15 @@ class OrderService {
       }
 
       await orderRepository.clearUserCart(client, userId);
+
+      // Capture exchange rate snapshot for audit trail
+      await this._captureExchangeRateSnapshot(client, {
+        orderId: order.id,
+        customerCurrency: 'USD', // TODO: Get from user preferences
+        baseCurrency: 'USD',
+        total,
+      });
+
       await client.query("COMMIT");
 
       const fullOrder = await orderRepository.findByIdWithItems(order.id);
@@ -106,6 +133,7 @@ class OrderService {
         tax,
         discount,
         shippingCost,
+        items: pricedItems,
       }).catch((err) => {
         logger.error("Order event publish failed", {
           error: err,
@@ -167,8 +195,7 @@ class OrderService {
   }
 
   _calculateTax(subtotal, _context = {}) {
-    const taxRate = 0;
-    return Number.parseFloat((subtotal * taxRate).toFixed(2));
+    return taxService.calculateFromMajor(subtotal, _context);
   }
 
   _calculateDiscount(subtotal, _context = {}) {
@@ -186,14 +213,42 @@ class OrderService {
   }
 
   async _publishOrderCreatedEvent(eventPayload) {
-    logger.info("Order created event", {
-      type: "order.created",
-      ...eventPayload,
+    const events = [
+      {
+        type: "order.created",
+        occurredAt: new Date(),
+        ...eventPayload,
+      },
+      {
+        type: "payment.initiated",
+        occurredAt: new Date(),
+        orderId: eventPayload.orderId,
+        userId: eventPayload.userId,
+        amount: eventPayload.total,
+        currency: "USD",
+        processor: "pending",
+      },
+      {
+        type: "inventory.reserved",
+        occurredAt: new Date(),
+        orderId: eventPayload.orderId,
+        userId: eventPayload.userId,
+        items: eventPayload.items || [],
+      },
+    ];
+
+    await eventDispatcher.publishAll(events);
+
+    logger.info("Order lifecycle events emitted", {
+      orderId: eventPayload.orderId,
+      eventTypes: events.map((event) => event.type),
     });
   }
 
   async _queueOrderConfirmationEmail(order, emailQueue) {
-    if (!emailQueue) {
+    const resolvedEmailQueue = emailQueue || this._resolveEmailQueue();
+
+    if (!resolvedEmailQueue) {
       logger.warn("Email queue not initialized, skipping order confirmation email");
       return;
     }
@@ -218,14 +273,14 @@ class OrderService {
       }));
 
       await require("../../../infrastructure/jobs/initializeEmailQueue").queueEmail(
-        emailQueue,
+        resolvedEmailQueue,
         user.email,
         "orderConfirmation",
         {
           orderId,
           items: formattedItems,
           total: total.toFixed(2),
-          orderUrl: `${process.env.APP_URL || "http://localhost:3000"}/orders/${orderId}`,
+          orderUrl: `${process.env.APP_URL || "http://localhost:5000"}/orders/${orderId}`,
         },
         {
           attempts: 3,
@@ -243,6 +298,20 @@ class OrderService {
         error: error.message,
       });
     }
+  }
+
+  _resolveEmailQueue() {
+    const runtime = getJobQueuesRuntime();
+
+    if (runtime?.emailJobQueue?.queue) {
+      return runtime.emailJobQueue.queue;
+    }
+
+    if (runtime?.queueManager && typeof runtime.queueManager.getQueue === "function") {
+      return runtime.queueManager.getQueue("email");
+    }
+
+    return null;
   }
 
   async getOrder(orderId, userId, isAdmin) {
@@ -263,9 +332,13 @@ class OrderService {
     return await orderRepository.findByUserId(userId, options);
   }
 
-  async updateOrderStatus(orderId, newStatus, userId, isAdmin) {
-    if (!isAdmin) {
-      throw new AuthorizationError("Unauthorized: Only admins can update order status");
+  async updateOrderStatus(orderId, newStatus, userId, isAdmin, employeeId = null) {
+    // Service-layer RBAC: Always validate permission if called by employee
+    if (employeeId) {
+      await this.validatePermission(employeeId, orderPolicy.update);
+      await this.auditLog(employeeId, 'update', 'order', orderId, { newStatus });
+    } else if (!isAdmin) {
+      throw new AuthorizationError("Unauthorized: Only admins/employees can update order status");
     }
 
     const order = await orderRepository.updateStatus(orderId, newStatus);
@@ -293,14 +366,22 @@ class OrderService {
     return order;
   }
 
-  async cancelOrder(orderId, userId, isAdmin) {
+  async cancelOrder(orderId, userId, isAdmin, employeeId = null) {
+    // Service-layer RBAC: Validate permission if called by employee
+    if (employeeId) {
+      await this.validatePermission(employeeId, orderPolicy.cancel);
+      await this.auditLog(employeeId, 'cancel', 'order', orderId, {});
+    } else if (!isAdmin) {
+      throw new AuthorizationError("Unauthorized: Cannot cancel this order");
+    }
+
     const order = await orderRepository.findById(orderId);
 
     if (!order) {
       return null;
     }
 
-    if (!isAdmin && order.user_id !== userId) {
+    if (!isAdmin && !employeeId && order.user_id !== userId) {
       throw new AuthorizationError("Unauthorized: Cannot cancel this order");
     }
 
@@ -340,6 +421,122 @@ class OrderService {
 
   async _sendDeliveryNotification(order) {
     return order;
+  }
+
+  /**
+   * Get latest exchange rate from database.
+   * @param {Pool.Client} client - Database client
+   * @param {string} fromCurrency - Currency to convert from
+   * @param {string} toCurrency - Currency to convert to
+   * @returns {Promise<{rate: number, isStale: boolean}>}
+   */
+  async _getLatestExchangeRate(client, fromCurrency, toCurrency) {
+    // If currencies are the same, return 1.0
+    if (fromCurrency === toCurrency) {
+      return { rate: 1.0, isStale: false };
+    }
+
+    const result = await client.query(
+      `SELECT rate, expires_at, created_at
+       FROM exchange_rates
+       WHERE from_currency = $1 AND to_currency = $2
+       ORDER BY effective_date DESC, created_at DESC
+       LIMIT 1`,
+      [fromCurrency, toCurrency]
+    );
+
+    if (result.rows.length === 0) {
+      // No rate found - return 1.0 as fallback
+      logger.warn('No exchange rate found', { fromCurrency, toCurrency });
+      return { rate: 1.0, isStale: true };
+    }
+
+    const { rate, expires_at, created_at } = result.rows[0];
+    const now = new Date();
+    const expiresAt = new Date(expires_at);
+    const createdAt = new Date(created_at);
+    
+    // Check if rate is stale (expired or >24 hours old)
+    const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    const age = now - createdAt;
+    const isStale = expiresAt < now || age > maxAge;
+
+    if (isStale) {
+      logger.warn('Exchange rate is stale', {
+        fromCurrency,
+        toCurrency,
+        rate,
+        age: `${Math.round(age / 1000 / 60 / 60)} hours`,
+      });
+    }
+
+    return { rate: parseFloat(rate), isStale };
+  }
+
+  /**
+   * Capture exchange rate snapshot for order (immutable audit trail).
+   * @param {Pool.Client} client - Database client
+   * @param {Object} params - Snapshot parameters
+   * @param {number} params.orderId - Order ID
+   * @param {string} params.customerCurrency - Customer's currency
+   * @param {string} params.baseCurrency - Base currency (system default)
+   * @param {number} params.total - Total amount in base currency
+   */
+  async _captureExchangeRateSnapshot(client, { orderId, customerCurrency, baseCurrency, total }) {
+    const { rate, isStale } = await this._getLatestExchangeRate(
+      client,
+      customerCurrency,
+      baseCurrency
+    );
+
+    // Reject order if rate is stale (security measure)
+    if (isStale && customerCurrency !== baseCurrency) {
+      throw new InvalidOrderError(
+        `Exchange rate for ${customerCurrency} to ${baseCurrency} is stale or expired. Please try again.`
+      );
+    }
+
+    // Convert total to cents (minor units)
+    const totalCents = Math.round(total * 100);
+    const customerTotalCents = customerCurrency === baseCurrency 
+      ? totalCents 
+      : Math.round(totalCents / rate);
+
+    // Insert immutable snapshot
+    await client.query(
+      `INSERT INTO order_currency_snapshots (
+        order_id, 
+        customer_currency, 
+        base_currency, 
+        exchange_rate,
+        customer_total_cents, 
+        base_total_cents,
+        locked_at,
+        locked_by,
+        rate_source,
+        reason
+      ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9)`,
+      [
+        orderId,
+        customerCurrency,
+        baseCurrency,
+        rate,
+        customerTotalCents,
+        totalCents,
+        'OrderService', // locked_by
+        isStale ? 'cached' : 'live', // rate_source
+        'Order creation' // reason
+      ]
+    );
+
+    logger.info('Exchange rate snapshot captured', {
+      orderId,
+      customerCurrency,
+      baseCurrency,
+      rate,
+      customerTotal: customerTotalCents / 100,
+      baseTotal: totalCents / 100,
+    });
   }
 }
 

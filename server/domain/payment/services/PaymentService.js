@@ -1,6 +1,8 @@
 const logger = require("../../../shared/utils/logger");
 const { pool } = require("../../../config/db");
+const paymentPolicy = require("../../../policies/paymentPolicy");
 const PaymentRepository = require("../repositories/PaymentRepository");
+const BaseService = require("../../base/BaseService");
 
 // Import service functions directly
 const PaystackService = require("./PaystackService");
@@ -15,20 +17,47 @@ const {
   processSuccessfulOrderPayment,
   withTransaction,
 } = require("./payment.workflow");
+const { PaymentValidationPolicy } = require("../policies");
+const {
+  PaymentInitiated,
+  PaymentSucceeded,
+  PaymentFailed,
+} = require("../events");
+const eventDispatcher = require("../../shared/events/dispatcher");
 
 /**
  * PaymentService
  * Encapsulates payment processing business logic.
  */
-class PaymentService {
+class PaymentService extends BaseService {
   constructor() {
+    super();
     this.repository = new PaymentRepository();
   }
 
   /**
    * Create a new payment for an order
    */
-  async createPayment(userId, orderId, amount, currency, requestedProcessor) {
+  async createPayment(userId, orderId, amount, currency, requestedProcessor, employeeId = null) {
+        const validation = PaymentValidationPolicy.validateCreatePayment({
+          orderId,
+          amount,
+          currency,
+          processor: requestedProcessor,
+        });
+
+        if (!validation.valid) {
+          throw {
+            status: 400,
+            message: validation.errors.join(", "),
+          };
+        }
+
+    // Permission validation for admin payment creation
+    if (employeeId) {
+      await this.validatePermission(employeeId, paymentPolicy.create);
+    }
+
     // Validate order ownership
     const order = await this.repository.getOrderForPayment(orderId, userId);
     if (!order) {
@@ -128,6 +157,42 @@ class PaymentService {
       "pending"
     );
 
+    const initiatedEvent = new PaymentInitiated({
+      paymentId: paymentRecord.id,
+      orderId,
+      userId,
+      amount,
+      currency,
+      processor,
+    });
+
+    logger.debug("Payment domain event emitted", {
+      type: initiatedEvent.type,
+      paymentId: paymentRecord.id,
+      orderId,
+    });
+
+    try {
+      await eventDispatcher.publish(initiatedEvent);
+    } catch (publishError) {
+      logger.warn("Payment initiated event publish failed", {
+        paymentId: paymentRecord.id,
+        orderId,
+        error: publishError.message,
+      });
+    }
+
+    // Audit log
+    if (employeeId) {
+      await this.auditLog(employeeId, "payment:create", "payment", paymentRecord.id, {
+        orderId,
+        userId,
+        amount,
+        currency,
+        processor,
+      });
+    }
+
     return {
       payment_id: paymentRecord.id,
       authorization_url: paymentResult.data.authorization_url,
@@ -144,7 +209,12 @@ class PaymentService {
   /**
    * Verify payment status and update if successful
    */
-  async verifyPaymentStatus(reference, userId) {
+  async verifyPaymentStatus(reference, userId, employeeId = null) {
+    // Permission validation for admin payment verification
+    if (employeeId) {
+      await this.validatePermission(employeeId, paymentPolicy.verify);
+    }
+
     // Get payment record
     const payment = await this.repository.getPaymentByReference(reference);
     if (!payment) {
@@ -173,11 +243,29 @@ class PaymentService {
     }
 
     if (!verificationResult.success) {
+      const failedEvent = new PaymentFailed({
+        paymentId: payment.id,
+        orderId: payment.order_id,
+        userId,
+        amount: payment.amount,
+        reason: verificationResult.message || "verification_failed",
+      });
+
       logger.warn("Payment verification failed", {
         reference,
         processor,
         message: verificationResult.message,
+        eventType: failedEvent.type,
       });
+
+      try {
+        await eventDispatcher.publish(failedEvent);
+      } catch (publishError) {
+        logger.warn("Payment failed event publish failed", {
+          reference,
+          error: publishError.message,
+        });
+      }
 
       throw {
         status: 400,
@@ -202,6 +290,40 @@ class PaymentService {
     await withTransaction(pool, async (client) => {
       await processSuccessfulOrderPayment(client, updatedPayment.order_id);
     });
+
+    const successEvent = new PaymentSucceeded({
+      paymentId: updatedPayment.id,
+      orderId: updatedPayment.order_id,
+      userId,
+      amount: updatedPayment.amount,
+      currency: updatedPayment.currency || "USD",
+      transactionId: updatedPayment.stripe_payment_id,
+    });
+
+    logger.debug("Payment domain event emitted", {
+      type: successEvent.type,
+      paymentId: updatedPayment.id,
+      orderId: updatedPayment.order_id,
+    });
+
+    try {
+      await eventDispatcher.publish(successEvent);
+    } catch (publishError) {
+      logger.warn("Payment success event publish failed", {
+        paymentId: updatedPayment.id,
+        orderId: updatedPayment.order_id,
+        error: publishError.message,
+      });
+    }
+
+    // Audit log
+    if (employeeId) {
+      await this.auditLog(employeeId, "payment:verify", "payment", updatedPayment.id, {
+        reference,
+        processor,
+        verified: true,
+      });
+    }
 
     return {
       payment_id: updatedPayment.id,

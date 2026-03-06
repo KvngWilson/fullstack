@@ -77,12 +77,13 @@ CREATE TABLE products (
     deleted_at TIMESTAMPTZ
 );
 
--- Product variants (SKU, price, stock, attributes)
+-- Product variants (SKU, price_cents, stock, attributes)
 CREATE TABLE product_variants (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     product_id BIGINT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     sku TEXT UNIQUE NOT NULL,
-    price NUMERIC(12,2) NOT NULL,
+    price_cents INTEGER NOT NULL,
+    currency_code VARCHAR(3) NOT NULL DEFAULT 'USD',
     stock INT NOT NULL DEFAULT 0 CHECK (stock >= 0),
     attributes JSONB,                     -- e.g. {"size": "M", "color": "red"}
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -126,7 +127,11 @@ CREATE TABLE orders (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users(id),
     status order_status NOT NULL DEFAULT 'pending',
-    total NUMERIC(12,2) NOT NULL,
+    currency VARCHAR(3) NOT NULL DEFAULT 'USD',
+    subtotal_cents INTEGER NOT NULL DEFAULT 0,
+    tax_cents INTEGER NOT NULL DEFAULT 0,
+    shipping_cents INTEGER NOT NULL DEFAULT 0,
+    total_cents INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at TIMESTAMPTZ
@@ -138,7 +143,7 @@ CREATE TABLE order_items (
     order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     product_variant_id BIGINT NOT NULL REFERENCES product_variants(id),
     quantity INT NOT NULL,
-    price_at_time NUMERIC(12,2) NOT NULL
+    unit_price_cents INTEGER NOT NULL
 );
 
 -- Order addresses (shipping/billing snapshots)
@@ -163,7 +168,7 @@ CREATE TABLE payments (
     order_id BIGINT NOT NULL REFERENCES orders(id),
     stripe_payment_id TEXT UNIQUE,
     status payment_status NOT NULL,
-    amount NUMERIC(12,2),
+    amount_cents INTEGER,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

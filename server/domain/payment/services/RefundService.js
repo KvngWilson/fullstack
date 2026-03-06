@@ -1,13 +1,16 @@
 const logger = require("../../../shared/utils/logger");
 const PaymentRepository = require("../repositories/PaymentRepository");
 const { pool } = require("../../../config/db");
+const paymentPolicy = require("../../../policies/paymentPolicy");
+const BaseService = require("../../base/BaseService");
 
 /**
  * RefundService
  * Encapsulates refund processing business logic.
  */
-class RefundService {
+class RefundService extends BaseService {
   constructor() {
+    super();
     this.repository = new PaymentRepository();
   }
 
@@ -146,8 +149,10 @@ class RefundService {
   /**
    * Update refund status (admin only)
    */
-  async processRefund(refundId, userId, isAdmin = false) {
-    if (!isAdmin) {
+  async processRefund(refundId, userId, isAdmin = false, employeeId = null) {
+    if (employeeId) {
+      await this.validatePermission(employeeId, paymentPolicy.refund);
+    } else if (!isAdmin) {
       throw {
         status: 403,
         message: "Only admins can process refunds",
@@ -175,6 +180,13 @@ class RefundService {
       userId,
     });
 
+    if (employeeId) {
+      await this.auditLog(employeeId, "payment:refund", "refund", updatedRefund.id, {
+        paymentId: updatedRefund.payment_id,
+        status: "completed",
+      });
+    }
+
     return {
       refund_id: updatedRefund.id,
       payment_id: updatedRefund.payment_id,
@@ -187,8 +199,10 @@ class RefundService {
   /**
    * Reject/cancel a refund request
    */
-  async rejectRefund(refundId, userId, reason = "", isAdmin = false) {
-    if (!isAdmin) {
+  async rejectRefund(refundId, userId, reason = "", isAdmin = false, employeeId = null) {
+    if (employeeId) {
+      await this.validatePermission(employeeId, paymentPolicy.refund);
+    } else if (!isAdmin) {
       throw {
         status: 403,
         message: "Only admins can reject refunds",
@@ -215,6 +229,14 @@ class RefundService {
       reason,
       userId,
     });
+
+    if (employeeId) {
+      await this.auditLog(employeeId, "payment:refund", "refund", updatedRefund.id, {
+        paymentId: updatedRefund.payment_id,
+        status: "rejected",
+        reason,
+      });
+    }
 
     return {
       refund_id: updatedRefund.id,

@@ -8,6 +8,7 @@ const createProductSchema = Joi.object({
   description: Joi.string().allow("", null).optional(),
   base_price: Joi.number().positive().required(),
   category_id: Joi.number().integer().positive().allow(null).optional(),
+  image_url: Joi.string().uri().allow("", null).optional(),
   is_active: Joi.boolean().optional().default(true),
   brand: Joi.string().max(200).optional(),
   material: Joi.string().optional(),
@@ -19,11 +20,14 @@ const updateProductSchema = Joi.object({
   description: Joi.string().allow("", null).optional(),
   base_price: Joi.number().positive().optional(),
   category_id: Joi.number().integer().positive().allow(null).optional(),
+  image_url: Joi.string().uri().allow("", null).optional(),
   is_active: Joi.boolean().optional(),
   brand: Joi.string().max(200).optional(),
   material: Joi.string().optional(),
   care_instructions: Joi.string().optional(),
-}).unknown(false).min(1);
+})
+  .unknown(false)
+  .min(1);
 
 /**
  * Category validation schemas
@@ -36,7 +40,9 @@ const createCategorySchema = Joi.object({
 const updateCategorySchema = Joi.object({
   name: Joi.string().min(1).max(100).optional(),
   description: Joi.string().allow("", null).optional(),
-}).unknown(false).min(1);
+})
+  .unknown(false)
+  .min(1);
 
 /**
  * Inventory validation schemas
@@ -75,7 +81,7 @@ module.exports = {
   createCategorySchema,
   updateCategorySchema,
   updateInventorySchema,
-  
+
   // Validation functions
   validateCreateProduct,
   validateUpdateProduct,

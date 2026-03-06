@@ -6,17 +6,9 @@ require("dotenv").config();
 
 const { pool } = require("../config/db");
 
-const BASELINE_FILE = "008_initial_schema_consolidated.sql";
+const BASELINE_FILE = "001_initial_schema.sql";
 const PREVIOUS_VERSIONS = [
-  "000_create_migrations_table",
   "001_initial_schema",
-  "002_improve_orders_schema",
-  "003_add_performance_indexes",
-  "004_add_constraint_enforcement",
-  "005_multi_tenant_foundation",
-  "006_multi_tenant_phase_2_backfill",
-  "007_multi_tenant_phase_3_rls_policies",
-  "008_initial_schema_consolidated",
 ];
 
 async function ensureMigrationsTable() {
@@ -39,12 +31,13 @@ async function run() {
     const existingCount = rows[0]?.count || 0;
 
     if (existingCount > 0) {
-      throw new Error(
-        "schema_migrations is not empty. Use `npm run migrate` for existing databases.",
-      );
+      console.log("[INFO] Database already initialized with " + existingCount + " migration records.");
+      console.log("[INFO] Use `npm run migrate` to apply pending migrations, or skip this step.");
+      process.exitCode = 0;
+      return;
     }
 
-    const baselinePath = path.join(__dirname, "../data/migrations", BASELINE_FILE);
+    const baselinePath = path.join(__dirname, "../infrastructure/database/migrations", BASELINE_FILE);
     const sql = await fs.readFile(baselinePath, "utf8");
 
     const startedAt = Date.now();

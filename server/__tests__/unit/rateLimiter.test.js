@@ -159,6 +159,9 @@ describe('RateLimiter', () => {
 
       // At this point queue should still exist
       expect(quickLimiter.getState().queueLength).toBeGreaterThan(0);
+
+      // Drain queued promises to avoid unhandled rejections after test completes
+      await Promise.allSettled(promises);
     });
 
     it('rejects request on timeout', async () => {

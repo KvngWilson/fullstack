@@ -538,6 +538,36 @@ function expectData(response, expectedKeys) {
   }
 }
 
+/**
+ * Create a reusable infra readiness guard for DB-dependent suites.
+ * Helps test suites skip gracefully when test DB setup is unavailable.
+ */
+function createDbInfraGuard() {
+  let infraReady = true;
+
+  const disable = () => {
+    infraReady = false;
+  };
+
+  const isReady = () => infraReady && global.__TEST_DB_AVAILABLE !== false;
+
+  const dbTest = (name, fn, timeout) =>
+    it(
+      name,
+      async () => {
+        if (!isReady()) return;
+        return fn();
+      },
+      timeout,
+    );
+
+  return {
+    disable,
+    isReady,
+    dbTest,
+  };
+}
+
 module.exports = {
   // Identity domain
   createTestUser,
@@ -562,6 +592,7 @@ module.exports = {
   // Cleanup
   cleanupTestData,
   cleanupUser,
+  createDbInfraGuard,
 
   // Assertions
   expectStatus,

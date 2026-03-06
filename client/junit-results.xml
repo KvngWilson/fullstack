@@ -1,0 +1,122 @@
+<testsuites id="" name="" tests="54" failures="0" skipped="0" errors="0" time="50.360081">
+<testsuite name="account.spec.js" timestamp="2026-03-06T05:53:14.179Z" hostname="chromium" tests="3" failures="0" skipped="0" time="6.44" errors="0">
+<testcase name="Account Orders Tracking &amp; Payment Status › should redirect unauthenticated user from tracking route to login" classname="account.spec.js" time="1.89">
+</testcase>
+<testcase name="Account Orders Tracking &amp; Payment Status › should render order list with payment status for authenticated user" classname="account.spec.js" time="1.957">
+</testcase>
+<testcase name="Account Orders Tracking &amp; Payment Status › should render dedicated tracking page with shipment details" classname="account.spec.js" time="2.593">
+</testcase>
+</testsuite>
+<testsuite name="checkout.spec.js" timestamp="2026-03-06T05:53:14.179Z" hostname="chromium" tests="12" failures="0" skipped="0" time="46.569" errors="0">
+<testcase name="Cart &amp; Checkout Flow › Shopping Cart › should add product to cart from product list" classname="checkout.spec.js" time="3.412">
+</testcase>
+<testcase name="Cart &amp; Checkout Flow › Shopping Cart › should add product to cart from product detail page" classname="checkout.spec.js" time="4.323">
+</testcase>
+<testcase name="Cart &amp; Checkout Flow › Shopping Cart › should update quantity in cart" classname="checkout.spec.js" time="3.389">
+</testcase>
+<testcase name="Cart &amp; Checkout Flow › Shopping Cart › should remove product from cart" classname="checkout.spec.js" time="4.039">
+</testcase>
+<testcase name="Cart &amp; Checkout Flow › Shopping Cart › should show empty cart message when no items" classname="checkout.spec.js" time="2.956">
+</testcase>
+<testcase name="Cart &amp; Checkout Flow › Shopping Cart › should calculate cart totals correctly" classname="checkout.spec.js" time="5.796">
+</testcase>
+<testcase name="Cart &amp; Checkout Flow › Checkout Flow › should start checkout from cart page" classname="checkout.spec.js" time="3.741">
+</testcase>
+<testcase name="Cart &amp; Checkout Flow › Checkout Flow › should require login for guest checkout (or allow guest)" classname="checkout.spec.js" time="3.583">
+</testcase>
+<testcase name="Cart &amp; Checkout Flow › Checkout Flow › should fill shipping information" classname="checkout.spec.js" time="3.651">
+</testcase>
+<testcase name="Cart &amp; Checkout Flow › Checkout Flow › should validate required shipping fields" classname="checkout.spec.js" time="3.788">
+</testcase>
+<testcase name="Cart &amp; Checkout Flow › Checkout Flow › should handle payment information" classname="checkout.spec.js" time="3.994">
+</testcase>
+<testcase name="Cart &amp; Checkout Flow › Checkout Flow › should show order confirmation after successful checkout" classname="checkout.spec.js" time="3.897">
+</testcase>
+</testsuite>
+<testsuite name="errors.spec.js" timestamp="2026-03-06T05:53:14.179Z" hostname="chromium" tests="15" failures="0" skipped="0" time="25.658" errors="0">
+<testcase name="Error Handling &amp; Recovery › Network Errors › should show error when API is unreachable" classname="errors.spec.js" time="0.957">
+</testcase>
+<testcase name="Error Handling &amp; Recovery › Network Errors › should show error boundary for unhandled errors" classname="errors.spec.js" time="1.55">
+</testcase>
+<testcase name="Error Handling &amp; Recovery › Network Errors › should retry failed requests" classname="errors.spec.js" time="2.482">
+</testcase>
+<testcase name="Error Handling &amp; Recovery › Network Errors › should handle timeout errors" classname="errors.spec.js" time="0.38">
+</testcase>
+<testcase name="Error Handling &amp; Recovery › HTTP Error Responses › should handle 404 Not Found" classname="errors.spec.js" time="2.586">
+</testcase>
+<testcase name="Error Handling &amp; Recovery › HTTP Error Responses › should handle 500 Server Error" classname="errors.spec.js" time="0.657">
+</testcase>
+<testcase name="Error Handling &amp; Recovery › HTTP Error Responses › should handle 401 Unauthorized" classname="errors.spec.js" time="2.933">
+</testcase>
+<testcase name="Error Handling &amp; Recovery › HTTP Error Responses › should handle 429 Rate Limit" classname="errors.spec.js" time="0.777">
+</testcase>
+<testcase name="Error Handling &amp; Recovery › Form Validation Errors › should show inline validation errors on form submit" classname="errors.spec.js" time="1.377">
+</testcase>
+<testcase name="Error Handling &amp; Recovery › Form Validation Errors › should clear validation errors when user corrects input" classname="errors.spec.js" time="2.357">
+</testcase>
+<testcase name="Error Handling &amp; Recovery › User Feedback &amp; Error States › should display loading skeleton while fetching" classname="errors.spec.js" time="1.706">
+</testcase>
+<testcase name="Error Handling &amp; Recovery › User Feedback &amp; Error States › should show empty state with CTA when no results" classname="errors.spec.js" time="3.224">
+</testcase>
+<testcase name="Error Handling &amp; Recovery › User Feedback &amp; Error States › should display success toast on successful action" classname="errors.spec.js" time="2.13">
+</testcase>
+<testcase name="Error Handling &amp; Recovery › Recovery &amp; Retry › should allow retry after error" classname="errors.spec.js" time="0.997">
+</testcase>
+<testcase name="Error Handling &amp; Recovery › Recovery &amp; Retry › should allow user to go back from error page" classname="errors.spec.js" time="1.545">
+</testcase>
+</testsuite>
+<testsuite name="mobile.spec.js" timestamp="2026-03-06T05:53:14.179Z" hostname="chromium" tests="16" failures="0" skipped="0" time="41.292" errors="0">
+<testcase name="Mobile Responsiveness › Navigation on Mobile › should show mobile menu" classname="mobile.spec.js" time="2.768">
+</testcase>
+<testcase name="Mobile Responsiveness › Navigation on Mobile › should navigate through menu on mobile" classname="mobile.spec.js" time="3.214">
+</testcase>
+<testcase name="Mobile Responsiveness › Form Input on Mobile › should handle form input on mobile with virtual keyboard" classname="mobile.spec.js" time="2.841">
+</testcase>
+<testcase name="Mobile Responsiveness › Form Input on Mobile › should display form fields properly on mobile" classname="mobile.spec.js" time="1.638">
+</testcase>
+<testcase name="Mobile Responsiveness › Form Input on Mobile › should handle select dropdowns on mobile" classname="mobile.spec.js" time="2.56">
+</testcase>
+<testcase name="Mobile Responsiveness › Touch Interactions on Mobile › should handle button clicks on mobile" classname="mobile.spec.js" time="2.812">
+</testcase>
+<testcase name="Mobile Responsiveness › Touch Interactions on Mobile › should handle swipe/scroll on mobile" classname="mobile.spec.js" time="2.308">
+</testcase>
+<testcase name="Mobile Responsiveness › Touch Interactions on Mobile › should handle link clicks on mobile" classname="mobile.spec.js" time="2.654">
+</testcase>
+<testcase name="Mobile Responsiveness › Mobile Layout &amp; Readability › should not have horizontal scrolling" classname="mobile.spec.js" time="2.93">
+</testcase>
+<testcase name="Mobile Responsiveness › Mobile Layout &amp; Readability › should display text with readable font size" classname="mobile.spec.js" time="2.834">
+</testcase>
+<testcase name="Mobile Responsiveness › Mobile Layout &amp; Readability › should have adequate spacing on mobile" classname="mobile.spec.js" time="1.63">
+</testcase>
+<testcase name="Mobile Responsiveness › Mobile Layout &amp; Readability › should render images responsively" classname="mobile.spec.js" time="1.807">
+</testcase>
+<testcase name="Mobile Responsiveness › Mobile Performance › should load page within acceptable time on mobile" classname="mobile.spec.js" time="1.727">
+</testcase>
+<testcase name="Mobile Responsiveness › Mobile Performance › should not have excessive network requests" classname="mobile.spec.js" time="1.63">
+</testcase>
+<testcase name="Mobile Responsiveness › Mobile Viewport Specific Tests › should adapt layout for different screen widths" classname="mobile.spec.js" time="5.032">
+</testcase>
+<testcase name="Mobile Responsiveness › Mobile Viewport Specific Tests › should handle orientation change gracefully" classname="mobile.spec.js" time="2.907">
+</testcase>
+</testsuite>
+<testsuite name="payment-callback.spec.js" timestamp="2026-03-06T05:53:14.179Z" hostname="chromium" tests="3" failures="0" skipped="0" time="7.381" errors="0">
+<testcase name="Payment Callback &amp; Order Confirmation › should show cancelled message when payment is cancelled" classname="payment-callback.spec.js" time="2.295">
+</testcase>
+<testcase name="Payment Callback &amp; Order Confirmation › should verify payment and show status on successful callback" classname="payment-callback.spec.js" time="2.433">
+</testcase>
+<testcase name="Payment Callback &amp; Order Confirmation › should fallback to pending status when verification fails" classname="payment-callback.spec.js" time="2.653">
+</testcase>
+</testsuite>
+<testsuite name="rbac.spec.js" timestamp="2026-03-06T05:53:14.179Z" hostname="chromium" tests="5" failures="0" skipped="0" time="14.206" errors="0">
+<testcase name="RBAC Route Matrix › should redirect unauthenticated users to login for protected admin route" classname="rbac.spec.js" time="1.515">
+</testcase>
+<testcase name="RBAC Route Matrix › manager should access admin orders/shipping but not admin users/settings" classname="rbac.spec.js" time="3.554">
+</testcase>
+<testcase name="RBAC Route Matrix › support should access support+orders but not shipping/users" classname="rbac.spec.js" time="3.589">
+</testcase>
+<testcase name="RBAC Route Matrix › warehouse should access shipping and vendor inventory but not admin support" classname="rbac.spec.js" time="3.3">
+</testcase>
+<testcase name="RBAC Route Matrix › super_admin should access all admin routes" classname="rbac.spec.js" time="2.248">
+</testcase>
+</testsuite>
+</testsuites>

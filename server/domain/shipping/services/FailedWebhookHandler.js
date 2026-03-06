@@ -10,14 +10,19 @@
  */
 
 const logger = require('../../../shared/utils/logger');
+const MetricsRegistry = require('../../../infrastructure/metrics/MetricsRegistry');
+const StructuredLogger = require('../../../infrastructure/logging/StructuredLogger');
+const { sendOpsAlert } = require('../../../infrastructure/notifications/alerts');
 
 class FailedWebhookHandler {
   constructor(webhookEventRepository, trackingService) {
     this.webhookEventRepository = webhookEventRepository;
     this.trackingService = trackingService;
+    this.metricsRegistry = new MetricsRegistry();
+    this.structuredLogger = new StructuredLogger('FailedWebhookHandler');
 
     this.maxRetries = 3;
-    this.baseDelayMs = 5000; // 5 seconds
+    this.baseDelayMs = 5000;
     this.backoffMultiplier = 2;
   }
 
@@ -29,7 +34,6 @@ class FailedWebhookHandler {
    */
   async processPendingEvents(limit = 10) {
     try {
-      // Get pending events (status='pending', retry_count < 3)
       const events = await this.webhookEventRepository.getPendingEvents(limit);
 
       if (events.length === 0) {
@@ -83,13 +87,11 @@ class FailedWebhookHandler {
         retryCount: event.retry_count,
       });
 
-      // Reconstruct webhook payload
       const payload = typeof event.payload === 'string'
         ? JSON.parse(event.payload)
         : event.payload;
 
       try {
-        // Attempt to process event
         await this.trackingService.processWebhookEvent({
           externalEventId: payload.event_id,
           shipmentId: payload.shipment_id,
@@ -98,7 +100,6 @@ class FailedWebhookHandler {
           estimatedDeliveryDate: payload.estimated_delivery_date,
         });
 
-        // Mark as processed
         await this.webhookEventRepository.markProcessed(
           event.event_id,
           event.shipment_id
@@ -111,11 +112,9 @@ class FailedWebhookHandler {
 
         return { succeeded: true };
       } catch (processError) {
-        // Retry logic
         event.retry_count++;
 
         if (event.retry_count < this.maxRetries) {
-          // Schedule next retry
           const delayMs = this.baseDelayMs * Math.pow(this.backoffMultiplier, event.retry_count - 1);
 
           await this.webhookEventRepository.incrementRetryCount(event.event_id);
@@ -134,7 +133,6 @@ class FailedWebhookHandler {
             nextRetryIn: delayMs,
           };
         } else {
-          // Max retries exceeded
           const errorReason = `Permanent failure: ${processError.message}`;
 
           await this.webhookEventRepository.markFailed(
@@ -149,7 +147,6 @@ class FailedWebhookHandler {
             error: processError.message,
           });
 
-          // Alert (could be email, Slack, etc.)
           await this.alertPermanentFailure(event, processError);
 
           return {
@@ -165,8 +162,6 @@ class FailedWebhookHandler {
         error: error.message,
       });
 
-      // Store error but don't fail the handler
-      // The event will be retried in next batch
       return {
         succeeded: false,
         permanent: false,
@@ -180,17 +175,37 @@ class FailedWebhookHandler {
    * @private
    */
   async alertPermanentFailure(event, error) {
-    logger.error('ALERT: Webhook permanently failed', {
+    const alertContext = {
       provider: event.provider,
       eventId: event.event_id,
       shipmentId: event.shipment_id,
       orderId: event.order_id,
       error: error.message,
       action: 'MANUAL_INSPECTION_REQUIRED',
-    });
+      timestamp: new Date().toISOString(),
+    };
 
-    // TODO: Send to monitoring system (Datadog, CloudWatch, etc.)
-    // TODO: Potentially send alert to ops team via Slack/email
+    logger.error('ALERT: Webhook permanently failed', alertContext);
+    this.structuredLogger.error('ALERT: Webhook permanently failed', alertContext, error);
+
+    this.metricsRegistry.incrementCounter('webhook_permanent_failure', 1);
+    this.metricsRegistry.incrementCounter(`webhook_failure_by_provider_${event.provider}`, 1);
+
+    try {
+      await sendOpsAlert({
+        severity: 'critical',
+        title: `Webhook Permanently Failed: ${event.provider}`,
+        description: `Failed to process webhook event after max retries. Manual intervention required.`,
+        context: alertContext,
+        service: 'shipping-webhooks',
+        actionRequired: true,
+      });
+    } catch (alertError) {
+      this.structuredLogger.error('Failed to send ops alert', {
+        originalError: error.message,
+        alertError: alertError.message,
+      });
+    }
   }
 
   /**

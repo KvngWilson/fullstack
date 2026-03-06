@@ -77,9 +77,14 @@ export async function setAuthToken(page, token) {
 export async function clearAppData(page) {
   await page.context().clearCookies();
   await page.evaluate(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-  });
+    try {
+      localStorage.clear();
+    } catch {}
+
+    try {
+      sessionStorage.clear();
+    } catch {}
+  }).catch(() => {});
 }
 
 /**

@@ -5,9 +5,7 @@
 
 const { v4: uuidv4 } = require('uuid');
 
-/**
- * Add correlation ID to requests for distributed tracing
- */
+// Add correlation ID to requests for distributed tracing
 function correlationIdMiddleware(req, res, next) {
   // Use existing correlation ID from header or generate new one
   const correlationId = req.headers['x-correlation-id'] || 
@@ -28,9 +26,7 @@ function correlationIdMiddleware(req, res, next) {
   next();
 }
 
-/**
- * Add request timing for performance monitoring
- */
+// Add request timing for performance monitoring
 function requestTimingMiddleware(req, res, next) {
   req.startTime = process.hrtime.bigint();
 

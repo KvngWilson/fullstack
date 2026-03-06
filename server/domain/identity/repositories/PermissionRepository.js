@@ -16,7 +16,11 @@ class PermissionRepository {
 	async getEmployeePermissions(employeeId) {
 		const result = await pool.query(
 			`WITH role_perms AS (
-				 SELECT DISTINCT p.code
+				 SELECT DISTINCT
+				 	COALESCE(
+				 		NULLIF(TRIM(p.code), ''),
+				 		CONCAT_WS(':', NULLIF(TRIM(p.resource), ''), NULLIF(TRIM(p.action), ''))
+				 	) AS code
 				 FROM employees e
 				 JOIN roles r ON e.role_id = r.id
 				 JOIN role_permissions rp ON r.id = rp.role_id
@@ -24,7 +28,11 @@ class PermissionRepository {
 				 WHERE e.id = $1 AND r.is_active AND p.is_active
 			 ),
 			 override_perms AS (
-				 SELECT DISTINCT p.code
+				 SELECT DISTINCT
+				 	COALESCE(
+				 		NULLIF(TRIM(p.code), ''),
+				 		CONCAT_WS(':', NULLIF(TRIM(p.resource), ''), NULLIF(TRIM(p.action), ''))
+				 	) AS code
 				 FROM employee_permission_overrides epo
 				 JOIN permissions p ON epo.permission_id = p.id
 				 WHERE epo.employee_id = $1
@@ -34,7 +42,11 @@ class PermissionRepository {
 					 AND p.is_active
 			 ),
 			 revoked_perms AS (
-				 SELECT DISTINCT p.code
+				 SELECT DISTINCT
+				 	COALESCE(
+				 		NULLIF(TRIM(p.code), ''),
+				 		CONCAT_WS(':', NULLIF(TRIM(p.resource), ''), NULLIF(TRIM(p.action), ''))
+				 	) AS code
 				 FROM employee_permission_overrides epo
 				 JOIN permissions p ON epo.permission_id = p.id
 				 WHERE epo.employee_id = $1
@@ -43,7 +55,8 @@ class PermissionRepository {
 			 )
 			 SELECT DISTINCT code
 			 FROM (SELECT code FROM role_perms UNION ALL SELECT code FROM override_perms) combined
-			 WHERE code NOT IN (SELECT code FROM revoked_perms)
+			 WHERE code IS NOT NULL
+			 	AND code NOT IN (SELECT code FROM revoked_perms WHERE code IS NOT NULL)
 			 ORDER BY code`,
 			[employeeId],
 		);

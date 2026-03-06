@@ -1,5 +1,9 @@
 const router = require("express").Router();
-const { protect } = require("../../../decorators");
+const { protect, body } = require("../../../decorators");
+const {
+  validateAddToCart,
+  validateUpdateCartItem,
+} = require("../../../validators/order");
 const { cart } = require("../../../controllers/v1/ordering");
 const {
   addToCart,
@@ -12,10 +16,20 @@ const {
 
 router.get("/", ...protect(), getCartItems);
 router.get("/count", ...protect(), getCartCount);
-router.post("/", ...protect(), addToCart);
-router.post("/items", ...protect(), addToCart);
-router.patch("/items/:itemId", ...protect(), updateCartItem);
-router.put("/items/:itemId", ...protect(), updateCartItem);
+router.post("/", ...protect(), ...body(validateAddToCart), addToCart);
+router.post("/items", ...protect(), ...body(validateAddToCart), addToCart);
+router.patch(
+  "/items/:itemId",
+  ...protect(),
+  ...body(validateUpdateCartItem),
+  updateCartItem,
+);
+router.put(
+  "/items/:itemId",
+  ...protect(),
+  ...body(validateUpdateCartItem),
+  updateCartItem,
+);
 router.delete("/items/:itemId", ...protect(), deleteCartItem);
 router.delete("/", ...protect(), clearCart);
 

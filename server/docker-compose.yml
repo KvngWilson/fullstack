@@ -23,7 +23,11 @@ services:
       - ../data/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
       - ./data/migrations:/docker-entrypoint-initdb.d/03-migrations:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-ecommerce_db}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-ecommerce_db}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -47,10 +51,7 @@ services:
       - redis_data:/data
     healthcheck:
       test:
-        [
-          "CMD-SHELL",
-          'redis-cli -a "$${REDIS_PASSWORD}" ping | grep -q PONG',
-        ]
+        ["CMD-SHELL", 'redis-cli -a "$${REDIS_PASSWORD}" ping | grep -q PONG']
       interval: 10s
       timeout: 3s
       retries: 5
@@ -58,9 +59,9 @@ services:
     restart: unless-stopped
     networks:
       - server-network
-  
+
   mailhog:
-    image: mailhog/mailhog:latest
+    image: tophfr/mailhog:latest
     container_name: ecommerce-mailhog-dev
     labels:
       environment: "development"

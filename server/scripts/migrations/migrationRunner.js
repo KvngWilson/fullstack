@@ -3,7 +3,80 @@ const path = require("path");
 const { pool } = require("../../config/db");
 const logger = require("../../shared/utils/logger");
 
-const MIGRATIONS_DIR = path.join(__dirname, "../../data/migrations");
+const MIGRATIONS_DIR = path.join(__dirname, "../../infrastructure/database/migrations");
+
+function parseMigrationParts(fileName) {
+  const baseName = fileName.replace(/\.sql$/i, "");
+  const match = baseName.match(/^(\d+)[-_](.+)$/);
+
+  if (!match) {
+    return {
+      fileName,
+      baseName,
+      numericPrefix: null,
+      suffix: baseName,
+    };
+  }
+
+  return {
+    fileName,
+    baseName,
+    numericPrefix: Number.parseInt(match[1], 10),
+    suffix: match[2],
+  };
+}
+
+function sortMigrations(files) {
+  return [...files].sort((left, right) => {
+    const a = parseMigrationParts(left);
+    const b = parseMigrationParts(right);
+
+    if (a.numericPrefix !== null && b.numericPrefix !== null && a.numericPrefix !== b.numericPrefix) {
+      return a.numericPrefix - b.numericPrefix;
+    }
+
+    return left.localeCompare(right);
+  });
+}
+
+function findDuplicateNumericPrefixes(files) {
+  const groups = new Map();
+
+  for (const file of files) {
+    const parsed = parseMigrationParts(file);
+    if (parsed.numericPrefix === null) {
+      continue;
+    }
+
+    const key = String(parsed.numericPrefix).padStart(3, "0");
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key).push(file);
+  }
+
+  return Array.from(groups.entries())
+    .filter(([, groupedFiles]) => groupedFiles.length > 1)
+    .map(([prefix, groupedFiles]) => ({ prefix, files: groupedFiles.sort() }));
+}
+
+async function inspectMigrationFiles() {
+  const files = await fs.readdir(MIGRATIONS_DIR);
+  const migrationFiles = files.filter((f) => f.endsWith(".sql"));
+  const sortedMigrationFiles = sortMigrations(migrationFiles);
+  const duplicateNumericPrefixes = findDuplicateNumericPrefixes(sortedMigrationFiles);
+
+  return {
+    migrationFiles: sortedMigrationFiles,
+    duplicateNumericPrefixes,
+  };
+}
+
+function migrationDefinesOwnTransaction(sql) {
+  const hasBegin = /(^|\n)\s*BEGIN\s*;/i.test(sql);
+  const hasCommit = /(^|\n)\s*COMMIT\s*;/i.test(sql);
+  return hasBegin && hasCommit;
+}
 
 
 // Run all pending migrations
@@ -22,10 +95,25 @@ async function runMigrations() {
     `);
 
     // Get list of migration files
-    const files = await fs.readdir(MIGRATIONS_DIR);
-    const migrationFiles = files
-      .filter((f) => f.endsWith(".sql"))
-      .sort();
+    const { migrationFiles, duplicateNumericPrefixes } = await inspectMigrationFiles();
+
+    if (duplicateNumericPrefixes.length > 0) {
+      const duplicateSummary = duplicateNumericPrefixes
+        .map((group) => `${group.prefix}: [${group.files.join(", ")}]`)
+        .join("; ");
+
+      const strictMode = process.env.MIGRATIONS_STRICT_PREFIX_ORDER === "true";
+      if (strictMode) {
+        throw new Error(
+          `Duplicate migration numeric prefixes detected (strict mode): ${duplicateSummary}`,
+        );
+      }
+
+      logger.warn(
+        `Duplicate migration numeric prefixes detected: ${duplicateSummary}. `
+        + "Execution will continue in deterministic filename order.",
+      );
+    }
 
     // Get already executed migrations
     const result = await pool.query(
@@ -50,17 +138,30 @@ async function runMigrations() {
       logger.info(`Executing migration: ${file}`);
 
       try {
-        await pool.query("BEGIN");
-        await pool.query(sql);
-        await pool.query(
-          "INSERT INTO schema_migrations (version, name) VALUES ($1, $2)",
-          [version, file]
-        );
-        await pool.query("COMMIT");
+        const selfManagedTransaction = migrationDefinesOwnTransaction(sql);
+
+        if (selfManagedTransaction) {
+          await pool.query(sql);
+          await pool.query(
+            "INSERT INTO schema_migrations (version, name) VALUES ($1, $2)",
+            [version, file]
+          );
+        } else {
+          await pool.query("BEGIN");
+          await pool.query(sql);
+          await pool.query(
+            "INSERT INTO schema_migrations (version, name) VALUES ($1, $2)",
+            [version, file]
+          );
+          await pool.query("COMMIT");
+        }
+
         migrationCount++;
         logger.info(`[OK] Migration executed: ${file}`);
       } catch (error) {
-        await pool.query("ROLLBACK");
+        if (!migrationDefinesOwnTransaction(sql)) {
+          await pool.query("ROLLBACK");
+        }
         logger.error(`[FAILED] Migration failed: ${file}`, { error });
         throw error;
       }
@@ -129,4 +230,5 @@ async function rollbackMigration() {
 module.exports = {
   runMigrations,
   rollbackMigration,
+  inspectMigrationFiles,
 };

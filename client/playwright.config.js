@@ -4,8 +4,8 @@ import dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
-const API_URL = process.env.API_URL || 'http://localhost:3000';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:4173';
+const API_URL = process.env.API_URL || 'http://localhost:5000';
 
 /**
  * Playwright configuration for E2E testing
@@ -36,7 +36,7 @@ export default defineConfig({
   },
 
   webServer: {
-    command: 'npm run dev',
+    command: 'npm run dev -- --port 4173 --strictPort',
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

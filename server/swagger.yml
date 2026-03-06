@@ -4,30 +4,30 @@ info:
   version: "1.0.0"
   description: |
     # E-Commerce REST API Documentation
-    
+
     Modern full-stack e-commerce API with Domain-Driven Design architecture.
-    
+
     ## API Overview
     - **Base URL**: `/api/v1`
     - **Authentication**: Bearer token (JWT)
     - **Rate Limiting**: Applied to auth and payment endpoints
     - **Response Format**: JSON
-    
+    - **Version**: 1.0.0
+
     ## Domain Routes
-    - **Authentication** (`/auth`) - User registration, login, token management
+    - **Authentication** (`/auth`, `/identity`) - User registration, login, token management
     - **Identity** (`/identity`) - User profiles, addresses, payment methods
     - **Catalog** (`/catalog`) - Products, categories, wishlist
     - **Ordering** (`/ordering`) - Cart, orders, checkout, payments, shipping
+    - **Admin** (`/admin`) - Administrative endpoints
     - **Vendors** (`/vendors`) - Vendor management and applications
-    
+
   license:
     name: "MIT"
     url: "https://opensource.org/licenses/MIT"
 servers:
   - url: "http://localhost:5000"
     description: "Development"
-  - url: "https://staging.ecommerce.example"
-    description: "Staging"
   - url: "https://api.ecommerce.example"
     description: "Production"
 security:
@@ -424,14 +424,17 @@ paths:
     post:
       operationId: createProduct
       summary: "Create a new product"
-      description: "Create a new product (admin only)"
+      description: "Create a new product (admin only). Supports JSON or multipart form-data with optional image file field `image`."
       tags: ["Catalog"]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
+              $ref: "#/components/schemas/ProductCreateRequest"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ProductCreateMultipartRequest"
       responses:
         "201":
           description: "Product created successfully"
@@ -456,10 +459,10 @@ paths:
           description: "Product found"
         "404":
           description: "Product not found"
-    patch:
-      operationId: updateProduct
-      summary: "Update a product"
-      description: "Update specific fields of a product (admin only)"
+    put:
+      operationId: replaceProduct
+      summary: "Replace a product"
+      description: "Replace mutable fields of a product (admin only). Supports JSON or multipart form-data with optional image file field `image`."
       tags: ["Catalog"]
       parameters:
         - name: productId
@@ -472,7 +475,35 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              $ref: "#/components/schemas/ProductUpdateRequest"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ProductUpdateMultipartRequest"
+      responses:
+        "200":
+          description: "Product replaced successfully"
+        "403":
+          description: "Admin access required"
+    patch:
+      operationId: updateProduct
+      summary: "Update a product"
+      description: "Update specific fields of a product (admin only). Supports JSON or multipart form-data with optional image file field `image`."
+      tags: ["Catalog"]
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductUpdateRequest"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ProductUpdateMultipartRequest"
       responses:
         "200":
           description: "Product updated successfully"
@@ -774,7 +805,7 @@ paths:
         "401":
           description: "Unauthorized"
 
-  /api/v1/ordering/payments:
+  /api/v1/payments:
     get:
       operationId: listUserPayments
       summary: "List user payments"
@@ -805,7 +836,7 @@ paths:
         "401":
           description: "Unauthorized"
 
-  /api/v1/ordering/payments/{paymentId}:
+  /api/v1/payments/{paymentId}:
     get:
       operationId: getPaymentById
       summary: "Get payment details"
@@ -825,7 +856,7 @@ paths:
         "401":
           description: "Unauthorized"
 
-  /api/v1/ordering/payments/verify/{reference}:
+  /api/v1/payments/verify/{reference}:
     get:
       operationId: verifyPayment
       summary: "Verify payment status"
@@ -843,7 +874,7 @@ paths:
         "401":
           description: "Unauthorized"
 
-  /api/v1/ordering/payments/callback:
+  /api/v1/payments/callback:
     get:
       operationId: paymentCallback
       summary: "Payment callback"
@@ -860,7 +891,7 @@ paths:
         "302":
           description: "Redirect to success or failure page"
 
-  /api/v1/ordering/payments/webhook:
+  /api/v1/payments/webhook:
     post:
       operationId: paymentWebhook
       summary: "Payment webhook"
@@ -992,6 +1023,78 @@ components:
         type: integer
         default: 20
   schemas:
+    ProductCreateRequest:
+      type: object
+      required:
+        - name
+        - base_price
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        base_price:
+          type: number
+        category_id:
+          type: integer
+          nullable: true
+        image_url:
+          type: string
+          format: uri
+          nullable: true
+
+    ProductUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        base_price:
+          type: number
+        category_id:
+          type: integer
+          nullable: true
+        image_url:
+          type: string
+          format: uri
+          nullable: true
+
+    ProductCreateMultipartRequest:
+      type: object
+      required:
+        - name
+        - base_price
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        base_price:
+          type: number
+        category_id:
+          type: integer
+        image:
+          type: string
+          format: binary
+
+    ProductUpdateMultipartRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        base_price:
+          type: number
+        category_id:
+          type: integer
+        image:
+          type: string
+          format: binary
+
     RegisterRequest:
       type: object
       required:

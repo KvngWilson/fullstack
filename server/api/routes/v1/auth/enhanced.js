@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { passwordResetRoute, authRoute, protect, rateAuth } = require("../../../decorators");
+const { passwordResetRoute, authRoute, protect } = require("../../../decorators");
 const { enhancedAuth: enhancedAuthController } = require("../../../controllers/v1/auth");
 
 // Public Routes

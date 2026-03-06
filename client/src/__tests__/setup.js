@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom';
-import { expect, afterEach, beforeAll, afterAll, vi } from 'vitest';
+import { afterEach, beforeAll, afterAll, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
+
+vi.stubEnv('VITE_API_URL', 'http://localhost:5000');
 
 // Cleanup after each test
 afterEach(() => {

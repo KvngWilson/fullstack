@@ -24,7 +24,7 @@ class BatchOperations {
       batches.push(batch);
     }
     
-    console.log(`📦 Inserting ${records.length} records in ${batches.length} batch(es)...`);
+    console.log(` Inserting ${records.length} records in ${batches.length} batch(es)...`);
     
     const results = [];
     
@@ -37,12 +37,12 @@ class BatchOperations {
         });
         results.push(...result);
       } catch (error) {
-        console.error(`❌ Batch insert failed: ${error.message}`);
+        console.error(` Batch insert failed: ${error.message}`);
         throw error;
       }
     }
     
-    console.log(`✅ Successfully inserted ${results.length} records`);
+    console.log(` Successfully inserted ${results.length} records`);
     
     return results;
   }
@@ -67,7 +67,7 @@ class BatchOperations {
       batches.push(batch);
     }
     
-    console.log(`📦 Updating ${updates.length} records in ${batches.length} batch(es)...`);
+    console.log(` Updating ${updates.length} records in ${batches.length} batch(es)...`);
     
     let totalUpdated = 0;
     
@@ -84,12 +84,12 @@ class BatchOperations {
         const results = await Promise.all(updatePromises);
         totalUpdated += results.reduce((sum, result) => sum + (result[0] || 0), 0);
       } catch (error) {
-        console.error(`❌ Batch update failed: ${error.message}`);
+        console.error(` Batch update failed: ${error.message}`);
         throw error;
       }
     }
     
-    console.log(`✅ Successfully updated ${totalUpdated} records`);
+    console.log(` Successfully updated ${totalUpdated} records`);
     
     return totalUpdated;
   }
@@ -114,7 +114,7 @@ class BatchOperations {
       batches.push(batch);
     }
     
-    console.log(`📦 Deleting ${ids.length} records in ${batches.length} batch(es)...`);
+    console.log(` Deleting ${ids.length} records in ${batches.length} batch(es)...`);
     
     let totalDeleted = 0;
     
@@ -126,12 +126,12 @@ class BatchOperations {
         });
         totalDeleted += deleted;
       } catch (error) {
-        console.error(`❌ Batch delete failed: ${error.message}`);
+        console.error(` Batch delete failed: ${error.message}`);
         throw error;
       }
     }
     
-    console.log(`✅ Successfully deleted ${totalDeleted} records`);
+    console.log(` Successfully deleted ${totalDeleted} records`);
     
     return totalDeleted;
   }
@@ -157,7 +157,7 @@ class BatchOperations {
       batches.push(batch);
     }
     
-    console.log(`📦 Upserting ${records.length} records in ${batches.length} batch(es)...`);
+    console.log(` Upserting ${records.length} records in ${batches.length} batch(es)...`);
     
     const results = [];
     
@@ -173,12 +173,12 @@ class BatchOperations {
         );
         results.push(...batchResults);
       } catch (error) {
-        console.error(`❌ Batch upsert failed: ${error.message}`);
+        console.error(` Batch upsert failed: ${error.message}`);
         throw error;
       }
     }
     
-    console.log(`✅ Successfully upserted ${results.length} records`);
+    console.log(` Successfully upserted ${results.length} records`);
     
     return results;
   }
@@ -199,7 +199,7 @@ class BatchOperations {
       return result;
     } catch (error) {
       await transaction.rollback();
-      console.error(`❌ Transaction rolled back: ${error.message}`);
+      console.error(` Transaction rolled back: ${error.message}`);
       throw error;
     }
   }
@@ -237,7 +237,7 @@ class BatchOperations {
       console.log(`Processed ${processed} records...`);
     }
     
-    console.log(`✅ Finished processing ${processed} records`);
+    console.log(` Finished processing ${processed} records`);
     
     return processed;
   }

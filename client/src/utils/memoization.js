@@ -124,7 +124,7 @@ export function useRenderTime(componentName) {
   useEffect(() => {
     const renderTime = Date.now() - startTimeRef.current;
     
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       if (renderTime > 16) { // > 1 frame (60fps)
         console.warn(`⚠️ Slow render [${componentName}]: ${renderTime}ms`);
       } else {

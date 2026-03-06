@@ -3,14 +3,14 @@
  * Tests database operations for onboarding and employees
  */
 
-jest.mock('../../config/db', () => ({
+jest.mock('../../../config/db', () => ({
   pool: {
     query: jest.fn(),
     connect: jest.fn(),
   },
 }));
 
-const { pool } = require('../../config/db');
+const { pool } = require('../../../config/db');
 
 describe('Employee Onboarding Repository - Unit Tests', () => {
   beforeEach(() => {

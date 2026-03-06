@@ -1,9 +1,11 @@
 const router = require("express").Router();
+const { shortCache } = require("../../../middleware/cache-headers");
 const domain = require("../../../../domain");
-const { calculateShippingRates } = domain.ordering.services.ShippingService;
+const { getShippingRates } = domain.ordering.services.ShippingService;
 const logger = require("../../../../shared/utils/logger");
 
-router.post("/rates", async (req, res) => {
+// Shipping rates calculation - volatile real-time data
+router.post("/rates", shortCache, async (req, res) => {
   try {
     const { destination, origin, items } = req.body;
 
@@ -24,7 +26,7 @@ router.post("/rates", async (req, res) => {
     }
 
     // Calculate shipping rates
-    const result = await calculateShippingRates({
+    const result = await getShippingRates({
       destination,
       origin: origin || {
         country_code: "US",
@@ -38,14 +40,14 @@ router.post("/rates", async (req, res) => {
     if (result.success) {
       // Transform rates for API response
       const rates = result.rates.slice(0, 10).map(rate => ({
-        id: rate.courier_id,
-        name: rate.courier_name,
-        service: rate.service_name,
-        cost: parseFloat(rate.total_charge || 0),
+        id: rate.courierId,
+        name: rate.courierName,
+        service: rate.serviceName,
+        cost: Number((Number(rate.totalChargeMinor || 0) / 100).toFixed(2)),
         currency: rate.currency,
-        min_delivery_time: rate.min_delivery_time,
-        max_delivery_time: rate.max_delivery_time,
-        logo_url: rate.courier_logo_url,
+        min_delivery_time: rate.minDeliveryDays,
+        max_delivery_time: rate.maxDeliveryDays,
+        logo_url: null,
       }));
 
       return res.json({
@@ -54,7 +56,11 @@ router.post("/rates", async (req, res) => {
         message: result.message,
       });
     } else {
-      return res.status(500).json({
+      const isValidationError =
+        result.error?.name === "InvalidShippingRequest" ||
+        result.error?.statusCode === 400;
+
+      return res.status(isValidationError ? 400 : 500).json({
         success: false,
         rates: [],
         message: result.message,

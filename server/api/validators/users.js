@@ -1,10 +1,15 @@
 /**
- * User Validation Schemas - Phase 7
+ * User Validation Schemas
  * Joi validators for user profile and management operations (Identity domain)
  */
 
 const Joi = require("joi");
-const { emailSchema, passwordSchema, strongPasswordSchema, phoneSchema } = require("./common");
+const {
+  emailSchema,
+  passwordSchema,
+  strongPasswordSchema,
+  phoneSchema,
+} = require("./common");
 
 // ===== USER PROFILE SCHEMAS =====
 
@@ -22,7 +27,9 @@ const updateUserProfileSchema = Joi.object({
   preferred_language: Joi.string()
     .valid("en", "es", "fr", "de", "it", "pt", "ja", "zh")
     .optional(),
-}).unknown(false).min(1);
+})
+  .unknown(false)
+  .min(1);
 
 /**
  * Change password schema
@@ -31,10 +38,13 @@ const updateUserProfileSchema = Joi.object({
 const changePasswordSchema = Joi.object({
   current_password: passwordSchema,
   new_password: strongPasswordSchema,
-  confirm_password: Joi.string().valid(Joi.ref("new_password")).required().messages({
-    "any.only": "Passwords do not match",
-    "any.required": "Confirm password is required",
-  }),
+  confirm_password: Joi.string()
+    .valid(Joi.ref("new_password"))
+    .required()
+    .messages({
+      "any.only": "Passwords do not match",
+      "any.required": "Confirm password is required",
+    }),
 }).unknown(false);
 
 /**
@@ -73,10 +83,13 @@ const resetPasswordSchema = Joi.object({
     "any.required": "Reset token is required",
   }),
   new_password: strongPasswordSchema,
-  confirm_password: Joi.string().valid(Joi.ref("new_password")).required().messages({
-    "any.only": "Passwords do not match",
-    "any.required": "Confirm password is required",
-  }),
+  confirm_password: Joi.string()
+    .valid(Joi.ref("new_password"))
+    .required()
+    .messages({
+      "any.only": "Passwords do not match",
+      "any.required": "Confirm password is required",
+    }),
 }).unknown(false);
 
 /**
@@ -86,9 +99,7 @@ const resetPasswordSchema = Joi.object({
 const getUsersListSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).optional(),
   pageSize: Joi.number().integer().min(1).max(100).default(20).optional(),
-  role: Joi.string()
-    .valid("customer", "admin", "staff", "vendor")
-    .optional(),
+  role: Joi.string().valid("customer", "admin", "staff", "vendor").optional(),
   status: Joi.string()
     .valid("active", "inactive", "suspended", "deleted")
     .optional(),
@@ -107,14 +118,12 @@ const updateUserSchema = Joi.object({
   first_name: Joi.string().trim().max(100).optional(),
   last_name: Joi.string().trim().max(100).optional(),
   email: emailSchema.optional(),
-  role: Joi.string()
-    .valid("customer", "admin", "staff", "vendor")
-    .optional(),
-  status: Joi.string()
-    .valid("active", "inactive", "suspended")
-    .optional(),
+  role: Joi.string().valid("customer", "admin", "staff", "vendor").optional(),
+  status: Joi.string().valid("active", "inactive", "suspended").optional(),
   is_verified: Joi.boolean().optional(),
-}).unknown(false).min(1);
+})
+  .unknown(false)
+  .min(1);
 
 /**
  * Suspend user schema
@@ -124,13 +133,9 @@ const suspendUserSchema = Joi.object({
   reason: Joi.string().trim().required().max(500).messages({
     "any.required": "Suspension reason is required",
   }),
-  duration_days: Joi.number()
-    .integer()
-    .min(1)
-    .optional()
-    .messages({
-      "number.min": "Duration must be at least 1 day",
-    }),
+  duration_days: Joi.number().integer().min(1).optional().messages({
+    "number.min": "Duration must be at least 1 day",
+  }),
 }).unknown(false);
 
 /**
@@ -140,9 +145,8 @@ const suspendUserSchema = Joi.object({
 const deleteAccountSchema = Joi.object({
   password: passwordSchema,
   reason: Joi.string().trim().optional().max(500),
-  confirm_delete: Joi.string().valid("DELETE").required().messages({
+  confirm_delete: Joi.string().valid("DELETE").optional().messages({
     "any.only": 'Must type "DELETE" to confirm',
-    "any.required": 'Confirmation required (type "DELETE")',
   }),
 }).unknown(false);
 
@@ -157,7 +161,9 @@ const updatePreferencesSchema = Joi.object({
   two_factor_enabled: Joi.boolean().optional(),
   theme: Joi.string().valid("light", "dark", "auto").optional(),
   timezone: Joi.string().optional(),
-}).unknown(false).min(1);
+})
+  .unknown(false)
+  .min(1);
 
 /**
  * Upload avatar schema
@@ -191,31 +197,32 @@ const addAddressSchema = Joi.object({
   country: Joi.string().trim().required().max(100).messages({
     "any.required": "Country is required",
   }),
-  address_type: Joi.string()
-    .valid("shipping", "billing")
-    .required()
-    .messages({
-      "any.only": 'Address type must be either "shipping" or "billing"',
-      "any.required": "Address type is required",
-    }),
+  type: Joi.string().valid("shipping", "billing").optional(),
+  address_type: Joi.string().valid("shipping", "billing").optional().messages({
+    "any.only": 'Address type must be either "shipping" or "billing"',
+    "any.required": "Address type is required",
+  }),
+  is_primary: Joi.boolean().optional(),
   is_default: Joi.boolean().optional().default(false),
-}).unknown(false);
+}).or("address_type", "type").unknown(true);
 
 /**
  * Update address schema
  * Validates address update
  */
 const updateAddressSchema = Joi.object({
+  type: Joi.string().valid("shipping", "billing").optional(),
   street: Joi.string().trim().max(255).optional(),
   city: Joi.string().trim().max(100).optional(),
   state: Joi.string().trim().max(100).optional(),
   postal_code: Joi.string().trim().max(20).optional(),
   country: Joi.string().trim().max(100).optional(),
-  address_type: Joi.string()
-    .valid("shipping", "billing")
-    .optional(),
+  address_type: Joi.string().valid("shipping", "billing").optional(),
+  is_primary: Joi.boolean().optional(),
   is_default: Joi.boolean().optional(),
-}).unknown(false).min(1);
+})
+  .unknown(true)
+  .min(1);
 
 // ===== SAVED CARD SCHEMAS =====
 
@@ -227,42 +234,49 @@ const addSavedCardSchema = Joi.object({
   card_token: Joi.string().trim().required().messages({
     "any.required": "Card token is required",
   }),
-  card_last_four: Joi.string().regex(/^\d{4}$/).required().messages({
-    "any.required": "Last four digits are required",
-    "string.pattern.base": "Last four digits must be exactly 4 digits",
-  }),
+  last_four: Joi.string().regex(/^\d{4}$/).optional(),
+  card_last_four: Joi.string()
+    .regex(/^\d{4}$/)
+    .optional()
+    .messages({
+      "any.required": "Last four digits are required",
+      "string.pattern.base": "Last four digits must be exactly 4 digits",
+    }),
   card_brand: Joi.string()
     .valid("visa", "mastercard", "amex", "discover")
-    .required()
+    .optional()
     .messages({
       "any.only": "Card brand must be visa, mastercard, amex, or discover",
       "any.required": "Card brand is required",
     }),
-  card_holder_name: Joi.string().trim().required().max(255).messages({
-    "any.required": "Cardholder name is required",
-  }),
+  card_holder_name: Joi.string().trim().optional().max(255),
   exp_month: Joi.number().integer().min(1).max(12).required().messages({
     "any.required": "Expiration month is required",
     "number.min": "Expiration month must be between 1 and 12",
     "number.max": "Expiration month must be between 1 and 12",
   }),
-  exp_year: Joi.number().integer().min(new Date().getFullYear()).required().messages({
-    "any.required": "Expiration year is required",
-    "number.min": "Expiration year cannot be in the past",
-  }),
+  exp_year: Joi.number()
+    .integer()
+    .min(new Date().getFullYear())
+    .required()
+    .messages({
+      "any.required": "Expiration year is required",
+      "number.min": "Expiration year cannot be in the past",
+    }),
   is_primary: Joi.boolean().optional().default(false),
-}).unknown(false);
+}).or("card_last_four", "last_four").unknown(true);
 
 /**
  * Set primary card schema
  * Validates primary card change
  */
 const setPrimaryCardSchema = Joi.object({
-  is_primary: Joi.boolean().valid(true).required().messages({
+  isPrimary: Joi.boolean().valid(true).optional(),
+  is_primary: Joi.boolean().valid(true).optional().messages({
     "any.only": "Must set is_primary to true",
     "any.required": "is_primary is required",
   }),
-}).unknown(false);
+}).or("is_primary", "isPrimary").unknown(true);
 
 // ===== VALIDATION FUNCTIONS =====
 
@@ -426,11 +440,11 @@ module.exports = {
   deleteAccountSchema,
   updatePreferencesSchema,
   uploadAvatarSchema,
-  
+
   // Address schemas
   addAddressSchema,
   updateAddressSchema,
-  
+
   // Saved card schemas
   addSavedCardSchema,
   setPrimaryCardSchema,

@@ -39,11 +39,13 @@ class EventBus {
 	 * @param {DomainEvent} event - Event to publish
 	 */
 	async publish(event) {
-		if (!event || !event.eventType) {
+		const eventType = event?.eventType || event?.type;
+
+		if (!event || !eventType) {
 			throw new Error('Invalid event');
 		}
 
-		const handlers = this._subscribers.get(event.eventType) || [];
+		const handlers = this._subscribers.get(eventType) || [];
 
 		const results = await Promise.allSettled(
 			handlers.map(handler => handler(event))

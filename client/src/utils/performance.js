@@ -183,7 +183,7 @@ export function reportMetrics(data) {
  * Initialize performance monitoring
  */
 export function initPerformanceMonitoring(config = {}) {
-  const { reportInterval = 30000, reportUrl = '/api/v1/analytics/metrics' } = config;
+  const { reportInterval = 30000, reportUrl: _reportUrl = '/api/v1/analytics/metrics' } = config;
 
   // Track vitals
   initWebVitalsTracking((metric) => {
@@ -235,7 +235,7 @@ export const performanceMarkers = {
  * React Profiler integration
  * Use with <Profiler> component
  */
-export function onRenderCallback(id, phase, actualDuration, baseDuration, startTime, commitTime) {
+export function onRenderCallback(id, phase, actualDuration, baseDuration, _startTime, _commitTime) {
   if (actualDuration > 16) { // > 1 frame at 60fps
     console.warn(
       `⚠️ Slow render [${id}]: ${actualDuration.toFixed(2)}ms (base: ${baseDuration.toFixed(2)}ms)`

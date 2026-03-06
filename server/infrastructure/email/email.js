@@ -23,10 +23,8 @@ const transporter = nodemailer.createTransport({
 
 const fromAddress = EMAIL_FROM || EMAIL_USER || "no-reply@example.com";
 
-/**
- * Validate email address format
- * @private
- */
+
+// Validate email address format
 const validateEmail = (email) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!email || typeof email !== 'string' || !emailRegex.test(email.trim())) {
@@ -35,10 +33,8 @@ const validateEmail = (email) => {
   return email.trim();
 };
 
-/**
- * Core email sending function
- * Used internally by queue processors and directly
- */
+// Core email sending function
+// Used internally by queue processors and directly for simple sends (e.g. password reset)
 const sendEmail = async ({ to, subject, html, text }) => {
   if (!to || !subject || !html) {
     throw new Error('Email requires: to, subject, html');
@@ -64,10 +60,9 @@ const sendEmail = async ({ to, subject, html, text }) => {
   }
 };
 
-/**
- * Queue processor function
- * Receives template name and data, renders template, then sends
- */
+
+// Queue processor function
+// Receives template name and data, renders template, then sends 
 const sendEmailJob = async (jobData) => {
   try {
     const { to, templateName, templateData = {}, overrideSubject } = jobData;

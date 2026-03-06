@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Input, Textarea, FormField } from './Input';
+import { Input, Textarea, FormField } from './ui/Input';
 
 export default {
   title: 'Components/Input',

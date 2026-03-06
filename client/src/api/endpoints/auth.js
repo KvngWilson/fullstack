@@ -29,63 +29,45 @@ const normalizeAuthPayload = (payload) => {
 };
 
 export const authApi = {
-  /**
-   * Login user
-   */
   login: async (credentials) => {
-    const response = await apiClient.post('/users/login', credentials);
+    const response = await apiClient.post('/identity/users/login', credentials);
     return normalizeAuthPayload(response);
   },
 
-  /**
-   * Register new user
-   */
   register: async (data) => {
-    const response = await apiClient.post('/users/register', data);
+    const response = await apiClient.post('/identity/users/register', data);
     return normalizeAuthPayload(response);
   },
 
-  /**
-   * Get current user profile
-   */
   getProfile: async () => {
-    const response = await apiClient.get('/profile');
-    return response?.data || response;
+    return apiClient.get('/identity/profile');
   },
 
-  /**
-   * Update user profile
-   */
   updateProfile: async (data) => {
-    const response = await apiClient.put('/profile', data);
-    return response?.data || response;
+    return apiClient.put('/identity/profile', data);
   },
 
-  /**
-   * Request password reset
-   */
   requestPasswordReset: async (email) => {
-    return apiClient.post('/users/password-reset', { email });
+    return apiClient.post('/identity/users/password-reset', { email });
   },
 
-  /**
-   * Reset password with token
-   */
   resetPassword: async (token, newPassword) => {
-    return apiClient.post('/users/password-reset/confirm', { token, password: newPassword });
+    return apiClient.post('/identity/users/password-reset/confirm', { token, password: newPassword });
   },
 
-  /**
-   * Verify email with token
-   */
   verifyEmail: async (token) => {
-    return apiClient.get(`/users/verify-email/${token}`);
+    return apiClient.get(`/identity/users/verify-email/${token}`);
   },
 
-  /**
-   * Refresh access token
-   */
   refreshToken: async (refreshToken) => {
-    return apiClient.post('/users/refresh-token', { refresh_token: refreshToken });
+    return apiClient.post('/identity/users/refresh-token', { refresh_token: refreshToken });
+  },
+
+  me: async () => {
+    return apiClient.get('/identity/profile');
+  },
+
+  logout: async () => {
+    return apiClient.post('/identity/logout', {});
   },
 };

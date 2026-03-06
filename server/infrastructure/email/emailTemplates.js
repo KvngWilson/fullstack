@@ -5,9 +5,7 @@
  */
 
 class EmailTemplateService {
-  /**
-   * Render order confirmation template
-   */
+  // Render order confirmation template
   renderOrderConfirmation(data) {
     const { orderId, items = [], total, orderUrl } = data;
 
@@ -42,9 +40,7 @@ class EmailTemplateService {
     };
   }
 
-  /**
-   * Render password reset template
-   */
+  // Render password reset template
   renderPasswordReset(data) {
     const { resetUrl, expiresInMinutes = 30 } = data;
 
@@ -60,9 +56,7 @@ class EmailTemplateService {
     };
   }
 
-  /**
-   * Render email verification template
-   */
+  // Render email verification template
   renderEmailVerification(data) {
     const { verifyUrl } = data;
 
@@ -77,14 +71,13 @@ class EmailTemplateService {
     };
   }
 
-  /**
-   * Render employee invitation template
-   */
+  
+  // Render employee invitation template
   renderEmployeeInvitation(data) {
     const { to, inviterName, roleName, invitationUrl, expiryHours = 24 } = data;
 
     return {
-      subject: `🎉 You're Invited to Join as ${roleName}`,
+      subject: ` You're Invited to Join as ${roleName}`,
       html: `
     <!DOCTYPE html>
     <html>
@@ -104,7 +97,7 @@ class EmailTemplateService {
     <body>
       <div class="container">
         <div class="header">
-          <h1 style="margin: 0;">🎉 You've Been Invited!</h1>
+          <h1 style="margin: 0;"> You've Been Invited!</h1>
           <p style="margin: 10px 0 0 0; opacity: 0.9;">Join our team as ${roleName}</p>
         </div>
         <div class="content">
@@ -112,8 +105,8 @@ class EmailTemplateService {
           <p><strong>${inviterName}</strong> has invited you to join the team with the role of <strong>${roleName}</strong>.</p>
           
           <div class="info-box">
-            <p style="margin: 0;"><strong>📧 Your Email:</strong> ${to}</p>
-            <p style="margin: 10px 0 0 0;"><strong>👤 Assigned Role:</strong> ${roleName}</p>
+            <p style="margin: 0;"><strong> Your Email:</strong> ${to}</p>
+            <p style="margin: 10px 0 0 0;"><strong> Assigned Role:</strong> ${roleName}</p>
             <p style="margin: 10px 0 0 0;"><strong>⏰ Expires In:</strong> ${expiryHours} hours</p>
           </div>
 
@@ -127,7 +120,7 @@ class EmailTemplateService {
           <a href="${invitationUrl}" style="color: #3b82f6; word-break: break-all;">${invitationUrl}</a></p>
 
           <div class="info-box" style="border-color: #ef4444; background: #fef2f2;">
-            <p class="warning" style="margin: 0;">⚠️ Important Security Notes:</p>
+            <p class="warning" style="margin: 0;"> Important Security Notes:</p>
             <ul style="margin: 10px 0 0 0; padding-left: 20px;">
               <li>This invitation expires in ${expiryHours} hours</li>
               <li>The link can only be used once</li>
@@ -171,9 +164,7 @@ Admin Team
     };
   }
 
-  /**
-   * Get template by name and render with data
-   */
+  // Get template by name and render with data
   render(templateName, data) {
     const methodName = `render${this._capitalize(templateName)}`;
 
@@ -184,10 +175,8 @@ Admin Team
     return this[methodName](data);
   }
 
-  /**
-   * Capitalize string (helper)
-   * @private
-   */
+  
+  // Capitalize string (helper)
   _capitalize(str) {
     return str
       .split("_")

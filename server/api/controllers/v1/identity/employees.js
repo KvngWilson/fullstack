@@ -1,6 +1,7 @@
 const { pool } = require("../../../../config/db");
 const { logger } = require("../../../../shared/utils/logger");
 const InvitationService = require("../../../../services/invitation");
+const { sendEmail } = require("../../../../infrastructure/email");
 const { PermissionChecker } = require("../../../middleware/rbac");
 const { successResponse, errorResponse } = require("../../../../shared/utils/response");
 
@@ -35,11 +36,32 @@ exports.inviteEmployee = async (req, res) => {
       24,
     );
 
-    // TODO: Send invitation email with invitation_token
-    logger.info("Invitation email would be sent", {
-      email,
-      invitationId: invitation.id,
-    });
+    try {
+      const invitationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accept-invitation?token=${invitation.token}`;
+      
+      await sendEmail({
+        to: email,
+        subject: 'Join Our Team - Employee Invitation',
+        template: 'employee-invitation',
+        context: {
+          invitationUrl,
+          inviterName: req.user.name || 'Your Team',
+          expiresIn: '24 hours',
+        },
+      });
+
+      logger.info('Invitation email sent successfully', {
+        email,
+        invitationId: invitation.id,
+        inviterUserId: req.user.id,
+      });
+    } catch (emailError) {
+      logger.error('Failed to send invitation email', {
+        email,
+        invitationId: invitation.id,
+        error: emailError.message,
+      });
+    }
 
     return successResponse(res, {
       data: {

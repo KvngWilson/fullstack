@@ -8,6 +8,10 @@ const baseURL = process.env.VITE_API_URL || 'http://localhost:5000/api/v1';
  * These simulate API responses during testing
  */
 export const handlers = [
+  http.get(`${baseURL}/csrf-token`, async () => {
+    return HttpResponse.json({ token: 'test-csrf-token' });
+  }),
+
   // Auth endpoints
   http.post(`${baseURL}/users/login`, async () => {
     return HttpResponse.json({
@@ -35,6 +39,38 @@ export const handlers = [
   }),
 
   http.post(`${baseURL}/users/refresh-token`, async () => {
+    return HttpResponse.json({
+      success: true,
+      user: createMockUser(),
+    });
+  }),
+
+  http.post(`${baseURL}/identity/users/login`, async () => {
+    return HttpResponse.json({
+      success: true,
+      user: createMockUser(),
+    });
+  }),
+
+  http.post(`${baseURL}/identity/users/register`, async () => {
+    return HttpResponse.json({
+      success: true,
+      user: createMockUser(),
+    });
+  }),
+
+  http.post(`${baseURL}/identity/logout`, async () => {
+    return HttpResponse.json({ success: true });
+  }),
+
+  http.post(`${baseURL}/identity/users/refresh-token`, async () => {
+    return HttpResponse.json({
+      success: true,
+      user: createMockUser(),
+    });
+  }),
+
+  http.get(`${baseURL}/identity/profile`, async () => {
     return HttpResponse.json({
       success: true,
       user: createMockUser(),

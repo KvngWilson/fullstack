@@ -1,6 +1,7 @@
 const router = require("express").Router();
 const { protect, permission, anyPermission } = require("../../../decorators");
 const { employees: employeesController } = require("../../../controllers/v1/identity");
+const adminPolicy = require("../../../../policies/adminPolicy");
 
 // Accept invitation and create employee account
 router.post("/accept-invitation", employeesController.acceptInvitation);
@@ -14,7 +15,7 @@ router.post("/accept-invitation", employeesController.acceptInvitation);
 router.post(
   "/invite",
   ...protect(),
-  ...permission("employee:invite"),
+  ...permission(adminPolicy.employees.invite),
   employeesController.inviteEmployee,
 );
 
@@ -26,7 +27,7 @@ router.post(
 router.get(
   "/invitations",
   ...protect(),
-  ...anyPermission(["employee:invite", "employee:manage"]),
+  ...anyPermission([adminPolicy.employees.invite, adminPolicy.employees.manage]),
   employeesController.getPendingInvitations,
 );
 
@@ -38,7 +39,7 @@ router.get(
 router.post(
   "/resend-invitation/:id",
   ...protect(),
-  ...permission("employee:invite"),
+  ...permission(adminPolicy.employees.invite),
   employeesController.resendInvitation,
 );
 
@@ -50,7 +51,7 @@ router.post(
 router.get(
   "/",
   ...protect(),
-  ...permission("user:read"),
+  ...permission(adminPolicy.users.read),
   employeesController.listEmployees,
 );
 
@@ -62,7 +63,7 @@ router.get(
 router.get(
   "/:id",
   ...protect(),
-  ...permission("user:read"),
+  ...permission(adminPolicy.users.read),
   employeesController.getEmployee,
 );
 
@@ -74,7 +75,7 @@ router.get(
 router.patch(
   "/:id/role",
   ...protect(),
-  ...permission("user:role_assign"),
+  ...permission(adminPolicy.users.roleAssign),
   employeesController.updateEmployeeRole,
 );
 
@@ -86,7 +87,11 @@ router.patch(
 router.patch(
   "/:id/status",
   ...protect(),
-  ...anyPermission(["user:suspend", "user:delete", "user:update"]),
+  ...anyPermission([
+    adminPolicy.users.suspend,
+    adminPolicy.users.delete,
+    adminPolicy.users.update,
+  ]),
   employeesController.updateEmployeeStatus,
 );
 
@@ -98,7 +103,7 @@ router.patch(
 router.post(
   "/:id/permissions/override",
   ...protect(),
-  ...permission("security:manage"),
+  ...permission(adminPolicy.security.manage),
   employeesController.setPermissionOverride,
 );
 
@@ -110,7 +115,7 @@ router.post(
 router.get(
   "/:id/audit-log",
   ...protect(),
-  ...permission("audit:read"),
+  ...permission(adminPolicy.audit.read),
   employeesController.getEmployeeAuditLog,
 );
 

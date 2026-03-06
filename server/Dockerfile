@@ -1,5 +1,4 @@
 # Multi-stage Dockerfile for Node.js API Server
-# Production-optimized build with minimal final image size
 
 # Stage 1: Dependencies
 FROM node:20-alpine AS deps
@@ -29,7 +28,7 @@ ENV PATH=/app/node_modules/.bin:$PATH
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Copy production dependencies from deps stage
+# Copy dependencies from deps stage
 COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
 
 # Copy application source

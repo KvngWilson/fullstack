@@ -1,5 +1,29 @@
 export const USER_ROLES = {
   CUSTOMER: 'customer',
   VENDOR: 'vendor',
+  SUPER_ADMIN: 'super_admin',
   ADMIN: 'admin',
+  MANAGER: 'manager',
+  SUPPORT: 'support',
+  WAREHOUSE: 'warehouse',
 };
+
+export const ADMIN_ROLES = [USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN];
+
+export const MANAGEMENT_ROLES = [
+  USER_ROLES.SUPER_ADMIN,
+  USER_ROLES.ADMIN,
+  USER_ROLES.MANAGER,
+];
+
+export const SUPPORT_ROLES = [
+  USER_ROLES.SUPER_ADMIN,
+  USER_ROLES.ADMIN,
+  USER_ROLES.SUPPORT,
+];
+
+export const WAREHOUSE_ROLES = [
+  USER_ROLES.SUPER_ADMIN,
+  USER_ROLES.ADMIN,
+  USER_ROLES.WAREHOUSE,
+];

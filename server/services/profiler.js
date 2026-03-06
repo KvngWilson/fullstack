@@ -30,7 +30,7 @@ class Profiler {
     const end = endMark ? this.marks.get(endMark) : process.hrtime.bigint();
     
     if (!start) {
-      console.warn(`⚠️  Mark not found: ${startMark}`);
+      console.warn(`  Mark not found: ${startMark}`);
       return null;
     }
     
@@ -44,7 +44,7 @@ class Profiler {
     
     this.measures.push(measure);
     
-    console.log(`⏱️  ${name}: ${duration.toFixed(2)}ms`);
+    console.log(`  ${name}: ${duration.toFixed(2)}ms`);
     
     return duration;
   }
@@ -64,7 +64,7 @@ class Profiler {
         const result = await fn(...args);
         const duration = Number(process.hrtime.bigint() - start) / 1_000_000;
         
-        console.log(`✅ ${name}: ${duration.toFixed(2)}ms`);
+        console.log(` ${name}: ${duration.toFixed(2)}ms`);
         
         this.recordProfile(name, duration, true);
         
@@ -72,7 +72,7 @@ class Profiler {
       } catch (error) {
         const duration = Number(process.hrtime.bigint() - start) / 1_000_000;
         
-        console.error(`❌ ${name}: ${duration.toFixed(2)}ms - ${error.message}`);
+        console.error(` ${name}: ${duration.toFixed(2)}ms - ${error.message}`);
         
         this.recordProfile(name, duration, false, error.message);
         
@@ -92,7 +92,7 @@ class Profiler {
         const result = fn(...args);
         const duration = Number(process.hrtime.bigint() - start) / 1_000_000;
         
-        console.log(`✅ ${name}: ${duration.toFixed(2)}ms`);
+        console.log(` ${name}: ${duration.toFixed(2)}ms`);
         
         this.recordProfile(name, duration, true);
         
@@ -100,7 +100,7 @@ class Profiler {
       } catch (error) {
         const duration = Number(process.hrtime.bigint() - start) / 1_000_000;
         
-        console.error(`❌ ${name}: ${duration.toFixed(2)}ms - ${error.message}`);
+        console.error(` ${name}: ${duration.toFixed(2)}ms - ${error.message}`);
         
         this.recordProfile(name, duration, false, error.message);
         

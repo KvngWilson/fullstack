@@ -3,73 +3,68 @@
  * Comprehensive health monitoring for all system dependencies
  */
 
-const { pool } = require('../../config/db');
-const logger = require('../../shared/utils/logger');
-const { getMetricsSnapshot } = require('../middleware/metrics');
+const { pool } = require("../../config/db");
+const { redisClient } = require("../../config/redis");
+const logger = require("../../shared/utils/logger");
+const { getMetricsSnapshot } = require("../middleware/metrics");
 
-/**
- * Check database connectivity
- */
+// Check database connectivity
+
 async function checkDatabase() {
   try {
     const start = Date.now();
-    await pool.query('SELECT 1');
+    await pool.query("SELECT 1");
     const duration = Date.now() - start;
-    
+
     return {
-      status: 'healthy',
+      status: "healthy",
       latency: `${duration}ms`,
     };
   } catch (error) {
-    logger.error('Database health check failed', { error: error.message });
+    logger.error("Database health check failed", { error: error.message });
     return {
-      status: 'unhealthy',
+      status: "unhealthy",
       error: error.message,
     };
   }
 }
 
-/**
- * Check Redis connectivity (if configured)
- */
+// Check Redis connectivity (if configured)
 async function checkRedis() {
   try {
     // Skip if Redis not configured
     if (!process.env.REDIS_HOST) {
       return {
-        status: 'not_configured',
+        status: "not_configured",
       };
     }
-    
-    // Try to import and check redis
-    const redis = require('../../config/redis');
-    if (!redis.client) {
-      return { status: 'not_initialized' };
+
+    // Check redis client
+    if (!redisClient) {
+      return { status: "not_initialized" };
     }
-    
+
     const start = Date.now();
-    await redis.client.ping();
+    await redisClient.ping();
     const duration = Date.now() - start;
-    
+
     return {
-      status: 'healthy',
+      status: "healthy",
       latency: `${duration}ms`,
     };
   } catch (error) {
-    logger.error('Redis health check failed', { error: error.message });
+    logger.error("Redis health check failed", { error: error.message });
     return {
-      status: 'unhealthy',
+      status: "unhealthy",
       error: error.message,
     };
   }
 }
 
-/**
- * Get system information
- */
+// Get system information
 function getSystemInfo() {
   const memUsage = process.memoryUsage();
-  
+
   return {
     uptime: `${Math.floor(process.uptime())}s`,
     memory: {
@@ -82,32 +77,26 @@ function getSystemInfo() {
   };
 }
 
-/**
- * Basic health check endpoint (fast)
- */
+// Basic health check endpoint (fast)
 async function healthCheck(req, res) {
   res.status(200).json({
-    status: 'ok',
+    status: "ok",
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
   });
 }
 
-/**
- * Detailed health check endpoint (includes all dependencies)
- */
+// Detailed health check endpoint (includes all dependencies)
 async function detailedHealthCheck(req, res) {
-  const [database, redis] = await Promise.all([
-    checkDatabase(),
-    checkRedis(),
-  ]);
-  
-  const allHealthy = database.status === 'healthy' && 
-                     (redis.status === 'healthy' || redis.status === 'not_configured');
-  
+  const [database, redis] = await Promise.all([checkDatabase(), checkRedis()]);
+
+  const allHealthy =
+    database.status === "healthy" &&
+    (redis.status === "healthy" || redis.status === "not_configured");
+
   const statusCode = allHealthy ? 200 : 503;
-  const status = allHealthy ? 'healthy' : 'degraded';
-  
+  const status = allHealthy ? "healthy" : "degraded";
+
   res.status(statusCode).json({
     status,
     timestamp: new Date().toISOString(),
@@ -120,25 +109,23 @@ async function detailedHealthCheck(req, res) {
   });
 }
 
-/**
- * Readiness check (for Kubernetes/container orchestration)
- */
+// Readiness check (for Kubernetes/container orchestration)
 async function readinessCheck(req, res) {
   const database = await checkDatabase();
-  
-  if (database.status === 'healthy') {
-    res.status(200).json({ status: 'ready' });
+
+  if (database.status === "healthy") {
+    res.status(200).json({ status: "ready" });
   } else {
-    res.status(503).json({ status: 'not_ready', reason: 'database_unavailable' });
+    res
+      .status(503)
+      .json({ status: "not_ready", reason: "database_unavailable" });
   }
 }
 
-/**
- * Liveness check (for Kubernetes/container orchestration)
- */
+// Liveness check (for Kubernetes/container orchestration)
 async function livenessCheck(req, res) {
   // Simple check that process is alive
-  res.status(200).json({ status: 'alive' });
+  res.status(200).json({ status: "alive" });
 }
 
 module.exports = {

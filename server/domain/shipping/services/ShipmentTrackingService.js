@@ -11,6 +11,8 @@
 
 const logger = require('../../../shared/utils/logger');
 const { InvalidShippingRequest } = require('../../../shared/utils/errors');
+const { ShipmentStatusPolicy } = require('../policies');
+const { ShipmentStatusUpdated } = require('../events');
 
 class ShipmentTrackingService {
   constructor(orderRepository, webhookEventRepository) {
@@ -87,11 +89,18 @@ class ShipmentTrackingService {
 
       // Map external status to internal enum
       const mappedStatus = this._mapExternalStatus(status);
+      const shipmentStatusEvent = new ShipmentStatusUpdated({
+        orderId: order.id,
+        shipmentId,
+        previousStatus: order.shipment_status,
+        currentStatus: mappedStatus,
+      });
 
       logger.debug('Updating shipment status', {
         orderId: order.id,
         oldStatus: order.shipment_status,
         newStatus: mappedStatus,
+        eventType: shipmentStatusEvent.type,
       });
 
       // Update order with shipment tracking info
@@ -164,30 +173,12 @@ class ShipmentTrackingService {
    * Internal statuses: pending, label_created, in_transit, delivered, failed, cancelled
    */
   _mapExternalStatus(externalStatus) {
-    const statusMap = {
-      // Easyship -> Internal
-      created: 'label_created',
-      label_created: 'label_created',
-      shipped: 'in_transit',
-      in_transit: 'in_transit',
-      out_for_delivery: 'in_transit',
-      delivered: 'delivered',
-      failed: 'failed',
-      exception: 'failed',
-      cancelled: 'cancelled',
-      lost: 'failed',
-      damaged: 'failed',
-    };
+    const mapped = ShipmentStatusPolicy.mapExternalStatus(externalStatus);
 
-    const normalized = externalStatus?.toLowerCase();
-    const mapped = statusMap[normalized];
-
-    if (!mapped) {
+    if (!ShipmentStatusPolicy.isKnownExternalStatus(externalStatus)) {
       logger.warn('Unknown shipment status from webhook', {
         externalStatus,
       });
-      // Default to in_transit for unknown statuses (safe assumption)
-      return 'in_transit';
     }
 
     return mapped;

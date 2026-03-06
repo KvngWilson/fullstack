@@ -1,6 +1,6 @@
 /**
  * ShippingCacheClient - Redis-backed shipping rate cache
- * 
+ *
  * Strategy:
  * - Cache key: rates:{vendorId}:{hash(cart+address+currency)}
  * - TTL: 10-15 minutes for valid rates, 2 min for empty results
@@ -8,8 +8,8 @@
  * - Auto-invalidation on cart/address changes
  */
 
-const crypto = require('crypto');
-const logger = require('../../shared/utils/logger');
+const crypto = require("crypto");
+const logger = require("../../shared/utils/logger");
 
 class ShippingCacheClient {
   constructor(redisClient) {
@@ -24,7 +24,7 @@ class ShippingCacheClient {
    */
   _generateCacheKeyHash(cartItems, address, currency) {
     const cacheData = {
-      items: cartItems.map(item => ({
+      items: cartItems.map((item) => ({
         variantId: item.product_variant_id,
         quantity: item.quantity,
         weight: item.weight || 0.5,
@@ -44,7 +44,7 @@ class ShippingCacheClient {
     };
 
     const dataString = JSON.stringify(cacheData);
-    return crypto.createHash('sha256').update(dataString).digest('hex');
+    return crypto.createHash("sha256").update(dataString).digest("hex");
   }
 
   /**
@@ -63,19 +63,19 @@ class ShippingCacheClient {
       const cacheKey = this._getCacheKey(vendorId, cartHash);
 
       const cached = await this.client.get(cacheKey);
-      
+
       if (cached) {
-        logger.debug('Shipping rates cache hit', {
+        logger.debug("Shipping rates cache hit", {
           vendorId,
           cacheKey,
         });
         return JSON.parse(cached);
       }
 
-      logger.debug('Shipping rates cache miss', { vendorId, cacheKey });
+      logger.debug("Shipping rates cache miss", { vendorId, cacheKey });
       return null;
     } catch (error) {
-      logger.error('Cache retrieval error', { error: error.message });
+      logger.error("Cache retrieval error", { error: error.message });
       return null; // Graceful degradation
     }
   }
@@ -89,9 +89,8 @@ class ShippingCacheClient {
       const cacheKey = this._getCacheKey(vendorId, cartHash);
 
       // Empty results get shorter TTL
-      const ttl = rates && rates.length > 0 
-        ? this.RATES_TTL 
-        : this.EMPTY_RESULTS_TTL;
+      const ttl =
+        rates && rates.length > 0 ? this.RATES_TTL : this.EMPTY_RESULTS_TTL;
 
       await this.client.setEx(
         cacheKey,
@@ -100,17 +99,17 @@ class ShippingCacheClient {
           rates: rates || [],
           cachedAt: new Date().toISOString(),
           vendorId,
-        })
+        }),
       );
 
-      logger.debug('Shipping rates cached', {
+      logger.debug("Shipping rates cached", {
         vendorId,
         cacheKey,
         ttl,
         rateCount: rates ? rates.length : 0,
       });
     } catch (error) {
-      logger.error('Cache set error', { error: error.message });
+      logger.error("Cache set error", { error: error.message });
       // Graceful degradation - cache failure doesn't block functionality
     }
   }
@@ -122,16 +121,16 @@ class ShippingCacheClient {
     try {
       // Pattern: shipping:rates:{vendorId}:*
       const pattern = `shipping:rates:${vendorId}:*`;
-      
+
       // Redis SCAN for pattern matching (safe for large keyspaces)
       let cursor = 0;
       let deleted = 0;
 
       do {
-        const result = await this.client.scan(
-          cursor,
-          { MATCH: pattern, COUNT: 100 }
-        );
+        const result = await this.client.scan(cursor, {
+          MATCH: pattern,
+          COUNT: 100,
+        });
         cursor = result.cursor;
 
         if (result.keys.length > 0) {
@@ -139,14 +138,14 @@ class ShippingCacheClient {
         }
       } while (cursor !== 0);
 
-      logger.info('Vendor shipping rates invalidated', {
+      logger.info("Vendor shipping rates invalidated", {
         vendorId,
         keysDeleted: deleted,
       });
 
       return deleted;
     } catch (error) {
-      logger.error('Cache invalidation error', { error: error.message });
+      logger.error("Cache invalidation error", { error: error.message });
       return 0;
     }
   }
@@ -167,7 +166,7 @@ class ShippingCacheClient {
       await this.client.ping();
       return true;
     } catch (error) {
-      logger.error('Cache health check failed', { error: error.message });
+      logger.error("Cache health check failed", { error: error.message });
       return false;
     }
   }
@@ -186,10 +185,10 @@ class ShippingCacheClient {
       };
 
       do {
-        const result = await this.client.scan(
-          cursor,
-          { MATCH: pattern, COUNT: 100 }
-        );
+        const result = await this.client.scan(cursor, {
+          MATCH: pattern,
+          COUNT: 100,
+        });
         cursor = result.cursor;
         stats.keyCount += result.keys.length;
         stats.keys.push(...result.keys);
@@ -197,7 +196,7 @@ class ShippingCacheClient {
 
       return stats;
     } catch (error) {
-      logger.error('Cache stats error', { error: error.message });
+      logger.error("Cache stats error", { error: error.message });
       return { vendorId, keyCount: 0, keys: [] };
     }
   }

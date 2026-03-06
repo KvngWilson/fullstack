@@ -9,7 +9,15 @@ const domain = require("../../../../domain");
 const productService = domain.catalog.services.ProductService;
 const categoryService = domain.catalog.services.CategoryService;
 
-const PRODUCT_MUTABLE_FIELDS = ["name", "description", "base_price", "category_id", "is_active"];
+const PRODUCT_MUTABLE_FIELDS = ["name", "description", "category_id", "slug", "image_url"];
+
+const getUploadedImageUrl = (req) => {
+  if (!req?.file?.filename) {
+    return null;
+  }
+
+  return `/uploads/products/${req.file.filename}`;
+};
 
 const toNumberOrNull = (value) => {
   // Convert string to number or return null
@@ -27,9 +35,13 @@ const parseProductId = (rawId) => {
 // Ensure numeric price in serialized response
 const normalizeProductOutput = (product) => ({
   ...product,
-  base_price:
-    product && product.base_price !== undefined && product.base_price !== null
-      ? Number(product.base_price)
+  min_price:
+    product && product.min_price !== undefined && product.min_price !== null
+      ? Number(product.min_price)
+      : null,
+  max_price:
+    product && product.max_price !== undefined && product.max_price !== null
+      ? Number(product.max_price)
       : null,
 });
 
@@ -131,6 +143,7 @@ exports.getProductById = async (req, res) => {
 exports.createProduct = async (req, res) => {
   try {
     const actorUserId = req.user?.id || null;
+    const uploadedImageUrl = getUploadedImageUrl(req);
     
     const { error, value } = validateCreateProduct(req.body);
     if (error) {
@@ -139,6 +152,7 @@ exports.createProduct = async (req, res) => {
 
     const product = await productService.create({
       ...value,
+      ...(uploadedImageUrl ? { image_url: uploadedImageUrl } : {}),
       actorUserId,
     });
 
@@ -155,6 +169,7 @@ exports.createProduct = async (req, res) => {
 exports.replaceProduct = async (req, res) => {
   try {
     const actorUserId = req.user?.id || null;
+    const uploadedImageUrl = getUploadedImageUrl(req);
     const productId = parseProductId(req.params.productId);
     if (!productId) {
       return errorResponse(res, { message: "Invalid product ID", status: 400 });
@@ -167,6 +182,7 @@ exports.replaceProduct = async (req, res) => {
 
     const product = await productService.update(productId, {
       ...value,
+      ...(uploadedImageUrl ? { image_url: uploadedImageUrl } : {}),
       actorUserId,
     });
 
@@ -187,6 +203,7 @@ exports.replaceProduct = async (req, res) => {
 exports.updateProductPartial = async (req, res) => {
   try {
     const actorUserId = req.user?.id || null;
+    const uploadedImageUrl = getUploadedImageUrl(req);
     const productId = parseProductId(req.params.productId);
     if (!productId) {
       return errorResponse(res, { message: "Invalid product ID", status: 400 });
@@ -207,6 +224,7 @@ exports.updateProductPartial = async (req, res) => {
 
     const product = await productService.update(productId, {
       ...value,
+      ...(uploadedImageUrl ? { image_url: uploadedImageUrl } : {}),
       actorUserId,
     });
 

@@ -11,13 +11,22 @@ export default defineConfig({
     css: true,
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html', 'lcov'],
+      reporter: ['text', 'json', 'json-summary', 'html', 'lcov'],
+      include: [
+        'src/api/requestCache.js',
+        'src/components/common/ErrorBoundary.jsx',
+        'src/features/auth/authSlice.js',
+        'src/features/auth/authThunks.js',
+        'src/features/auth/authSelectors.js',
+        'src/utils/errorMessage.js',
+      ],
       exclude: [
         'node_modules/',
         'src/__tests__/',
         '**/*.test.js',
         '**/*.test.jsx',
         '**/__mocks__/**',
+        '**/*.stories.{js,jsx}',
       ],
       branches: 50,
       functions: 50,

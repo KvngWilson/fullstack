@@ -17,4 +17,7 @@ module.exports = {
     ShipmentTrackingService: require('./services/ShipmentTrackingService'),
     FailedWebhookHandler: require('./services/FailedWebhookHandler'),
   },
+  entities: require('./entities'),
+  events: require('./events'),
+  policies: require('./policies'),
 };

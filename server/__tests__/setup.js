@@ -1,5 +1,4 @@
-// Test setup and global configuration
-require('dotenv').config({ path: '.env.test' });
+require('dotenv').config({ path: '.env.test', quiet: true });
 
 // Set test environment variables
 process.env.NODE_ENV = 'test';
@@ -7,20 +6,20 @@ process.env.JWT_SECRET = 'test-secret-key-for-testing-only';
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'test-session-secret-key-for-testing-only-123456';
 process.env.DB_NAME = process.env.DB_NAME || 'ecommerce_test';
 
-// Mock console methods during tests to reduce noise
 global.console = {
   ...console,
-  error: jest.fn(),
-  warn: jest.fn(),
   log: jest.fn(),
 };
 
-// Global test timeout
 jest.setTimeout(10000);
-jest.retryTimes(2);
+
+global.__TEST_DB_AVAILABLE = true;
+global.__TEST_DB_SETUP_ERROR = null;
 
 beforeAll(async () => {
   const { pool } = require('../config/db');
+  const compatibilityWarnings = [];
+
   const statements = [
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS password TEXT",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT",
@@ -174,28 +173,49 @@ beforeAll(async () => {
       try {
         await pool.query(sql);
       } catch (error) {
-        // Ignore individual compatibility statement failures
+        if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+          global.__TEST_DB_AVAILABLE = false;
+          global.__TEST_DB_SETUP_ERROR = error;
+          break;
+        }
+
+        compatibilityWarnings.push(error.message);
       }
     }
+
+    if (!global.__TEST_DB_AVAILABLE && global.__TEST_DB_SETUP_ERROR) {
+      process.stderr.write(`Test DB setup unavailable: ${global.__TEST_DB_SETUP_ERROR.message}\n`);
+      return;
+    }
+
+    if (compatibilityWarnings.length > 0) {
+      process.stderr.write(
+        `Test schema compatibility warnings: ${compatibilityWarnings.length} non-fatal statements failed\n`
+      );
+    }
   } catch (error) {
-    // Keep tests running even if DB isn't available for unit-only runs
+    global.__TEST_DB_AVAILABLE = false;
+    global.__TEST_DB_SETUP_ERROR = error;
+    process.stderr.write(`Test DB setup unavailable: ${error.message}\n`);
   }
 });
 
 beforeEach(async () => {
+  if (!global.__TEST_DB_AVAILABLE) {
+    return;
+  }
+
   const { pool } = require('../config/db');
   try {
     await pool.query(
       "DELETE FROM users WHERE email IN ('other@test.com', 'other2@test.com', 'profile@test.com', 'payment@test.com', 'nopay@test.com')"
     );
   } catch (error) {
-    // ignore cleanup failures in unit-only runs
+    if (error.code !== 'ECONNREFUSED' && error.code !== 'ENOTFOUND') {
+      process.stderr.write(`Test cleanup warning: ${error.message}\n`);
+    }
   }
 });
 
-// Clean up after all tests
 afterAll(async () => {
-  // Intentionally avoid closing shared DB/Redis clients here.
-  // Jest runs suites in parallel workers, and per-file shutdown can
-  // race other suites, causing nondeterministic "pool closed" failures.
 });

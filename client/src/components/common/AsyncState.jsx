@@ -1,5 +1,5 @@
 import { AlertTriangle, Inbox, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/Button';
 
 export function ErrorState({
   title = 'Something went wrong',

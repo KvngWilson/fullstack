@@ -1,8 +1,3 @@
-/**
- * Email Queue Initialization
- * Sets up Bull queue processor for async email sending with retry logic
- */
-
 const Bull = require('bull');
 const { logger } = require('../../shared/utils/logger');
 const { sendEmailJob } = require('../email/email');
@@ -18,7 +13,6 @@ class EmailQueueInitializer {
    * @returns {Object} Queue instance
    */
   static initializeQueue(redisConfig = {}) {
-    // Create Bull queue
     const emailQueue = new Bull('email', {
       redis: {
         host: redisConfig.host || process.env.REDIS_HOST || 'localhost',
@@ -28,7 +22,6 @@ class EmailQueueInitializer {
       },
     });
 
-    // Set up processor
     emailQueue.process(async (job) => {
       logger.info('Processing email job', {
         jobId: job.id,
@@ -61,12 +54,10 @@ class EmailQueueInitializer {
           maxAttempts: job.opts.attempts,
         });
 
-        // Rethrow to let Bull handle retry
         throw error;
       }
     });
 
-    // Event listeners for monitoring
     emailQueue.on('completed', (job) => {
       logger.debug('Email job completed', {
         jobId: job.id,
@@ -118,12 +109,12 @@ class EmailQueueInitializer {
         delay: options.backoffDelay || 2000,
       },
       removeOnComplete: {
-        age: options.keepCompletedAge || 3600, // Keep for 1 hour
+        age: options.keepCompletedAge || 3600,
       },
       removeOnFail: {
-        age: options.keepFailedAge || 86400, // Keep for 24 hours
+        age: options.keepFailedAge || 86400,
       },
-      timeout: options.timeout || 30000, // 30 seconds max per attempt
+      timeout: options.timeout || 30000,
       ...options.jobOptions,
     };
 

@@ -26,16 +26,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
       - name: Lint code
         run: npm run lint
 
       - name: Run unit tests
         run: npm run test:coverage
 
-      - name: Enforce coverage threshold
-        env:
-          COVERAGE_THRESHOLD: '60'
-        run: npm run ci:coverage
+      - name: Run critical E2E regression (Chromium)
+        run: npm run e2e:critical
+
+      - name: Enforce coverage policy
+        run: npm run ci:coverage:policy
 
       - name: Build production bundle
         run: npm run build
@@ -91,7 +95,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `✅ Frontend quality gates passed\n\n📦 Build Size: ${buildSize}\n🧪 Coverage: threshold 60%\n♿ Accessibility: axe-core checks passed`
+              body: `Frontend quality gates passed\n\nBuild Size: ${buildSize}\nCoverage policy: lines/statements/functions/branches >= 80%, critical modules = 100%\nAccessibility: axe-core checks passed`
             });
 
   lighthouse:
@@ -172,7 +176,7 @@ jobs:
       - name: Analyze bundle
         working-directory: ./client
         run: |
-          source-map-explorer 'dist/assets/*.js' --json > bundle-analysis.json || true
+          source-map-explorer 'dist/**/*.js' --json > bundle-analysis.json || true
       
       - name: Upload bundle analysis
         uses: actions/upload-artifact@v4

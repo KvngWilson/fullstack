@@ -1,5 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { loginThunk, registerThunk, refreshTokenThunk, logoutThunk } from './authThunks';
+import { loginThunk, registerThunk, refreshTokenThunk, logoutThunk, fetchCurrentUserThunk } from './authThunks';
 
 /**
  * SECURITY IMPROVEMENT: Do NOT store tokens in state or localStorage
@@ -19,6 +19,7 @@ const initialState = {
   user: null, // Only store user info, NOT tokens
   isAuthenticated: false,
   isLoading: false,
+  isHydrated: false,
   error: null,
 };
 
@@ -33,6 +34,7 @@ const authSlice = createSlice({
     setUser: (state, action) => {
       state.user = action.payload;
       state.isAuthenticated = true;
+      state.isHydrated = true;
       state.error = null;
     },
 
@@ -43,6 +45,7 @@ const authSlice = createSlice({
     clearUser: (state) => {
       state.user = null;
       state.isAuthenticated = false;
+      state.isHydrated = true;
       state.error = null;
     },
 
@@ -61,12 +64,14 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.user = action.payload.user;
         state.isAuthenticated = true;
+        state.isHydrated = true;
         // ✅ Token is in httpOnly cookie, not in state
       })
       .addCase(loginThunk.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload || 'Login failed';
         state.isAuthenticated = false;
+        state.isHydrated = true;
       });
 
     // Register
@@ -79,12 +84,14 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.user = action.payload.user;
         state.isAuthenticated = true;
+        state.isHydrated = true;
         // ✅ Token is in httpOnly cookie, not in state
       })
       .addCase(registerThunk.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload || 'Registration failed';
         state.isAuthenticated = false;
+        state.isHydrated = true;
       });
 
     // Logout
@@ -96,6 +103,7 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.user = null;
         state.isAuthenticated = false;
+        state.isHydrated = true;
         state.error = null;
         // ✅ Backend clears httpOnly cookies
       })
@@ -104,6 +112,7 @@ const authSlice = createSlice({
         // Still clear local state even if logout API fails
         state.user = null;
         state.isAuthenticated = false;
+        state.isHydrated = true;
       });
 
     // Refresh token
@@ -119,6 +128,24 @@ const authSlice = createSlice({
         // Token refresh failed - logout user
         state.user = null;
         state.isAuthenticated = false;
+      });
+
+    // Initial auth hydration
+    builder
+      .addCase(fetchCurrentUserThunk.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(fetchCurrentUserThunk.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.user = action.payload?.user || null;
+        state.isAuthenticated = Boolean(action.payload?.user);
+        state.isHydrated = true;
+      })
+      .addCase(fetchCurrentUserThunk.rejected, (state) => {
+        state.isLoading = false;
+        state.user = null;
+        state.isAuthenticated = false;
+        state.isHydrated = true;
       });
   },
 });

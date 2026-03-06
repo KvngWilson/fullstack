@@ -28,7 +28,7 @@ export const productsApi = {
     });
 
     const query = params.toString();
-    const response = await apiClient.get(`/products${query ? `?${query}` : ''}`);
+    const response = await apiClient.get(`/catalog/products${query ? `?${query}` : ''}`);
     return normalizeProductsListResponse(response);
   },
 
@@ -36,14 +36,14 @@ export const productsApi = {
    * Get product by ID
    */
   getProductById: async (id) => {
-    return apiClient.get(`/products/${id}`);
+    return apiClient.get(`/catalog/products/${id}`);
   },
 
   /**
    * Get categories
    */
   getCategories: async () => {
-    const response = await apiClient.get('/products/categories');
+    const response = await apiClient.get('/catalog/products/categories');
     return response?.data || response || [];
   },
 
@@ -58,7 +58,7 @@ export const productsApi = {
    * Get featured products
    */
   getFeaturedProducts: async (limit = 8) => {
-    const response = await apiClient.get(`/products/featured?limit=${limit}`);
+    const response = await apiClient.get(`/catalog/products/featured?limit=${limit}`);
     return response?.data || response || [];
   },
 

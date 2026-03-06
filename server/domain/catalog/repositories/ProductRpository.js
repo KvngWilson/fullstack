@@ -8,15 +8,21 @@ const {
 /**
  * Product Repository.
  * Handles product persistence, filtering, and pagination queries.
+ * Fixed to use actual database columns
  */
 class ProductRepository extends BaseRepository {
   async findById(id) {
     const result = await pool.query(
-      `SELECT p.id, p.name, p.description, p.base_price, p.is_active, p.category_id,
+      `SELECT p.id, p.name, p.description, p.slug, p.vendor_id, p.category_id,
+              NULL::text AS image_url,
+              (MIN(pv.price_minor_units) / 100.0)::numeric(12,2) AS min_price,
+              (MAX(pv.price_minor_units) / 100.0)::numeric(12,2) AS max_price,
               p.created_at, p.updated_at, c.name AS category_name
        FROM products p
        LEFT JOIN categories c ON p.category_id = c.id
-       WHERE p.id = $1 AND p.deleted_at IS NULL`,
+       LEFT JOIN product_variants pv ON p.id = pv.product_id
+       WHERE p.id = $1 AND p.deleted_at IS NULL
+       GROUP BY p.id, p.name, p.description, p.slug, p.vendor_id, p.category_id, c.name, p.created_at, p.updated_at`,
       [id],
     );
     return result.rows[0] || null;
@@ -39,25 +45,38 @@ class ProductRepository extends BaseRepository {
     let paramIndex = 1;
 
     if (category) {
-      whereClauses.push(`p.category_id = $${paramIndex}`);
-      params.push(category);
+      const categoryText = String(category).trim();
+      const categoryId = Number.parseInt(categoryText, 10);
+
+      if (Number.isInteger(categoryId) && String(categoryId) === categoryText) {
+        whereClauses.push(`p.category_id = $${paramIndex}`);
+        params.push(categoryId);
+      } else {
+        whereClauses.push(`LOWER(c.slug) = LOWER($${paramIndex})`);
+        params.push(categoryText);
+      }
+
       paramIndex++;
     }
 
     const query = `
-      SELECT
+      SELECT DISTINCT
         p.id,
         p.name,
         p.description,
-        p.base_price,
-        p.is_active,
+        p.slug,
+        p.vendor_id,
         p.category_id,
+        NULL::text AS image_url,
+        (MIN(pv.price_minor_units) OVER (PARTITION BY p.id) / 100.0)::numeric(12,2) AS min_price,
+        (MAX(pv.price_minor_units) OVER (PARTITION BY p.id) / 100.0)::numeric(12,2) AS max_price,
         p.created_at,
         p.updated_at,
         c.name AS category_name,
         COUNT(*) OVER() AS total_count
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN product_variants pv ON p.id = pv.product_id
       WHERE ${whereClauses.join(" AND ")}
       ${orderByClause.replace("ORDER BY ", "ORDER BY p.")}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -91,16 +110,16 @@ class ProductRepository extends BaseRepository {
 
   async create(data) {
     const result = await pool.query(
-      `INSERT INTO products (name, description, base_price, category_id, is_active, created_by, updated_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $6)
-       RETURNING id, name, description, base_price, category_id, is_active, created_at, updated_at`,
+      `INSERT INTO products (vendor_id, category_id, name, slug, description)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, vendor_id, name, slug, description, category_id,
+                 NULL::text AS image_url, created_at, updated_at`,
       [
-        data.name,
-        data.description ?? null,
-        data.base_price,
+        data.vendor_id,
         data.category_id ?? null,
-        data.is_active ?? true,
-        data.actorUserId,
+        data.name,
+        data.slug,
+        data.description ?? null,
       ],
     );
     return result.rows[0] || null;
@@ -111,7 +130,7 @@ class ProductRepository extends BaseRepository {
     const params = [];
     let index = 1;
 
-    const mutableFields = ["name", "description", "base_price", "category_id", "is_active"];
+    const mutableFields = ["name", "slug", "description", "category_id"];
 
     for (const field of mutableFields) {
       if (Object.prototype.hasOwnProperty.call(data, field)) {
@@ -123,10 +142,6 @@ class ProductRepository extends BaseRepository {
 
     if (updates.length === 0) return null;
 
-    updates.push(`updated_by = $${index}`);
-    params.push(data.actorUserId);
-    index++;
-
     updates.push("updated_at = NOW()");
     params.push(id);
 
@@ -134,23 +149,22 @@ class ProductRepository extends BaseRepository {
       `UPDATE products
        SET ${updates.join(", ")}
        WHERE id = $${index} AND deleted_at IS NULL
-       RETURNING id, name, description, base_price, category_id, is_active, created_at, updated_at`,
+       RETURNING id, vendor_id, name, slug, description, category_id,
+                 NULL::text AS image_url, created_at, updated_at`,
       params,
     );
 
     return result.rows[0] || null;
   }
 
-  async delete(id, actorUserId) {
+  async delete(id) {
     const result = await pool.query(
       `UPDATE products
        SET deleted_at = NOW(),
-           is_active = false,
-           updated_by = $1,
            updated_at = NOW()
-       WHERE id = $2 AND deleted_at IS NULL
+       WHERE id = $1 AND deleted_at IS NULL
        RETURNING id`,
-      [actorUserId, id],
+      [id],
     );
 
     return result.rows[0] || null;
@@ -186,10 +200,14 @@ class ProductRepository extends BaseRepository {
 
   async findFeatured(limit = 10) {
     const result = await pool.query(
-      `SELECT p.id, p.name, p.description, p.base_price, p.is_active, p.category_id,
+      `SELECT DISTINCT p.id, p.name, p.description, p.slug, p.vendor_id, p.category_id,
+              NULL::text AS image_url,
+              (MIN(pv.price_minor_units) OVER (PARTITION BY p.id) / 100.0)::numeric(12,2) AS min_price,
+              (MAX(pv.price_minor_units) OVER (PARTITION BY p.id) / 100.0)::numeric(12,2) AS max_price,
               p.created_at, p.updated_at, c.name AS category_name
        FROM products p
        LEFT JOIN categories c ON p.category_id = c.id
+       LEFT JOIN product_variants pv ON p.id = pv.product_id
        WHERE p.deleted_at IS NULL
        ORDER BY p.updated_at DESC, p.id DESC
        LIMIT $1`,
@@ -200,7 +218,9 @@ class ProductRepository extends BaseRepository {
 
   async findByIdWithVariants(productId) {
     const productResult = await pool.query(
-      `SELECT p.*, c.name as category_name
+      `SELECT p.id, p.name, p.description, p.slug, p.vendor_id, p.category_id,
+              NULL::text AS image_url,
+              p.created_at, p.updated_at, c.name as category_name
        FROM products p
        LEFT JOIN categories c ON p.category_id = c.id
        WHERE p.id = $1 AND p.deleted_at IS NULL`,
@@ -214,9 +234,14 @@ class ProductRepository extends BaseRepository {
     const product = productResult.rows[0];
 
     const variantsResult = await pool.query(
-      `SELECT v.id, v.sku, v.price, v.stock, v.attributes
+      `SELECT v.id,
+              v.sku,
+              (v.price_minor_units / 100.0)::numeric(12,2) AS price,
+              v.price_minor_units,
+              v.stock,
+              v.attributes
        FROM product_variants v
-       WHERE v.product_id = $1 AND v.deleted_at IS NULL`,
+       WHERE v.product_id = $1`,
       [productId],
     );
 

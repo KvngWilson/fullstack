@@ -1,5 +1,5 @@
 /**
- * Payment Validation Schemas - Phase 7
+ * Payment Validation Schemas
  * Joi validators for payment and refund operations
  */
 
@@ -27,7 +27,7 @@ const createPaymentSchema = Joi.object({
     "any.required": "amount is required",
   }),
   currency: Joi.string()
-    .valid("USD", "EUR", "GBP", "CAD", "AUD", "JPY")
+    .valid("USD", "EUR", "GBP", "CAD", "AUD", "JPY", "NGN")
     .default("USD")
     .optional(),
   processor: Joi.string()
@@ -89,13 +89,9 @@ const createRefundSchema = Joi.object({
     "number.positive": "payment_id must be a positive number",
     "any.required": "payment_id is required",
   }),
-  amount: Joi.number()
-    .positive()
-    .precision(2)
-    .optional()
-    .messages({
-      "number.positive": "refund amount must be greater than 0",
-    }),
+  amount: Joi.number().positive().precision(2).optional().messages({
+    "number.positive": "refund amount must be greater than 0",
+  }),
   reason: Joi.string()
     .valid(
       "customer_request",
@@ -103,7 +99,7 @@ const createRefundSchema = Joi.object({
       "return",
       "partial_return",
       "duplicate",
-      "product_unacceptable"
+      "product_unacceptable",
     )
     .required()
     .messages({

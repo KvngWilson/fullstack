@@ -1,12 +1,12 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import { profileApi } from '@/api/endpoints/profile';
+import { profileService } from '@/services/api/profileService';
 import { getErrorMessage } from '@/utils/getErrorMessage';
 
 export const fetchUserProfileThunk = createAsyncThunk(
   'user/fetchUserProfile',
   async (_, { rejectWithValue }) => {
     try {
-      return await profileApi.getProfile();
+      return await profileService.getProfile();
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
@@ -17,7 +17,7 @@ export const updateUserProfileThunk = createAsyncThunk(
   'user/updateUserProfile',
   async (payload, { rejectWithValue }) => {
     try {
-      return await profileApi.updateProfile(payload);
+      return await profileService.updateProfile(payload);
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
@@ -28,7 +28,7 @@ export const fetchAddressesThunk = createAsyncThunk(
   'user/fetchAddresses',
   async (_, { rejectWithValue }) => {
     try {
-      return await profileApi.getAddresses();
+      return await profileService.getAddresses();
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
@@ -39,7 +39,7 @@ export const addAddressThunk = createAsyncThunk(
   'user/addAddress',
   async (payload, { rejectWithValue }) => {
     try {
-      return await profileApi.addAddress(payload);
+      return await profileService.addAddress(payload);
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
@@ -50,7 +50,7 @@ export const updateAddressThunk = createAsyncThunk(
   'user/updateAddress',
   async ({ addressId, ...payload }, { rejectWithValue }) => {
     try {
-      return await profileApi.updateAddress(addressId, payload);
+      return await profileService.updateAddress(addressId, payload);
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
@@ -61,7 +61,7 @@ export const deleteAddressThunk = createAsyncThunk(
   'user/deleteAddress',
   async (addressId, { rejectWithValue }) => {
     try {
-      await profileApi.deleteAddress(addressId);
+      await profileService.deleteAddress(addressId);
       return addressId;
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
@@ -73,7 +73,7 @@ export const fetchSavedCardsThunk = createAsyncThunk(
   'user/fetchSavedCards',
   async (_, { rejectWithValue }) => {
     try {
-      return await profileApi.getSavedCards();
+      return await profileService.getSavedCards();
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
@@ -84,7 +84,7 @@ export const addSavedCardThunk = createAsyncThunk(
   'user/addSavedCard',
   async (payload, { rejectWithValue }) => {
     try {
-      return await profileApi.addSavedCard(payload);
+      return await profileService.addSavedCard(payload);
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
@@ -95,7 +95,7 @@ export const setPrimaryCardThunk = createAsyncThunk(
   'user/setPrimaryCard',
   async (cardId, { rejectWithValue }) => {
     try {
-      return await profileApi.setPrimaryCard(cardId);
+      return await profileService.setPrimaryCard(cardId);
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
@@ -106,7 +106,7 @@ export const deleteSavedCardThunk = createAsyncThunk(
   'user/deleteSavedCard',
   async (cardId, { rejectWithValue }) => {
     try {
-      await profileApi.deleteSavedCard(cardId);
+      await profileService.deleteSavedCard(cardId);
       return cardId;
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
@@ -118,7 +118,7 @@ export const changePasswordThunk = createAsyncThunk(
   'user/changePassword',
   async (payload, { rejectWithValue }) => {
     try {
-      return await profileApi.changePassword(payload);
+      return await profileService.changePassword(payload);
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
@@ -129,7 +129,7 @@ export const deleteAccountThunk = createAsyncThunk(
   'user/deleteAccount',
   async (payload, { rejectWithValue }) => {
     try {
-      return await profileApi.deleteAccount(payload);
+      return await profileService.deleteAccount(payload);
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }

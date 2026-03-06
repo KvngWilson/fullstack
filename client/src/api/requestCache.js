@@ -35,15 +35,22 @@ export const requestCacheInterceptor = {
       config._cacheKey = cacheKey;
       config._isCached = true;
       // Return the cached promise
-      return Promise.reject(new CachedRequestError(pendingRequests.get(cacheKey)));
+      return Promise.reject(new CachedRequestError(pendingRequests.get(cacheKey).promise));
     }
 
     if (cacheKey) {
       // Store this request's promise for deduplication
-      const promise = new Promise((resolve) => {
-        config._resolveCache = resolve;
+      let resolvePending;
+      let rejectPending;
+      const promise = new Promise((resolve, reject) => {
+        resolvePending = resolve;
+        rejectPending = reject;
       });
-      pendingRequests.set(cacheKey, promise);
+      pendingRequests.set(cacheKey, {
+        promise,
+        resolve: resolvePending,
+        reject: rejectPending,
+      });
       config._cacheKey = cacheKey;
     }
 
@@ -52,8 +59,9 @@ export const requestCacheInterceptor = {
 
   response: (response) => {
     const cacheKey = response.config._cacheKey;
-    if (cacheKey && pendingRequests.has(cacheKey)) {
-      pendingRequests.get(cacheKey)._resolve?.(response);
+    const pendingEntry = cacheKey ? pendingRequests.get(cacheKey) : null;
+    if (pendingEntry) {
+      pendingEntry.resolve?.(response);
       pendingRequests.delete(cacheKey);
     }
     return response;
@@ -61,7 +69,9 @@ export const requestCacheInterceptor = {
 
   error: (error) => {
     const cacheKey = error.config?._cacheKey;
-    if (cacheKey && pendingRequests.has(cacheKey)) {
+    const pendingEntry = cacheKey ? pendingRequests.get(cacheKey) : null;
+    if (pendingEntry) {
+      pendingEntry.reject?.(error);
       pendingRequests.delete(cacheKey);
     }
 

@@ -1,13 +1,53 @@
 const { testConnection, closePool } = require("../config/db");
 const { connectRedis, redisClient } = require("../config/redis");
 const { logger } = require("../shared/utils/logger");
+const { initializeJobs, stopJobs } = require("../infrastructure/jobs/initializeJobs");
+const { initializeJobQueues, shutdownJobQueues } = require("../infrastructure/jobs/initializeQueues");
+const { sendEmailJob } = require("../infrastructure/email/email");
+const {
+  setJobQueuesRuntime,
+  clearJobQueuesRuntime,
+} = require("../infrastructure/jobs/runtime");
 
 const SHUTDOWN_TIMEOUT_MS = 30_000;
+let queueRuntime = null;
+
+function createEmailServiceAdapter() {
+  return {
+    async send({ to, subject, template, data }) {
+      const result = await sendEmailJob({
+        to,
+        templateName: template,
+        templateData: data,
+        overrideSubject: subject,
+      });
+
+      if (!result?.success) {
+        const message = result?.error?.message || result?.error || "Email send failed";
+        throw new Error(message);
+      }
+
+      return result;
+    },
+  };
+}
 
 // Bootstrap application dependencies
 async function bootstrap() {
   await testConnection();
   await connectRedis();
+  await initializeJobs();
+
+  try {
+    queueRuntime = await initializeJobQueues(createEmailServiceAdapter(), {});
+    setJobQueuesRuntime(queueRuntime);
+  } catch (error) {
+    queueRuntime = null;
+    clearJobQueuesRuntime();
+    logger.warn("Background job queues unavailable; continuing without Bull queues", {
+      error: error.message,
+    });
+  }
 }
 
 // Start HTTP server
@@ -24,6 +64,14 @@ function createHttpServer(app, port) {
 
 // Close external resources
 async function closeResources() {
+  stopJobs();
+
+  if (queueRuntime?.queueManager) {
+    await shutdownJobQueues(queueRuntime.queueManager);
+    queueRuntime = null;
+    clearJobQueuesRuntime();
+  }
+
   await closePool();
 
   if (redisClient?.isOpen) {

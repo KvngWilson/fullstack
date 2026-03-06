@@ -1,14 +1,16 @@
 /**
  * ShippingCacheService - Domain-level shipping rate cache orchestration
- * 
+ *
  * Coordinates between:
  * - ShippingCacheClient (Redis operations)
  * - EasyshipGateway (API calls)
  * - Business logic (rate validation, tenant isolation)
  */
 
-const logger = require('../../../shared/utils/logger');
-const { InvalidShippingRequest } = require('../../../shared/utils/errors');
+const logger = require("../../../shared/utils/logger");
+const { InvalidShippingRequest } = require("../../../shared/utils/errors");
+const { ShippingRatePolicy } = require("../policies");
+const { ShippingRatesCached } = require("../events");
 
 class ShippingCacheService {
   constructor(cacheClient, easyshipGateway) {
@@ -18,7 +20,7 @@ class ShippingCacheService {
 
   /**
    * Get shipping rates with caching
-   * 
+   *
    * Flow:
    * 1. Check tenant context (vendor_id must be set)
    * 2. Check cache (using cart + address hash)
@@ -32,17 +34,19 @@ class ShippingCacheService {
       vendorId,
       cartItems,
       address,
-      currency = 'USD',
+      currency = "USD",
       apiKey = null,
     } = params;
 
     // Tenant isolation: require vendor context
     if (!vendorId) {
-      throw new InvalidShippingRequest('Vendor context required for shipping rates');
+      throw new InvalidShippingRequest(
+        "Vendor context required for shipping rates",
+      );
     }
 
     // Validate inputs
-    this._validateRateRequest({ cartItems, address });
+    ShippingRatePolicy.validateRateRequest({ cartItems, address });
 
     try {
       // Try cache first
@@ -50,11 +54,11 @@ class ShippingCacheService {
         vendorId,
         cartItems,
         address,
-        currency
+        currency,
       );
 
       if (cached) {
-        logger.debug('Returning cached shipping rates', {
+        logger.debug("Returning cached shipping rates", {
           vendorId,
           rateCount: cached.rates.length,
         });
@@ -62,7 +66,7 @@ class ShippingCacheService {
       }
 
       // Cache miss: fetch from Easyship
-      logger.debug('Fetching fresh shipping rates from Easyship', { vendorId });
+      logger.debug("Fetching fresh shipping rates from Easyship", { vendorId });
 
       const rates = await this.gateway.getRates({
         destination: address,
@@ -81,17 +85,24 @@ class ShippingCacheService {
         cartItems,
         address,
         currency,
-        validRates
+        validRates,
       );
 
-      logger.info('Shipping rates fetched and cached', {
+      logger.info("Shipping rates fetched and cached", {
         vendorId,
         rateCount: validRates.length,
       });
 
+      const event = new ShippingRatesCached({ vendorId, rateCount: validRates.length });
+
+      logger.debug("Shipping domain event emitted", {
+        type: event.type,
+        vendorId,
+      });
+
       return validRates;
     } catch (error) {
-      logger.error('Shipping rate fetch failed', {
+      logger.error("Shipping rate fetch failed", {
         vendorId,
         error: error.message,
       });
@@ -102,39 +113,16 @@ class ShippingCacheService {
   /**
    * Validate rate request parameters
    */
-  _validateRateRequest({ cartItems, address }) {
-    if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
-      throw new InvalidShippingRequest('Cart must contain at least one item');
-    }
-
-    const requiredAddressFields = ['country_code', 'city', 'postal_code', 'state'];
-    const missingFields = requiredAddressFields.filter(f => !address[f]);
-
-    if (missingFields.length > 0) {
-      throw new InvalidShippingRequest(
-        `Invalid address: missing ${missingFields.join(', ')}`
-      );
-    }
-  }
-
   /**
    * Validate rates returned from gateway
    * Ensures all rates have required fields
    */
   _validateRates(rates) {
-    return (rates || []).filter(rate => {
-      const required = [
-        'easyshipRateId',
-        'courierId',
-        'courierName',
-        'totalChargeMinor',
-        'currency',
-      ];
-
-      const hasAll = required.every(field => rate[field] !== undefined && rate[field] !== null);
+    return (rates || []).filter((rate) => {
+      const hasAll = ShippingRatePolicy.isValidRate(rate);
 
       if (!hasAll) {
-        logger.warn('Skipping invalid rate from Easyship', { rate });
+        logger.warn("Skipping invalid rate from Easyship", { rate });
       }
 
       return hasAll;
@@ -146,11 +134,14 @@ class ShippingCacheService {
    */
   async invalidateCache(vendorId) {
     if (!vendorId) {
-      throw new InvalidShippingRequest('Vendor context required');
+      throw new InvalidShippingRequest("Vendor context required");
     }
 
     const deleted = await this.cache.invalidateVendorRates(vendorId);
-    logger.info('Shipping cache invalidated', { vendorId, keysDeleted: deleted });
+    logger.info("Shipping cache invalidated", {
+      vendorId,
+      keysDeleted: deleted,
+    });
     return deleted;
   }
 
@@ -159,7 +150,7 @@ class ShippingCacheService {
    */
   async getCacheStats(vendorId) {
     if (!vendorId) {
-      throw new InvalidShippingRequest('Vendor context required');
+      throw new InvalidShippingRequest("Vendor context required");
     }
 
     return this.cache.getStats(vendorId);

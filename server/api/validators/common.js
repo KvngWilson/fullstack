@@ -1,5 +1,5 @@
 /**
- * Common Validation Patterns - Phase 7
+ * Common Validation Patterns 
  * Shared Joi schemas and validation utilities used across all validators
  */
 

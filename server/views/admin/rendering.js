@@ -169,7 +169,7 @@ function renderDashboardView(res, { user, dashboardData, query }) {
     date: new Date(order.created_at).toLocaleDateString(),
     customer: order.user_email || 'Guest',
     avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(order.user_email || 'Guest')}`,
-    product: 'N/A', // Orders don't have single product in this schema
+    product: 'N/A', 
   }));
 
   const today = new Date();

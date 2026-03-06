@@ -45,6 +45,14 @@ VALUES
   ('Test Product C', 'TEST-PROD-C', 'Premium test product', 299.99, 150.00, 25, true)
 ON CONFLICT (sku) DO NOTHING;
 
+-- Sample test data for roles
+INSERT INTO roles (name, description, is_active)
+VALUES
+  ('admin', 'Administrator role', true),
+  ('employee', 'Standard employee role', true),
+  ('manager', 'Manager role', true)
+ON CONFLICT (name) DO NOTHING;
+
 -- Verify tables exist
 SELECT table_name FROM information_schema.tables
 WHERE table_schema = 'public'

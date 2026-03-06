@@ -6,7 +6,7 @@
  * const [value, setValue] = useLocalStorage('myKey', 'defaultValue');
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export function useLocalStorage(key, initialValue) {
   const [storedValue, setStoredValue] = useState(() => {

@@ -21,6 +21,8 @@ module.exports = {
     InventoryService: require("./services/InventoryService"),
   },
   repositories: require("./repositories"),
-  // Policies will be added in future phases
+  entities: require("./entities"),
+  events: require("./events"),
+  policies: require("./policies"),
 };
 

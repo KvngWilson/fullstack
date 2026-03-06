@@ -22,7 +22,7 @@ const {
  * @example router.get('/profile', ...protect(), controller.profile)
  */
 function protect() {
-  return [requireAuth];
+  return [authenticate, requireAuth];
 }
 
 /**
@@ -31,7 +31,7 @@ function protect() {
  * @example router.post('/orders', ...verified(), controller.create)
  */
 function verified() {
-  return [requireAuth, requireVerified];
+  return [authenticate, requireAuth, requireVerified];
 }
 
 /**
@@ -40,7 +40,7 @@ function verified() {
  * @example router.delete('/users/:id', ...admin(), controller.delete)
  */
 function admin() {
-  return [requireAuth, requireAdmin];
+  return [authenticate, requireAuth, requireAdmin];
 }
 
 /**
@@ -49,7 +49,7 @@ function admin() {
  * @example router.post('/orders', ...customer(), controller.create)
  */
 function customer() {
-  return [requireAuth, requireCustomer];
+  return [authenticate, requireAuth, requireCustomer];
 }
 
 /**
@@ -59,7 +59,7 @@ function customer() {
  * @example router.get('/dashboard', ...role('admin', 'staff'), controller.dashboard)
  */
 function role(...roles) {
-  return [requireAuth, requireRole(...roles)];
+  return [authenticate, requireAuth, requireRole(...roles)];
 }
 
 /**
@@ -69,7 +69,7 @@ function role(...roles) {
  * @example router.post('/products', ...permission('products:create'), controller.create)
  */
 function permission(permissionCode) {
-  return [requireAuth, requirePermission(permissionCode)];
+  return [authenticate, requireAuth, requirePermission(permissionCode)];
 }
 
 /**
@@ -79,7 +79,7 @@ function permission(permissionCode) {
  * @example router.get('/orders', ...anyPermission(['orders:view', 'orders:manage']), controller.list)
  */
 function anyPermission(permissions) {
-  return [requireAuth, requireAnyPermission(permissions)];
+  return [authenticate, requireAuth, requireAnyPermission(permissions)];
 }
 
 /**
@@ -89,7 +89,7 @@ function anyPermission(permissions) {
  * @example router.post('/refund', ...allPermissions(['orders:manage', 'payments:refund']), controller.refund)
  */
 function allPermissions(permissions) {
-  return [requireAuth, requireAllPermissions(permissions)];
+  return [authenticate, requireAuth, requireAllPermissions(permissions)];
 }
 
 /**
@@ -104,7 +104,7 @@ function allPermissions(permissions) {
  * )
  */
 function ownership(options) {
-  return [requireAuth, requireOwnership(options)];
+  return [authenticate, requireAuth, requireOwnership(options)];
 }
 
 /**

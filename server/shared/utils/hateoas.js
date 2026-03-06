@@ -42,7 +42,7 @@ function addOrderLinks(order, user) {
 
   // Navigation links
   links.push(createLink('customer', `/api/v1/identity/users/${order.user_id}`, 'GET'));
-  links.push(createLink('payment', `/api/v1/ordering/payments?order_id=${order.id}`, 'GET'));
+  links.push(createLink('payment', `/api/v1/payments?order_id=${order.id}`, 'GET'));
 
   return {
     ...order,

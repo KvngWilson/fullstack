@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Badge, Alert } from './Card';
-import { Button } from './Button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Badge, Alert } from './ui/Card';
+import { Button } from './ui/Button';
 
 export default {
   title: 'Components/Card',

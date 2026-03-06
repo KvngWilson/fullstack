@@ -3,6 +3,7 @@ import { createAuthInterceptor } from './interceptors/auth';
 import { csrfInterceptor } from './interceptors/csrf';
 import { errorInterceptor } from './interceptors/errors';
 import { requestCacheInterceptor } from './requestCache';
+import { getRequestPreferenceHeaders } from '@/preferences';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1';
@@ -35,6 +36,18 @@ const apiClient = axios.create({
 // 1. Request deduplication (prevents duplicate GET calls)
 apiClient.interceptors.request.use(
   requestCacheInterceptor.request,
+  (error) => Promise.reject(error)
+);
+
+apiClient.interceptors.request.use(
+  (config) => {
+    const headers = getRequestPreferenceHeaders();
+    config.headers = {
+      ...(config.headers || {}),
+      ...headers,
+    };
+    return config;
+  },
   (error) => Promise.reject(error)
 );
 
@@ -91,7 +104,14 @@ export const uploadClient = axios.create({
 
 // Apply same interceptor chain to upload client
 uploadClient.interceptors.request.use(
-  csrfInterceptor.request,
+  (config) => {
+    const headers = getRequestPreferenceHeaders();
+    config.headers = {
+      ...(config.headers || {}),
+      ...headers,
+    };
+    return csrfInterceptor.request(config);
+  },
   (error) => Promise.reject(error)
 );
 

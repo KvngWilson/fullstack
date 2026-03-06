@@ -19,17 +19,14 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD || 'postgres',
 });
 
-// Migration files in order
-const MIGRATIONS = [
-  '002_improve_orders_schema.sql',
-  '003_add_performance_indexes.sql',
-  '004_add_constraint_enforcement.sql',
-  '005_multi_tenant_foundation.sql',
-  '006_multi_tenant_phase_2_backfill.sql',
-  '007_multi_tenant_phase_3_rls_policies.sql',
-];
+const MIGRATIONS_DIR = path.join(__dirname, '../infrastructure/database/migrations');
 
-const MIGRATIONS_DIR = path.join(__dirname, '../data/migrations');
+function getMigrationFiles() {
+  return fs
+    .readdirSync(MIGRATIONS_DIR)
+    .filter((file) => /^\d+_.+\.sql$/.test(file))
+    .sort((a, b) => a.localeCompare(b));
+}
 
 
 // Check if migration has been applied
@@ -95,12 +92,19 @@ async function runMigrations() {
     let appliedCount = 0;
     let skippedCount = 0;
     
+    const migrations = getMigrationFiles();
+
+    if (migrations.length === 0) {
+      console.log('No migration files found.');
+      return;
+    }
+
     // Run each migration in sequence
-    for (const migrationFile of MIGRATIONS) {
+    for (const migrationFile of migrations) {
       const alreadyApplied = await isMigrationApplied(client, migrationFile);
       
       if (alreadyApplied) {
-        console.log(`⏭️  Skipping (already applied): ${migrationFile}`);
+        console.log(`  Skipping (already applied): ${migrationFile}`);
         skippedCount++;
         continue;
       }

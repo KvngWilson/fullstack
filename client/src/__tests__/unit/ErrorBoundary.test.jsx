@@ -116,7 +116,7 @@ describe('✅ Issue #3: Global Error Boundary', () => {
     const detailsButton = screen.getByText(/Error Details/i);
     expect(detailsButton).toBeInTheDocument();
 
-    vi.unstubAllEnv();
+    vi.unstubAllEnvs();
   });
 
   it('should log error for monitoring', () => {

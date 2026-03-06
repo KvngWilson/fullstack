@@ -106,6 +106,85 @@ exports.listUserPayments = async (req, res) => {
   }
 };
 
+exports.createRefund = async (req, res) => {
+  try {
+    const { payment_id: paymentId, amount, reason } = req.body;
+    const userId = req.user.id;
+
+    const refundService = new RefundService();
+    const refund = await refundService.createRefund(paymentId, userId, amount, reason);
+
+    return successResponse(res, {
+      status: 201,
+      message: "Refund created successfully",
+      data: refund,
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    const message = error.message || "Failed to create refund";
+    logger.error("Create refund error", { error, userId: req.user?.id });
+    return errorResponse(res, toErrorOptions(message, status));
+  }
+};
+
+exports.getRefundById = async (req, res) => {
+  try {
+    const { refundId } = req.params;
+    const userId = req.user.id;
+
+    const refundService = new RefundService();
+    const refund = await refundService.getRefundById(refundId, userId);
+
+    return successResponse(res, { data: refund });
+  } catch (error) {
+    const status = error.status || 500;
+    const message = error.message || "Failed to retrieve refund";
+    logger.error("Get refund error", { error, userId: req.user?.id });
+    return errorResponse(res, toErrorOptions(message, status));
+  }
+};
+
+exports.processRefund = async (req, res) => {
+  try {
+    const { refundId } = req.params;
+    const userId = req.user.id;
+
+    const refundService = new RefundService();
+    const result = await refundService.processRefund(refundId, userId, true);
+
+    return successResponse(res, {
+      message: "Refund processed successfully",
+      data: result,
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    const message = error.message || "Failed to process refund";
+    logger.error("Process refund error", { error, userId: req.user?.id });
+    return errorResponse(res, toErrorOptions(message, status));
+  }
+};
+
+exports.rejectRefund = async (req, res) => {
+  try {
+    const { refundId } = req.params;
+    const { reason = "" } = req.body || {};
+    const userId = req.user.id;
+
+    const refundService = new RefundService();
+    const result = await refundService.rejectRefund(refundId, userId, reason, true);
+
+    return successResponse(res, {
+      message: "Refund rejected successfully",
+      data: result,
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    const message = error.message || "Failed to reject refund";
+    logger.error("Reject refund error", { error, userId: req.user?.id });
+    return errorResponse(res, toErrorOptions(message, status));
+  }
+};
+
 
 exports.handlePaymentCallback = async (req, res) => {
   try {

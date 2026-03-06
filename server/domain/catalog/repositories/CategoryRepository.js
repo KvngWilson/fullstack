@@ -8,7 +8,7 @@ const { pool } = require("../../../config/db");
 class CategoryRepository extends BaseRepository {
   async findById(id) {
     const result = await pool.query(
-      "SELECT id, name, description, created_at, updated_at FROM categories WHERE id = $1 AND deleted_at IS NULL",
+      "SELECT id, name, slug, path, created_at FROM categories WHERE id = $1 AND deleted_at IS NULL",
       [id],
     );
     return result.rows[0] || null;
@@ -16,7 +16,7 @@ class CategoryRepository extends BaseRepository {
 
   async findAll() {
     const result = await pool.query(
-      `SELECT id, name, description, created_at, updated_at
+      `SELECT id, name, slug, path, created_at
        FROM categories
        WHERE deleted_at IS NULL
        ORDER BY name ASC`,
@@ -32,22 +32,36 @@ class CategoryRepository extends BaseRepository {
   }
 
   async create(data) {
+    const name = data.name;
+    const slug = data.slug || String(name || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "");
+
     const result = await pool.query(
-      `INSERT INTO categories (name, description)
-       VALUES ($1, $2)
-       RETURNING id, name, description, created_at, updated_at`,
-      [data.name, data.description ?? null],
+      `INSERT INTO categories (name, slug, path)
+       VALUES ($1, $2, $3::ltree)
+       RETURNING id, name, slug, path, created_at`,
+      [name, slug, slug],
     );
     return result.rows[0] || null;
   }
 
   async update(id, data) {
+    const name = data.name;
+    const slug = data.slug || String(name || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "");
+
     const result = await pool.query(
       `UPDATE categories
-       SET name = $1, description = $2, updated_at = NOW()
-       WHERE id = $3 AND deleted_at IS NULL
-       RETURNING id, name, description, created_at, updated_at`,
-      [data.name, data.description ?? null, id],
+       SET name = $1, slug = $2, path = $3::ltree
+       WHERE id = $4 AND deleted_at IS NULL
+       RETURNING id, name, slug, path, created_at`,
+      [name, slug, slug, id],
     );
     return result.rows[0] || null;
   }
@@ -55,7 +69,7 @@ class CategoryRepository extends BaseRepository {
   async delete(id) {
     const result = await pool.query(
       `UPDATE categories
-       SET deleted_at = NOW(), updated_at = NOW()
+       SET deleted_at = NOW()
        WHERE id = $1 AND deleted_at IS NULL
        RETURNING id`,
       [id],

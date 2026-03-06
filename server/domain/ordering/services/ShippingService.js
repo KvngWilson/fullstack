@@ -1,70 +1,57 @@
 /**
- * ShippingService - Enhanced with Redis caching
- * 
- * Supports both:
- * - Legacy function-based API (backward compatible)
- * - New ShippingCacheService with multi-tenant isolation
+ * ShippingService - Ordering domain adapter for shipping rates
+ *
+ * Uses ShippingCacheService as the canonical rate engine.
  */
 
-const easyship = require("@api/easyship");
 const logger = require("../../../shared/utils/logger");
+const { redisClient } = require("../../../config/redis");
+const ShippingCacheClient = require("../../../infrastructure/cache/ShippingCacheClient");
+const EasyshipGateway = require("../../../infrastructure/shipping/EasyshipGateway");
+const ShippingCacheService = require("../../shipping/services/ShippingCacheService");
+const { InvalidShippingRequest } = require("../../../shared/utils/errors");
 
-if (process.env.EASYSHIP_API_KEY) {
-  easyship.auth(process.env.EASYSHIP_API_KEY);
-}
+const cacheClient = new ShippingCacheClient(redisClient);
+const easyshipGateway = new EasyshipGateway();
+const shippingCacheService = new ShippingCacheService(
+  cacheClient,
+  easyshipGateway,
+);
 
-/**
- * Legacy calculateShippingRates function (backward compatible)
- * If you have access to ShippingCacheService, use that instead for caching
- */
-const calculateShippingRates = async (params) => {
+const DEFAULT_VENDOR_ID = Number.parseInt(
+  process.env.DEFAULT_VENDOR_ID || "1",
+  10,
+);
+
+const getShippingRates = async (params = {}) => {
   try {
-    const { destination, items, origin } = params;
+    const {
+      destination,
+      items = [],
+      vendorId,
+      currency = "USD",
+      apiKey,
+    } = params;
 
-    const requestPayload = {
-      destination_address: {
-        country_alpha2: destination.country_code || "US",
-        city: destination.city,
-        postal_code: destination.postal_code,
-        state: destination.state,
-      },
-      origin_address: {
-        country_alpha2: origin?.country_code || "US",
-        city: origin?.city,
-        postal_code: origin?.postal_code,
-        state: origin?.state,
-      },
-      incoterms: "DDU",
-      insurance: { is_insured: false },
-      courier_settings: {
-        show_courier_logo_url: true,
-        apply_shipping_rules: true,
-      },
-      shipping_settings: {
-        units: { weight: "kg", dimensions: "cm" },
-      },
-      parcels: [
-        {
-          items: items.map((item) => ({
-            actual_weight: item.weight || 0.5,
-            height: item.height || 10,
-            width: item.width || 10,
-            length: item.length || 10,
-            category: item.category || "general",
-            declared_currency: item.currency || "USD",
-            declared_customs_value: item.value || 0,
-            description: item.description || "Product",
-            quantity: item.quantity || 1,
-            origin_country_alpha2: origin?.country_code || "US",
-          })),
-        },
-      ],
-    };
+    if (!destination) {
+      throw new InvalidShippingRequest("Destination address is required");
+    }
 
-    const { data } = await easyship.rates_request(requestPayload);
+    const effectiveVendorId = Number.isInteger(Number(vendorId))
+      ? Number(vendorId)
+      : DEFAULT_VENDOR_ID;
+
+    const rates = await shippingCacheService.getShippingRates({
+      vendorId: effectiveVendorId,
+      cartItems: items,
+      address: destination,
+      currency,
+      apiKey,
+    });
+
     return {
       success: true,
-      rates: data.rates || [],
+      rates,
       message: "Shipping rates calculated successfully",
     };
   } catch (error) {
@@ -78,52 +65,6 @@ const calculateShippingRates = async (params) => {
   }
 };
 
-const getDeliveryEstimates = async (_countryCode) => {
-  try {
-    return {
-      success: true,
-      estimates: [
-        { method: "standard", days: "5-7" },
-        { method: "express", days: "2-3" },
-        { method: "overnight", days: "1" },
-      ],
-    };
-  } catch (error) {
-    logger.error("Delivery estimate error", { error });
-    return {
-      success: false,
-      estimates: [],
-      message: "Failed to get delivery estimates",
-    };
-  }
-};
-
-const validateAddress = async (address) => {
-  try {
-    const required = ["street", "city", "postal_code", "country"];
-    const missing = required.filter((field) => !address[field]);
-
-    if (missing.length > 0) {
-      return {
-        valid: false,
-        message: `Missing required fields: ${missing.join(", ")}`,
-      };
-    }
-
-    return {
-      valid: true,
-      message: "Address is valid",
-    };
-  } catch (_error) {
-    return {
-      valid: false,
-      message: "Address validation failed",
-    };
-  }
-};
-
 module.exports = {
-  calculateShippingRates,
-  getDeliveryEstimates,
-  validateAddress,
+  getShippingRates,
 };

@@ -58,7 +58,7 @@ function getCorsOptions() {
       
       const allowedOrigins = process.env.ALLOWED_ORIGINS 
         ? process.env.ALLOWED_ORIGINS.split(',')
-        : ['http://localhost:3000', 'http://localhost:5173'];
+        : ['http://localhost:5000', 'http://localhost:5173'];
       
       if (allowedOrigins.includes(origin) || !isProduction) {
         callback(null, true);
@@ -69,7 +69,15 @@ function getCorsOptions() {
     credentials: true,
     optionsSuccessStatus: 200,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Correlation-ID',
+      'X-CSRF-Token',
+      'X-Currency',
+      'Accept-Language',
+      'X-Guest-Token',
+    ],
     exposedHeaders: ['X-Correlation-ID', 'X-Response-Time'],
   };
 }

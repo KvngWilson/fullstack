@@ -1,5 +1,8 @@
 const router = require("express").Router();
-const { protect, permission, anyPermission } = require("../../decorators");
+const { protect, permission } = require("../../decorators");
+const adminPolicy = require("../../../policies/adminPolicy");
+const orderPolicy = require("../../../policies/orderPolicy");
+const productPolicy = require("../../../policies/productPolicy");
 
 const {
   renderDashboard,
@@ -12,13 +15,6 @@ const {
   postUserRoleUpdate,
   postUserDelete,
   postOrderStatusUpdate,
-  getDashboardStats,
-  getUsers,
-  updateUserRole,
-  deleteUser,
-  getOrders,
-  updateOrderStatus,
-  getProductStats,
 } = require("../../controllers/admin/admin");
 
 // SSR Routes (Server-Side Rendered Views)
@@ -27,121 +23,61 @@ router.get("/", (req, res) => res.redirect("/dashboard"));
 router.get(
   "/dashboard",
   ...protect(),
-  ...permission("dashboard:view"),
+  ...permission(adminPolicy.dashboard.read),
   renderDashboard,
 );
 
-router.get(
-  "/users",
-  ...protect(),
-  ...permission("user:read"),
-  renderUsers,
-);
+router.get("/users", ...protect(), ...permission(adminPolicy.users.read), renderUsers);
 
 router.post(
   "/users/:userId/role",
   ...protect(),
-  ...permission("user:update"),
+  ...permission(adminPolicy.users.update),
   postUserRoleUpdate,
 );
 
 router.post(
   "/users/:userId/delete",
   ...protect(),
-  ...permission("user:delete"),
+  ...permission(adminPolicy.users.delete),
   postUserDelete,
 );
 
-router.get(
-  "/orders",
-  ...protect(),
-  ...permission("order:read"),
-  renderOrders,
-);
+router.get("/orders", ...protect(), ...permission(orderPolicy.read), renderOrders);
 
 router.get(
   "/categories",
   ...protect(),
-  ...permission("product:update"),
+  ...permission(productPolicy.update),
   renderCategories,
 );
 
 router.get(
   "/transactions",
   ...protect(),
-  ...permission("order:read"),
+  ...permission(orderPolicy.read),
   renderTransactions,
 );
 
 router.get(
   "/products/add",
   ...protect(),
-  ...permission("product:create"),
+  ...permission(productPolicy.create),
   renderAddProduct,
 );
 
 router.get(
   "/admin-role",
   ...protect(),
-  ...permission("user:read"),
+  ...permission(adminPolicy.users.read),
   renderAdminRole,
 );
 
 router.post(
   "/orders/:orderId/status",
   ...protect(),
-  ...permission("order:update"),
+  ...permission(orderPolicy.update),
   postOrderStatusUpdate,
-);
-
-// API Routes (RESTful JSON endpoints)
-router.get(
-  "/api/dashboard/stats",
-  ...protect(),
-  ...permission("dashboard:view"),
-  getDashboardStats,
-);
-
-router.get(
-  "/api/users",
-  ...protect(),
-  ...permission("user:read"),
-  getUsers,
-);
-
-router.patch(
-  "/api/users/:id/role",
-  ...protect(),
-  ...permission("user:update"),
-  updateUserRole,
-);
-
-router.delete(
-  "/api/users/:id",
-  ...protect(),
-  ...permission("user:delete"),
-  deleteUser,
-);
-
-router.get(
-  "/api/orders",
-  ...protect(),
-  ...permission("order:read"),
-  getOrders,
-);
-
-router.patch(
-  "/api/orders/:id/status",
-  ...protect(),
-  ...permission("order:update"),
-  updateOrderStatus,
-);
-
-router.get(
-  "/api/products/stats",
-  ...protect(),
-  ...permission("product:read"),
-  getProductStats,
 );
 
 module.exports = router;

@@ -2,39 +2,29 @@
  * Platform-wide Authentication Routes
  * Simplified authentication endpoints for the entire platform
  * These delegate to the Identity domain services
- * 
- * NOW INCLUDES:
- * - Email verification
- * - Password reset
- * - Proper refresh token rotation
- * - Session management
  */
 
 const express = require("express");
 const router = express.Router();
-const { 
-  authRoute, 
-  passwordResetRoute, 
-  protect 
+const {
+  authRoute,
+  passwordResetRoute,
+  protect,
 } = require("../../../decorators");
 const {
   validateRegister,
   validateLogin,
   validateRefreshToken,
+  validateForgotPassword,
+  validateResetPassword,
 } = require("../../../validators/auth");
-const { authPlatform, enhancedAuth: enhancedAuthController } = require("../../../controllers/v1/auth");
 const {
-  register,
-  login,
-  refreshToken,
-  logout,
-  getCsrfToken,
-} = authPlatform;
+  authPlatform,
+  enhancedAuth: enhancedAuthController,
+} = require("../../../controllers/v1/auth");
+const { register, login, refreshToken, logout, getCsrfToken } = authPlatform;
 
-// =====================================================
 // Public Authentication Endpoints
-// =====================================================
-
 // CSRF protection
 router.get("/csrf-token", getCsrfToken);
 
@@ -47,18 +37,27 @@ router.post("/refresh-token", ...authRoute(validateRefreshToken), refreshToken);
 router.get("/verify-email", enhancedAuthController.verifyEmail);
 
 // Password reset
-router.post("/forgot-password", ...passwordResetRoute(validateRegister), enhancedAuthController.forgotPassword);
-router.post("/reset-password", ...passwordResetRoute(validateLogin), enhancedAuthController.resetPassword);
+router.post(
+  "/forgot-password",
+  ...passwordResetRoute(validateForgotPassword),
+  enhancedAuthController.forgotPassword,
+);
+router.post(
+  "/reset-password",
+  ...passwordResetRoute(validateResetPassword),
+  enhancedAuthController.resetPassword,
+);
 
-// =====================================================
 // Authenticated Endpoints
-// =====================================================
-
 // Logout
 router.post("/logout", ...protect(), logout);
 
 // Password changes
-router.post("/change-password", ...protect(), enhancedAuthController.changePassword);
+router.post(
+  "/change-password",
+  ...protect(),
+  enhancedAuthController.changePassword,
+);
 
 // Session management
 router.get("/sessions", ...protect(), enhancedAuthController.getActiveSessions);

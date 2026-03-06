@@ -9,6 +9,12 @@ class OrderRepository extends BaseRepository {
     super(pool, "orders");
   }
 
+  _buildOrderNumber() {
+    const ts = Date.now().toString().slice(-8);
+    const rand = Math.floor(Math.random() * 9000 + 1000);
+    return `ORD-${ts}-${rand}`;
+  }
+
   async getCartByUserId(userId) {
     const cartResult = await this.pool.query(
       "SELECT id FROM carts WHERE user_id = $1",
@@ -48,7 +54,7 @@ class OrderRepository extends BaseRepository {
 
   async getVariantById(client, variantId) {
     const result = await client.query(
-      `SELECT id, price, stock
+      `SELECT id, price_minor_units, stock_quantity
        FROM product_variants
        WHERE id = $1 AND deleted_at IS NULL`,
       [variantId],
@@ -58,30 +64,33 @@ class OrderRepository extends BaseRepository {
   }
 
   async createOrderRecord(client, { userId, status = "pending", total }) {
+    const totalCents = Math.max(0, Math.round(Number(total || 0) * 100));
     const result = await client.query(
-      `INSERT INTO orders (user_id, status, total)
-       VALUES ($1, $2, $3)
+      `INSERT INTO orders (user_id, order_number, status, payment_status, currency, subtotal_cents, tax_cents, shipping_cents, total_cents)
+       VALUES ($1, $2, $3, 'pending', 'USD', 0, 0, 0, $4)
        RETURNING *`,
-      [userId, status, total],
+      [userId, this._buildOrderNumber(), status, totalCents],
     );
 
     return result.rows[0] || null;
   }
 
   async addOrderItem(client, { orderId, productVariantId, quantity, unitPrice }) {
+    const unitPriceCents = Math.max(0, Math.round(Number(unitPrice || 0) * 100));
+    const subtotalCents = unitPriceCents * Number(quantity || 0);
     await client.query(
-      `INSERT INTO order_items (order_id, product_variant_id, quantity, price_at_time)
-       VALUES ($1, $2, $3, $4)`,
-      [orderId, productVariantId, quantity, unitPrice],
+      `INSERT INTO order_items (order_id, product_variant_id, quantity, unit_price_cents, subtotal_cents)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [orderId, productVariantId, quantity, unitPriceCents, subtotalCents],
     );
   }
 
   async reserveVariantStock(client, { variantId, quantity }) {
     const result = await client.query(
       `UPDATE product_variants
-       SET stock = stock - $1
-       WHERE id = $2 AND stock >= $1
-       RETURNING stock`,
+       SET stock_quantity = stock_quantity - $1
+       WHERE id = $2 AND stock_quantity >= $1
+       RETURNING stock_quantity`,
       [quantity, variantId],
     );
 
@@ -147,7 +156,7 @@ class OrderRepository extends BaseRepository {
         oi.id as order_item_id,
         oi.product_variant_id,
         oi.quantity,
-        oi.price_at_time,
+        oi.unit_price_cents,
         pv.sku,
         pv.attributes,
         p.id as product_id,
@@ -159,7 +168,10 @@ class OrderRepository extends BaseRepository {
       [orderId],
     );
 
-    order.items = itemsResult.rows;
+    order.items = itemsResult.rows.map((item) => ({
+      ...item,
+      unit_price: Number(item.unit_price_cents || 0) / 100,
+    }));
     return order;
   }
 
@@ -172,7 +184,7 @@ class OrderRepository extends BaseRepository {
     let query = `
       SELECT
         o.id,
-        o.total,
+        ROUND((o.total_cents::numeric / 100), 2) AS total,
         o.status,
         o.created_at,
         o.updated_at,

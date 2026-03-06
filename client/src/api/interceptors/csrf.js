@@ -8,6 +8,8 @@
  */
 
 let csrfToken = null;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1';
 
 /**
  * Fetch CSRF token from backend
@@ -16,7 +18,7 @@ async function fetchCSRFToken() {
   try {
     // Make a HEAD request to trigger backend CSRF token generation
     // This is a lightweight request that only fetches the token
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/csrf-token`, {
+    const response = await fetch(`${API_URL}/api/${API_VERSION}/auth/csrf-token`, {
       method: 'GET',
       credentials: 'include', // Include cookies
     });

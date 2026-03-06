@@ -12,6 +12,7 @@ const employeesRoutes = require("./employees");
 
 // User registration and authentication
 router.use("/", userRoutes);
+router.use("/users", userRoutes);
 
 // User profile management
 router.use("/profile", profileRoutes);

@@ -12,7 +12,8 @@ const {
   renderAdminRoleView,
   renderAdminViewError,
 } = require("../../../views/admin/rendering");
-const { ROLE_PERMISSIONS } = require("../../../config/permissions");
+const domain = require("../../../domain");
+const { ROLE_PERMISSIONS } = domain.identity.policies.PermissionMatrix;
 
 const renderDashboard = async (req, res) => {
   try {

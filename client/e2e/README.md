@@ -14,7 +14,7 @@ This directory contains end-to-end (E2E) tests using Playwright. The tests cover
 ### Prerequisites
 
 - Node.js 18+ and npm
-- Backend API running on `http://localhost:3000` (configurable)
+- Backend API running on `http://localhost:5000` (configurable)
 - Frontend app running on `http://localhost:5173` (configurable)
 
 ### Installation
