@@ -1,8 +1,8 @@
 export function getNestedProperty(obj, path) {
-  return path.split('.').reduce((current, prop) => current?.[prop], obj);
+  return path.split(".").reduce((current, prop) => current?.[prop], obj);
 }
 
-export function mergeUnique(arr1, arr2, key = 'id') {
+export function mergeUnique(arr1, arr2, key = "id") {
   const map = new Map();
   [...arr1, ...arr2].forEach((item) => {
     map.set(item[key], item);
@@ -21,16 +21,18 @@ export function groupBy(array, key) {
   }, {});
 }
 
-export function sortBy(array, key, direction = 'asc') {
+export function sortBy(array, key, direction = "asc") {
   return [...array].sort((a, b) => {
-    if (a[key] < b[key]) return direction === 'asc' ? -1 : 1;
-    if (a[key] > b[key]) return direction === 'asc' ? 1 : -1;
+    if (a[key] < b[key]) return direction === "asc" ? -1 : 1;
+    if (a[key] > b[key]) return direction === "asc" ? 1 : -1;
     return 0;
   });
 }
 
 export function compact(obj) {
   return Object.fromEntries(
-    Object.entries(obj).filter(([, value]) => value !== null && value !== undefined && value !== ''),
+    Object.entries(obj).filter(
+      ([, value]) => value !== null && value !== undefined && value !== "",
+    ),
   );
 }

@@ -84,9 +84,9 @@ function getVitalsRating(metric, value) {
 
   const { good, poor } = thresholds[metric] || {};
 
-  if (value <= good) return '🟢 Good';
-  if (value <= poor) return '🟡 Needs Improvement';
-  return '🔴 Poor';
+  if (value <= good) return 'Good';
+  if (value <= poor) return 'Needs Improvement';
+  return 'Poor';
 }
 
 /**
@@ -222,7 +222,7 @@ export const performanceMarkers = {
       try {
         performance.measure(name, `${name}-start`, `${name}-end`);
         const measure = performance.getEntriesByName(name)[0];
-        console.debug(`⏱️ ${name}: ${measure.duration.toFixed(2)}ms`);
+        console.debug(`[TIMING] ${name}: ${measure.duration.toFixed(2)}ms`);
         return measure.duration;
       } catch (e) {
         console.warn(`Failed to measure ${name}`, e);
@@ -238,7 +238,7 @@ export const performanceMarkers = {
 export function onRenderCallback(id, phase, actualDuration, baseDuration, _startTime, _commitTime) {
   if (actualDuration > 16) { // > 1 frame at 60fps
     console.warn(
-      `⚠️ Slow render [${id}]: ${actualDuration.toFixed(2)}ms (base: ${baseDuration.toFixed(2)}ms)`
+      `[WARN] Slow render [${id}]: ${actualDuration.toFixed(2)}ms (base: ${baseDuration.toFixed(2)}ms)`
     );
   }
 }

@@ -1,15 +1,15 @@
 /**
  * Advanced Memoization & Performance Utilities
- * 
+ *
  * Provides utilities for optimizing component rendering and
  * function memoization to prevent unnecessary recalculations
  */
 
-import { useMemo, useCallback, useRef, useEffect } from 'react';
+import { useMemo, useCallback, useRef, useEffect } from "react";
 
 /**
  * Deeply memoize object/array props for comparison
- * 
+ *
  * @param {any} value - Value to memoize
  * @param {Array} deps - Dependencies
  * @returns {any} Memoized value
@@ -30,19 +30,19 @@ export function useDeepMemo(value, deps) {
 function deepEqual(a, b) {
   if (a === b) return true;
   if (a == null || b == null) return false;
-  if (typeof a !== 'object' || typeof b !== 'object') return false;
+  if (typeof a !== "object" || typeof b !== "object") return false;
 
   const keysA = Object.keys(a);
   const keysB = Object.keys(b);
 
   if (keysA.length !== keysB.length) return false;
 
-  return keysA.every(key => deepEqual(a[key], b[key]));
+  return keysA.every((key) => deepEqual(a[key], b[key]));
 }
 
 /**
  * Debounced callback with automatic cleanup
- * 
+ *
  * @param {Function} callback - Function to debounce
  * @param {number} delay - Delay in ms
  * @param {Array} deps - Dependencies
@@ -51,15 +51,18 @@ function deepEqual(a, b) {
 export function useDebouncedCallback(callback, delay, deps = []) {
   const timeoutRef = useRef(null);
 
-  const debouncedCallback = useCallback((...args) => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
+  const debouncedCallback = useCallback(
+    (...args) => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
 
-    timeoutRef.current = setTimeout(() => {
-      callback(...args);
-    }, delay);
-  }, [callback, delay, ...deps]);
+      timeoutRef.current = setTimeout(() => {
+        callback(...args);
+      }, delay);
+    },
+    [callback, delay, ...deps],
+  );
 
   // Cleanup on unmount
   useEffect(() => {
@@ -75,7 +78,7 @@ export function useDebouncedCallback(callback, delay, deps = []) {
 
 /**
  * Throttled callback that limits execution frequency
- * 
+ *
  * @param {Function} callback - Function to throttle
  * @param {number} interval - Min interval between calls (ms)
  * @param {Array} deps - Dependencies
@@ -84,14 +87,17 @@ export function useDebouncedCallback(callback, delay, deps = []) {
 export function useThrottledCallback(callback, interval, deps = []) {
   const lastRunRef = useRef(Date.now());
 
-  const throttledCallback = useCallback((...args) => {
-    const now = Date.now();
-    
-    if (now - lastRunRef.current >= interval) {
-      lastRunRef.current = now;
-      callback(...args);
-    }
-  }, [callback, interval, ...deps]);
+  const throttledCallback = useCallback(
+    (...args) => {
+      const now = Date.now();
+
+      if (now - lastRunRef.current >= interval) {
+        lastRunRef.current = now;
+        callback(...args);
+      }
+    },
+    [callback, interval, ...deps],
+  );
 
   return throttledCallback;
 }
@@ -102,20 +108,20 @@ export function useThrottledCallback(callback, interval, deps = []) {
 export function shallowEqual(a, b) {
   if (a === b) return true;
   if (a == null || b == null) return false;
-  if (typeof a !== 'object' || typeof b !== 'object') return false;
+  if (typeof a !== "object" || typeof b !== "object") return false;
 
   const keysA = Object.keys(a);
   const keysB = Object.keys(b);
 
   if (keysA.length !== keysB.length) return false;
 
-  return keysA.every(key => a[key] === b[key]);
+  return keysA.every((key) => a[key] === b[key]);
 }
 
 /**
  * Performance timing hook
  * Measures component render time in development
- * 
+ *
  * @param {string} componentName - Name for logging
  */
 export function useRenderTime(componentName) {
@@ -123,12 +129,13 @@ export function useRenderTime(componentName) {
 
   useEffect(() => {
     const renderTime = Date.now() - startTimeRef.current;
-    
+
     if (import.meta.env.DEV) {
-      if (renderTime > 16) { // > 1 frame (60fps)
-        console.warn(`⚠️ Slow render [${componentName}]: ${renderTime}ms`);
+      if (renderTime > 16) {
+        // > 1 frame (60fps)
+        console.warn(`[WARN] Slow render [${componentName}]: ${renderTime}ms`);
       } else {
-        console.debug(`✅ Fast render [${componentName}]: ${renderTime}ms`);
+        console.debug(`[OK] Fast render [${componentName}]: ${renderTime}ms`);
       }
     }
   });
@@ -136,7 +143,7 @@ export function useRenderTime(componentName) {
 
 /**
  * Long render tracking for expensive operations
- * 
+ *
  * @param {string} taskName - Name of the task
  * @param {Function} fn - Function to measure
  * @param {Array} deps - Dependencies
@@ -147,8 +154,9 @@ export function useLongTask(taskName, fn, deps = []) {
     const result = fn();
     const duration = performance.now() - start;
 
-    if (duration > 50) { // > 50ms is slow
-      console.warn(`⚠️ Long task [${taskName}]: ${duration.toFixed(2)}ms`);
+    if (duration > 50) {
+      // > 50ms is slow
+      console.warn(`[WARN] Long task [${taskName}]: ${duration.toFixed(2)}ms`);
     }
 
     return result;
@@ -161,10 +169,10 @@ export function useLongTask(taskName, fn, deps = []) {
  */
 export function useComponentLifecycle(componentName) {
   useEffect(() => {
-    console.debug(`➕ ${componentName} mounted`);
-    
+    console.debug(`${componentName} mounted`);
+
     return () => {
-      console.debug(`➖ ${componentName} unmounted`);
+      console.debug(`${componentName} unmounted`);
     };
   }, [componentName]);
 }
@@ -181,12 +189,12 @@ export const useMemoizedSelector = (selector, deps = []) => {
  * Track object identity changes
  * Warns if object recreated on each render
  */
-export function useObjectIdentity(obj, name = 'object') {
+export function useObjectIdentity(obj, name = "object") {
   const prevRef = useRef(obj);
-  
+
   useEffect(() => {
     if (prevRef.current !== obj) {
-      console.warn(`⚠️ ${name} identity changed`);
+      console.warn(`[WARN] ${name} identity changed`);
       prevRef.current = obj;
     }
   }, [obj, name]);

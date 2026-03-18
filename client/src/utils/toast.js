@@ -1,4 +1,4 @@
-import toast from 'react-hot-toast';
+import toast from "react-hot-toast";
 
 export const notifySuccess = (message, options = {}) =>
   toast.success(message, { duration: 3000, ...options });

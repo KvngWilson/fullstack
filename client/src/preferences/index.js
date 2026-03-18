@@ -1,17 +1,17 @@
-const LANGUAGE_STORAGE_KEY = 'app.language';
-const CURRENCY_STORAGE_KEY = 'app.currency';
+const LANGUAGE_STORAGE_KEY = "app.language";
+const CURRENCY_STORAGE_KEY = "app.currency";
 
-export const SUPPORTED_LANGUAGES = ['en', 'fr', 'es', 'de'];
-export const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'GBP'];
+export const SUPPORTED_LANGUAGES = ["en", "fr", "es", "de"];
+export const SUPPORTED_CURRENCIES = ["USD", "EUR", "GBP", "CAD"];
 
-export const DEFAULT_LANGUAGE = 'en';
-export const DEFAULT_CURRENCY = 'USD';
+export const DEFAULT_LANGUAGE = "en";
+export const DEFAULT_CURRENCY = "USD";
 
 const LANGUAGE_TO_LOCALE = {
-  en: 'en-US',
-  fr: 'fr-FR',
-  es: 'es-ES',
-  de: 'de-DE',
+  en: "en-US",
+  fr: "fr-FR",
+  es: "es-ES",
+  de: "de-DE",
 };
 
 export function getLanguageLocale(language) {
@@ -69,7 +69,7 @@ export function getRequestPreferenceHeaders() {
   const currency = getStoredCurrency();
 
   return {
-    'Accept-Language': language,
-    'X-Currency': currency,
+    "Accept-Language": language,
+    "X-Currency": currency,
   };
 }
