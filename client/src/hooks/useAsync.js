@@ -1,7 +1,7 @@
 /**
  * useAsync Hook
  * Handles async operations (loading, error, data states)
- * 
+ *
  * Usage:
  * const { data, isLoading, error } = useAsync(
  *   () => fetchProducts(),
@@ -9,27 +9,27 @@
  * );
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from "react";
 
 export function useAsync(asyncFunction, immediate = true) {
-  const [status, setStatus] = useState('idle');
+  const [status, setStatus] = useState("idle");
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
   // Execute the async function
   const execute = useCallback(async () => {
-    setStatus('pending');
+    setStatus("pending");
     setData(null);
     setError(null);
 
     try {
       const response = await asyncFunction();
       setData(response);
-      setStatus('success');
+      setStatus("success");
       return response;
     } catch (err) {
       setError(err);
-      setStatus('error');
+      setStatus("error");
       throw err;
     }
   }, [asyncFunction]);
@@ -44,9 +44,9 @@ export function useAsync(asyncFunction, immediate = true) {
   return {
     execute,
     status,
-    isLoading: status === 'pending',
-    isSuccess: status === 'success',
-    isError: status === 'error',
+    isLoading: status === "pending",
+    isSuccess: status === "success",
+    isError: status === "error",
     data,
     error,
   };

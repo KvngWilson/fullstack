@@ -2,26 +2,26 @@
  * useAuth Hook
  * Encapsulates all authentication logic and state
  * Reduces boilerplate in components
- * 
+ *
  * Usage:
  * const { user, isAuthenticated, login, logout, isLoading, error } = useAuth();
  */
 
-import { useCallback } from 'react';
-import { useAppDispatch, useAppSelector } from '@/store';
+import { useCallback } from "react";
+import { useAppDispatch, useAppSelector } from "@/store";
 import {
   selectUser,
   selectIsAuthenticated,
   selectAuthLoading,
   selectAuthError,
-} from '@/features/auth/authSelectors';
+} from "@/features/auth/authSelectors";
 import {
   loginThunk,
   registerThunk,
   logoutThunk,
   refreshTokenThunk,
-} from '@/features/auth/authThunks';
-import { clearError } from '@/features/auth/authSlice';
+} from "@/features/auth/authThunks";
+import { clearError } from "@/features/auth/authSlice";
 
 export function useAuth() {
   const dispatch = useAppDispatch();
@@ -35,12 +35,10 @@ export function useAuth() {
   // Action creators
   const login = useCallback(
     async (email, password) => {
-      const result = await dispatch(
-        loginThunk({ email, password })
-      );
+      const result = await dispatch(loginThunk({ email, password }));
       return result.payload;
     },
-    [dispatch]
+    [dispatch],
   );
 
   const register = useCallback(
@@ -48,7 +46,7 @@ export function useAuth() {
       const result = await dispatch(registerThunk(data));
       return result.payload;
     },
-    [dispatch]
+    [dispatch],
   );
 
   const logout = useCallback(async () => {

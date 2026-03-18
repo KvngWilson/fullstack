@@ -1,12 +1,12 @@
 /**
  * useDebounce Hook
  * Debounces a value change
- * 
+ *
  * Usage:
  * const debouncedSearchTerm = useDebounce(searchTerm, 500);
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 export function useDebounce(value, delay = 300) {
   const [debouncedValue, setDebouncedValue] = useState(value);

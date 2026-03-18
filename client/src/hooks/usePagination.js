@@ -1,14 +1,14 @@
 /**
  * usePagination Hook
  * Manages pagination state and navigation
- * 
+ *
  * Usage:
  * const { currentPage, totalPages, goToPage, nextPage, prevPage } = usePagination(
  *   { total: 100, perPage: 10 }
  * );
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback } from "react";
 
 export function usePagination({ total = 0, perPage = 10 } = {}) {
   const [currentPage, setCurrentPage] = useState(1);
@@ -20,7 +20,7 @@ export function usePagination({ total = 0, perPage = 10 } = {}) {
       const pageNum = Math.max(1, Math.min(page, totalPages));
       setCurrentPage(pageNum);
     },
-    [totalPages]
+    [totalPages],
   );
 
   const nextPage = useCallback(() => {
