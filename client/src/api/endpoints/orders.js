@@ -1,4 +1,4 @@
-import apiClient from '../client';
+import apiClient from "../client";
 
 const getWithFallback = async (primaryPath, fallbackPath) => {
   try {
@@ -45,7 +45,11 @@ export const ordersApi = {
    * Create order from cart
    */
   createOrder: async (payload) => {
-    const response = await postWithFallback('/ordering/orders', payload, '/orders');
+    const response = await postWithFallback(
+      "/ordering/orders",
+      payload,
+      "/orders",
+    );
     return normalizeOrderResponse(response);
   },
 
@@ -53,8 +57,11 @@ export const ordersApi = {
    * Get user's orders
    */
   getOrders: async (page = 1, pageSize = 10, status) => {
-    const params = new URLSearchParams({ page: page.toString(), pageSize: pageSize.toString() });
-    if (status) params.append('status', status);
+    const params = new URLSearchParams({
+      page: page.toString(),
+      pageSize: pageSize.toString(),
+    });
+    if (status) params.append("status", status);
 
     const response = await getWithFallback(
       `/ordering/orders/my-orders?${params.toString()}`,
@@ -67,7 +74,10 @@ export const ordersApi = {
    * Get order by ID
    */
   getOrderById: async (orderId) => {
-    const response = await getWithFallback(`/ordering/orders/${orderId}`, `/orders/${orderId}`);
+    const response = await getWithFallback(
+      `/ordering/orders/${orderId}`,
+      `/orders/${orderId}`,
+    );
     return normalizeOrderResponse(response);
   },
 
@@ -75,7 +85,10 @@ export const ordersApi = {
    * Cancel order
    */
   cancelOrder: async (orderId) => {
-    const response = await deleteWithFallback(`/ordering/orders/${orderId}`, `/orders/${orderId}`);
+    const response = await deleteWithFallback(
+      `/ordering/orders/${orderId}`,
+      `/orders/${orderId}`,
+    );
     return normalizeOrderResponse(response);
   },
 
@@ -93,9 +106,10 @@ export const ordersApi = {
       const order = await ordersApi.getOrderById(orderId);
       return {
         order_id: order?.id || orderId,
-        status: order?.tracking_status || order?.status || 'unknown',
+        status: order?.tracking_status || order?.status || "unknown",
         tracking_number: order?.tracking_number || null,
-        tracking_url: order?.tracking_url || order?.shipment?.tracking_url || null,
+        tracking_url:
+          order?.tracking_url || order?.shipment?.tracking_url || null,
         carrier: order?.carrier || order?.shipment?.carrier || null,
         updated_at: order?.tracking_updated_at || order?.updated_at || null,
       };

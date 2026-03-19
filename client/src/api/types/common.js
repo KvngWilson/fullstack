@@ -9,7 +9,7 @@ export const DEFAULT_PAGINATION_META = {
 
 export const DEFAULT_API_RESPONSE = {
   success: false,
-  message: '',
+  message: "",
   data: null,
   meta: DEFAULT_PAGINATION_META,
 };

@@ -18,23 +18,26 @@ function getErrorMessage(error) {
 
   // Network error
   if (!error.response) {
-    if (error.message === 'Network Error') {
-      return 'Network error. Please check your connection.';
+    if (error.message === "Network Error") {
+      return "Network error. Please check your connection.";
     }
-    return error.message || 'An unexpected error occurred';
+    return error.message || "An unexpected error occurred";
   }
 
   // Default message by status code
   const statusMessages = {
-    400: 'Invalid request. Please check your input.',
-    403: 'Access denied. You do not have permission.',
-    404: 'Resource not found.',
-    429: 'Too many requests. Please try again later.',
-    500: 'Server error. Please try again later.',
-    503: 'Service unavailable. Please try again later.',
+    400: "Invalid request. Please check your input.",
+    403: "Access denied. You do not have permission.",
+    404: "Resource not found.",
+    429: "Too many requests. Please try again later.",
+    500: "Server error. Please try again later.",
+    503: "Service unavailable. Please try again later.",
   };
 
-  return statusMessages[error.response.status] || 'An error occurred. Please try again.';
+  return (
+    statusMessages[error.response.status] ||
+    "An error occurred. Please try again."
+  );
 }
 
 /**
@@ -62,7 +65,7 @@ export const errorInterceptor = {
 
     // Log for debugging
     if (import.meta.env.DEV) {
-      console.error('API Error:', {
+      console.error("API Error:", {
         status: normalizedError.status,
         message: normalizedError.message,
         data: normalizedError.data,

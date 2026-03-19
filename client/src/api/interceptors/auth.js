@@ -1,6 +1,6 @@
 /**
  * Auth Interceptor with Token Refresh Queue
- * 
+ *
  * Implements automatic token refresh when 401 is encountered
  * Uses request queue to prevent simultaneous refresh calls
  * Automatically retries failed requests after token refresh
@@ -29,7 +29,7 @@ function processQueue(error) {
 async function refreshAuthToken(apiClient) {
   try {
     // Backend will use refresh token from httpOnly cookie automatically
-    await apiClient.post('/identity/users/refresh-token');
+    await apiClient.post("/identity/users/refresh-token");
     return true;
   } catch (_error) {
     // Refresh failed - user must login again
@@ -38,7 +38,11 @@ async function refreshAuthToken(apiClient) {
 }
 
 function isAuthPage(pathname) {
-  return pathname.startsWith('/login') || pathname.startsWith('/register') || pathname.startsWith('/forgot-password');
+  return (
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/forgot-password")
+  );
 }
 
 /**
@@ -85,14 +89,14 @@ export const createAuthInterceptor = (apiClient) => ({
           processQueue(error);
           // Clear auth state and redirect to login unless already on auth page
           if (!isAuthPage(window.location.pathname)) {
-            window.location.href = '/login?expired=true';
+            window.location.href = "/login?expired=true";
           }
           return Promise.reject(error);
         }
       } catch (refreshError) {
         processQueue(refreshError);
         if (!isAuthPage(window.location.pathname)) {
-          window.location.href = '/login?expired=true';
+          window.location.href = "/login?expired=true";
         }
         return Promise.reject(refreshError);
       } finally {

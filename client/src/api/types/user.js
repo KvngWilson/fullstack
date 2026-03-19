@@ -1,11 +1,11 @@
 export const USER_ROLES = {
-  CUSTOMER: 'customer',
-  VENDOR: 'vendor',
-  SUPER_ADMIN: 'super_admin',
-  ADMIN: 'admin',
-  MANAGER: 'manager',
-  SUPPORT: 'support',
-  WAREHOUSE: 'warehouse',
+  CUSTOMER: "customer",
+  VENDOR: "vendor",
+  SUPER_ADMIN: "super_admin",
+  ADMIN: "admin",
+  MANAGER: "manager",
+  SUPPORT: "support",
+  WAREHOUSE: "warehouse",
 };
 
 export const ADMIN_ROLES = [USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN];
