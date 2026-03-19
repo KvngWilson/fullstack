@@ -107,7 +107,6 @@ export default function Header() {
                   type="button"
                   className="ml-2 text-xs text-muted-foreground hover:text-foreground"
                   onClick={() => {
-                    localStorage.removeItem('mockAuthUser');
                     dispatch(logoutThunk());
                   }}
                 >
@@ -115,7 +114,7 @@ export default function Header() {
                 </button>
               </div>
             ) : (
-              <Link to="/login" className="btn-primary">Sign In</Link>
+              <Link to="/login" className="btn-primary ">Sign In</Link>
             )}
           </div>
         </div>
@@ -131,14 +130,14 @@ export default function Header() {
             <Link to="/products" className="text-muted-foreground hover:text-foreground">
               Products
             </Link>
-            <Link to="/category/grocery" className="text-muted-foreground hover:text-foreground">
-              Grocery
+            <Link to="/category/hats" className="text-muted-foreground hover:text-foreground">
+              Hats
             </Link>
             <Link to="/category/fashion" className="text-muted-foreground hover:text-foreground">
               Fashion
             </Link>
-            <Link to="/category/electronics" className="text-muted-foreground hover:text-foreground">
-              Electronics
+            <Link to="/category/jewelry" className="text-muted-foreground hover:text-foreground">
+              Jewelry
             </Link>
             <Link to="/category/accessories" className="text-muted-foreground hover:text-foreground">
               Accessories

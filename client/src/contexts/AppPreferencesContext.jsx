@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DEFAULT_CURRENCY,
@@ -33,7 +33,7 @@ export function AppPreferencesProvider({ children }) {
     }
   }, [i18n]);
 
-  const setLanguage = (nextLanguage) => {
+  const setLanguage = useCallback((nextLanguage) => {
     const normalized = SUPPORTED_LANGUAGES.includes(nextLanguage)
       ? nextLanguage
       : DEFAULT_LANGUAGE;
@@ -41,25 +41,28 @@ export function AppPreferencesProvider({ children }) {
     setLanguageState(normalized);
     setStoredLanguage(normalized);
     i18n.changeLanguage(normalized);
-  };
+  }, [i18n]);
 
-  const setCurrency = (nextCurrency) => {
+  const setCurrency = useCallback((nextCurrency) => {
     const normalized = SUPPORTED_CURRENCIES.includes(nextCurrency)
       ? nextCurrency
       : DEFAULT_CURRENCY;
 
     setCurrencyState(normalized);
     setStoredCurrency(normalized);
-  };
+  }, []);
 
-  const t = (key, values) => i18nextT(key, values);
+  const t = useCallback((key, values) => {
+    return i18nextT(key, values);
+  }, [i18nextT]);
 
-  const formatCurrency = (amount) =>
-    new Intl.NumberFormat(locale, {
+  const formatCurrency = useCallback((amount) => {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency,
       maximumFractionDigits: 2,
     }).format(Number(amount || 0));
+  }, [locale, currency]);
 
   const value = useMemo(
     () => ({
@@ -73,7 +76,7 @@ export function AppPreferencesProvider({ children }) {
       t,
       formatCurrency,
     }),
-    [currency, language, locale],
+    [language, currency, locale, setLanguage, setCurrency, t, formatCurrency],
   );
 
   return (

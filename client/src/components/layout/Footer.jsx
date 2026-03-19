@@ -24,7 +24,7 @@ export default function Footer() {
           <div className="space-y-3 md:col-span-2">
             <h3 className="text-lg font-semibold">DEALPORT</h3>
             <p className="text-sm text-muted-foreground">
-              Everything you need for fashion, electronics, and home essentials in one place.
+              Everything you need for fashion, accessories, and home essentials in one place.
             </p>
           </div>
           <div className="space-y-3">
@@ -48,7 +48,7 @@ export default function Footer() {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link to="/products">Products</Link></li>
               <li><Link to="/category/fashion">Fashion</Link></li>
-              <li><Link to="/category/electronics">Electronics</Link></li>
+              <li><Link to="/category/accessories">Accessories</Link></li>
             </ul>
           </div>
         </div>

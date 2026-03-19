@@ -5,12 +5,7 @@ import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
  * Global Error Boundary
  * 
  * Catches React component errors and prevents entire app from crashing
- * Provides recovery options: reload, home, or detailed error info (dev only)
- * 
- * Usage in main.jsx:
- * <ErrorBoundary>
- *   <App />
- * </ErrorBoundary>
+ * Displays a user-friendly error message with options to reload or go home
  */
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -31,17 +26,12 @@ export default class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // Log error for monitoring (e.g., Sentry)
     console.error('Error caught by boundary:', error, errorInfo);
 
     this.setState({
       errorInfo,
     });
 
-    // Send to error tracking service in production
-    if (import.meta.env.PROD) {
-      // Example: Sentry.captureException(error, { contexts: { react: errorInfo } });
-    }
   }
 
   handleReload = () => {
@@ -78,7 +68,7 @@ export default class ErrorBoundary extends React.Component {
               We encountered an unexpected error. Please try again or contact support if the problem persists.
             </p>
 
-            {/* Error Details (Dev Only) */}
+            {/* Error Details */}
             {import.meta.env.DEV && this.state.error && (
               <div className="mb-6">
                 <button
