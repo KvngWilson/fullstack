@@ -17,4 +17,4 @@ export const selectUserRole = (state) => state.auth.user?.role;
 export const selectAuthIsHydrated = (state) => state.auth.isHydrated;
 
 // Alias for compatibility
-export const selectIsCustomer = (state) => state.auth.user?.role === 'customer';
+export const selectIsCustomer = (state) => state.auth.user?.role === "customer";

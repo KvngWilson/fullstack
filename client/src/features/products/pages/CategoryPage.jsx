@@ -1,14 +1,17 @@
-import { useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { useAppDispatch, useAppSelector } from '@/store';
-import { fetchProductsThunk } from '@/features/products/productsThunks';
+import { useEffect } from "react";
+import { Link, useParams } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "@/store";
+import { fetchProductsThunk } from "@/features/products/productsThunks";
 import {
-  selectProducts,
+  selectAllProducts,
   selectProductsError,
-  selectProductsIsLoading,
-} from '@/features/products/productsSelectors';
-import { EmptyState, ErrorState } from '@/components/common/AsyncState';
-import { ProductGridSkeleton } from '@/components/common/Skeleton';
+  selectProductsLoading,
+} from "@/features/products/productsSlice";
+
+const selectProducts = selectAllProducts;
+const selectProductsIsLoading = selectProductsLoading;
+import { EmptyState, ErrorState } from "@/components/common/AsyncState";
+import { ProductGridSkeleton } from "@/components/common/Skeleton";
 
 export default function CategoryPage() {
   const dispatch = useAppDispatch();
@@ -16,7 +19,7 @@ export default function CategoryPage() {
   const products = useAppSelector(selectProducts);
   const isLoading = useAppSelector(selectProductsIsLoading);
   const error = useAppSelector(selectProductsError);
-  const isCategoryId = /^\d+$/.test(slug || '');
+  const isCategoryId = /^\d+$/.test(slug || "");
 
   useEffect(() => {
     if (!slug) return;
@@ -26,8 +29,10 @@ export default function CategoryPage() {
   const displayProducts = isCategoryId
     ? products
     : products.filter((product) => {
-        const categoryName = (product.category_name || product.category || '').toString().toLowerCase();
-        return categoryName === (slug || '').toLowerCase();
+        const categoryName = (product.category_name || product.category || "")
+          .toString()
+          .toLowerCase();
+        return categoryName === (slug || "").toLowerCase();
       });
 
   return (
@@ -58,8 +63,12 @@ export default function CategoryPage() {
               className="rounded-md border p-3 hover:bg-accent"
             >
               <p className="font-medium">{product.name}</p>
-              <p className="text-sm text-muted-foreground">{product.brand || 'No brand'}</p>
-              <p className="text-sm text-muted-foreground">${product.min_price ?? product.base_price ?? product.price ?? 0}</p>
+              <p className="text-sm text-muted-foreground">
+                {product.brand || "No brand"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                ${product.min_price ?? product.base_price ?? product.price ?? 0}
+              </p>
             </Link>
           ))}
 

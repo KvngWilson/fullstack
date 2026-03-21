@@ -1,18 +1,24 @@
-import { createSlice } from '@reduxjs/toolkit';
-import { loginThunk, registerThunk, refreshTokenThunk, logoutThunk, fetchCurrentUserThunk } from './authThunks';
+import { createSlice } from "@reduxjs/toolkit";
+import {
+  loginThunk,
+  registerThunk,
+  refreshTokenThunk,
+  logoutThunk,
+  fetchCurrentUserThunk,
+} from "./authThunks";
 
 /**
  * SECURITY IMPROVEMENT: Do NOT store tokens in state or localStorage
- * 
+ *
  * Tokens are now automatically stored in httpOnly cookies by the backend
  * and sent automatically with each request (via withCredentials: true)
- * 
+ *
  * httpOnly cookies are:
- * ✅ Not accessible from JavaScript (prevents XSS)
- * ✅ Not visible in localStorage
- * ✅ Automatically included in requests
- * ✅ Can be cleared by backend on logout
- * 
+ * - Not accessible from JavaScript (prevents XSS)
+ * - Not visible in localStorage
+ * - Automatically included in requests
+ * - Can be cleared by backend on logout
+ *
  * We only store non-sensitive user information in Redux state
  */
 const initialState = {
@@ -24,7 +30,7 @@ const initialState = {
 };
 
 const authSlice = createSlice({
-  name: 'auth',
+  name: "auth",
   initialState,
   reducers: {
     /**
@@ -65,11 +71,11 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.isAuthenticated = true;
         state.isHydrated = true;
-        // ✅ Token is in httpOnly cookie, not in state
+        // Token is in httpOnly cookie, not in state
       })
       .addCase(loginThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Login failed';
+        state.error = action.payload || "Login failed";
         state.isAuthenticated = false;
         state.isHydrated = true;
       });
@@ -85,11 +91,11 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.isAuthenticated = true;
         state.isHydrated = true;
-        // ✅ Token is in httpOnly cookie, not in state
+        // Token is in httpOnly cookie, not in state
       })
       .addCase(registerThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Registration failed';
+        state.error = action.payload || "Registration failed";
         state.isAuthenticated = false;
         state.isHydrated = true;
       });
@@ -105,7 +111,7 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.isHydrated = true;
         state.error = null;
-        // ✅ Backend clears httpOnly cookies
+        // Backend clears httpOnly cookies
       })
       .addCase(logoutThunk.rejected, (state) => {
         state.isLoading = false;

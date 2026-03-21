@@ -1,4 +1,4 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from "@reduxjs/toolkit";
 import {
   fetchUserProfileThunk,
   updateUserProfileThunk,
@@ -10,7 +10,7 @@ import {
   addSavedCardThunk,
   setPrimaryCardThunk,
   deleteSavedCardThunk,
-} from './userThunks';
+} from "./userThunks";
 
 const initialState = {
   profile: null,
@@ -21,7 +21,7 @@ const initialState = {
 };
 
 const userSlice = createSlice({
-  name: 'user',
+  name: "user",
   initialState,
   reducers: {
     clearUserProfile: (state) => {
@@ -43,7 +43,7 @@ const userSlice = createSlice({
       })
       .addCase(fetchUserProfileThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Failed to fetch user profile';
+        state.error = action.payload || "Failed to fetch user profile";
       })
       .addCase(updateUserProfileThunk.pending, (state) => {
         state.isLoading = true;
@@ -55,7 +55,7 @@ const userSlice = createSlice({
       })
       .addCase(updateUserProfileThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Failed to update user profile';
+        state.error = action.payload || "Failed to update user profile";
       })
       .addCase(fetchAddressesThunk.pending, (state) => {
         state.isLoading = true;
@@ -67,7 +67,7 @@ const userSlice = createSlice({
       })
       .addCase(fetchAddressesThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Failed to fetch addresses';
+        state.error = action.payload || "Failed to fetch addresses";
       })
       .addCase(addAddressThunk.fulfilled, (state, action) => {
         if (action.payload) {
@@ -77,12 +77,14 @@ const userSlice = createSlice({
       .addCase(updateAddressThunk.fulfilled, (state, action) => {
         if (action.payload) {
           state.addresses = state.addresses.map((address) =>
-            address.id === action.payload.id ? action.payload : address
+            address.id === action.payload.id ? action.payload : address,
           );
         }
       })
       .addCase(deleteAddressThunk.fulfilled, (state, action) => {
-        state.addresses = state.addresses.filter((address) => address.id !== action.payload);
+        state.addresses = state.addresses.filter(
+          (address) => address.id !== action.payload,
+        );
       })
       .addCase(fetchSavedCardsThunk.pending, (state) => {
         state.isLoading = true;
@@ -94,7 +96,7 @@ const userSlice = createSlice({
       })
       .addCase(fetchSavedCardsThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Failed to fetch saved cards';
+        state.error = action.payload || "Failed to fetch saved cards";
       })
       .addCase(addSavedCardThunk.fulfilled, (state, action) => {
         if (action.payload) {
@@ -110,7 +112,9 @@ const userSlice = createSlice({
         }
       })
       .addCase(deleteSavedCardThunk.fulfilled, (state, action) => {
-        state.savedCards = state.savedCards.filter((card) => card.id !== action.payload);
+        state.savedCards = state.savedCards.filter(
+          (card) => card.id !== action.payload,
+        );
       });
   },
 });

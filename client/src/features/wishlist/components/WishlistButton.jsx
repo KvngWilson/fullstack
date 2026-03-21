@@ -1,20 +1,28 @@
-import { useState } from 'react';
-import { Heart } from 'lucide-react';
-import { useAppDispatch, useAppSelector } from '@/store';
-import { addToWishlistThunk, removeFromWishlistThunk, fetchWishlistThunk } from '@/features/wishlist/wishlistThunks';
-import { selectIsInWishlist } from '@/features/wishlist/wishlistSelectors';
-import { selectIsAuthenticated } from '@/features/auth/authSelectors';
+import { useState } from "react";
+import { Heart } from "lucide-react";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  addToWishlistThunk,
+  removeFromWishlistThunk,
+  fetchWishlistThunk,
+} from "@/features/wishlist/wishlistThunks";
+import { selectIsInWishlist } from "@/features/wishlist/wishlistSelectors";
+import { selectIsAuthenticated } from "@/features/auth/authSelectors";
 
-export default function WishlistButton({ productId, className = '', size = 'md' }) {
+export default function WishlistButton({
+  productId,
+  className = "",
+  size = "md",
+}) {
   const dispatch = useAppDispatch();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const isInWishlist = useAppSelector(selectIsInWishlist(productId));
   const [isToggling, setIsToggling] = useState(false);
 
   const sizeClasses = {
-    sm: 'h-8 w-8',
-    md: 'h-10 w-10',
-    lg: 'h-12 w-12',
+    sm: "h-8 w-8",
+    md: "h-10 w-10",
+    lg: "h-12 w-12",
   };
 
   const iconSizes = {
@@ -28,7 +36,7 @@ export default function WishlistButton({ productId, className = '', size = 'md' 
     e.stopPropagation();
 
     if (!isAuthenticated) {
-      alert('Please login to add items to your wishlist');
+      alert("Please login to add items to your wishlist");
       return;
     }
 
@@ -41,7 +49,7 @@ export default function WishlistButton({ productId, className = '', size = 'md' 
         await dispatch(fetchWishlistThunk());
       }
     } catch (error) {
-      console.error('Wishlist toggle error:', error);
+      console.error("Wishlist toggle error:", error);
     } finally {
       setIsToggling(false);
     }
@@ -62,20 +70,20 @@ export default function WishlistButton({ productId, className = '', size = 'md' 
         transition-all duration-200
         ${
           isInWishlist
-            ? 'bg-red-500 text-white hover:bg-red-600'
-            : 'bg-white text-gray-600 hover:bg-gray-100 hover:text-red-500'
+            ? "bg-red-500 text-white hover:bg-red-600"
+            : "bg-white text-gray-600 hover:bg-gray-100 hover:text-red-500"
         }
         border-2
-        ${isInWishlist ? 'border-red-500' : 'border-gray-300'}
+        ${isInWishlist ? "border-red-500" : "border-gray-300"}
         disabled:cursor-not-allowed disabled:opacity-60
         shadow-sm hover:shadow
       `}
-      title={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
-      aria-label={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+      title={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+      aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
     >
       <Heart
         size={iconSizes[size]}
-        className={isInWishlist ? 'fill-current' : ''}
+        className={isInWishlist ? "fill-current" : ""}
       />
     </button>
   );

@@ -1,18 +1,25 @@
-import { useCallback, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { useAppDispatch, useAppSelector } from '@/store';
-import { fetchProductsThunk, searchProductsThunk } from '@/features/products/productsThunks';
+import { useCallback, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "@/store";
 import {
-  selectProducts,
+  fetchProductsThunk,
+  searchProductsThunk,
+} from "@/features/products/productsThunks";
+import {
+  selectAllProducts,
   selectProductsError,
-  selectProductsIsLoading,
-  selectProductsPagination,
-} from '@/features/products/productsSelectors';
-import { addToCartThunk } from '@/features/cart/cartThunks';
-import WishlistButton from '@/features/wishlist/components/WishlistButton';
-import { ProductGridSkeleton } from '@/components/common/Skeleton';
-import { EmptyState, ErrorState } from '@/components/common/AsyncState';
-import { notifyInfo, notifySuccess } from '@/utils/toast';
+  selectProductsLoading,
+  selectProductPagination,
+} from "@/features/products/productsSlice";
+
+const selectProducts = selectAllProducts;
+const selectProductsIsLoading = selectProductsLoading;
+const selectProductsPagination = selectProductPagination;
+import { addToCartThunk } from "@/features/cart/cartThunks";
+import WishlistButton from "@/features/wishlist/components/WishlistButton";
+import { ProductGridSkeleton } from "@/components/common/Skeleton";
+import { EmptyState, ErrorState } from "@/components/common/AsyncState";
+import { notifyInfo, notifySuccess } from "@/utils/toast";
 
 export default function ProductList() {
   const dispatch = useAppDispatch();
@@ -22,24 +29,24 @@ export default function ProductList() {
   const isLoading = useAppSelector(selectProductsIsLoading);
   const error = useAppSelector(selectProductsError);
 
-  const category = searchParams.get('category');
-  const query = searchParams.get('q');
+  const category = searchParams.get("category");
+  const query = searchParams.get("q");
   const fallbackProducts = [
     {
       id: 1,
-      name: 'Demo Product',
-      brand: 'Demo',
+      name: "Demo Product",
+      brand: "Demo",
       base_price: 49.99,
-      image_url: 'https://via.placeholder.com/300x300?text=Demo+Product',
+      image_url: "https://via.placeholder.com/300x300?text=Demo+Product",
       variant_id: 1001,
       variants: [{ id: 1001 }],
     },
     {
       id: 2,
-      name: 'Demo Product 2',
-      brand: 'Demo',
+      name: "Demo Product 2",
+      brand: "Demo",
       base_price: 79.99,
-      image_url: 'https://via.placeholder.com/300x300?text=Demo+Product+2',
+      image_url: "https://via.placeholder.com/300x300?text=Demo+Product+2",
       variant_id: 1002,
       variants: [{ id: 1002 }],
     },
@@ -48,7 +55,12 @@ export default function ProductList() {
 
   const loadProducts = useCallback(() => {
     if (query) {
-      dispatch(searchProductsThunk({ query, filters: category ? { category: category } : {} }));
+      dispatch(
+        searchProductsThunk({
+          query,
+          filters: category ? { category: category } : {},
+        }),
+      );
       return;
     }
 
@@ -74,7 +86,7 @@ export default function ProductList() {
 
     const variantId = resolveVariantId(product);
     if (!variantId) {
-      notifyInfo('Please open the product to choose a variant.');
+      notifyInfo("Please open the product to choose a variant.");
       return;
     }
 
@@ -88,12 +100,12 @@ export default function ProductList() {
     );
 
     if (addToCartThunk.fulfilled.match(resultAction)) {
-      notifySuccess('Added to cart successfully');
+      notifySuccess("Added to cart successfully");
     }
   };
 
   const handleRetry = () => {
-    notifyInfo('Retrying product request...');
+    notifyInfo("Retrying product request...");
     loadProducts();
   };
 
@@ -101,7 +113,11 @@ export default function ProductList() {
     <div className="landing-container py-12">
       <div className="mb-8">
         <h1 className="text-4xl font-bold">
-          {query ? `Search: "${query}"` : category ? `Category: ${category}` : 'All Products'}
+          {query
+            ? `Search: "${query}"`
+            : category
+              ? `Category: ${category}`
+              : "All Products"}
         </h1>
         {pagination && (
           <p className="mt-2 text-sm text-gray-500">
@@ -133,7 +149,10 @@ export default function ProductList() {
                 <Link to={`/products/${product.id}`} className="block">
                   <div className="product-image relative mb-3">
                     <img
-                      src={product.image_url || 'https://via.placeholder.com/300x300?text=No+Image'}
+                      src={
+                        product.image_url ||
+                        "https://via.placeholder.com/300x300?text=No+Image"
+                      }
                       alt={product.name}
                       className="h-full w-full object-cover transition-transform group-hover:scale-105"
                     />
@@ -142,8 +161,12 @@ export default function ProductList() {
                     </div>
                   </div>
                   <div className="flex-1">
-                    <p className="mb-1 text-sm text-gray-500">{product.brand || 'No brand'}</p>
-                    <h3 className="mb-2 line-clamp-2 font-semibold text-gray-900">{product.name}</h3>
+                    <p className="mb-1 text-sm text-gray-500">
+                      {product.brand || "No brand"}
+                    </p>
+                    <h3 className="mb-2 line-clamp-2 font-semibold text-gray-900">
+                      {product.name}
+                    </h3>
                     <p className="text-lg font-bold text-primary">
                       ${product.base_price ?? product.price ?? 0}
                     </p>
@@ -166,7 +189,7 @@ export default function ProductList() {
               message="Try changing category filters or search terms."
               actionLabel="Browse All Products"
               onAction={() => {
-                window.location.href = '/products';
+                window.location.href = "/products";
               }}
               className="mt-6"
             />
@@ -178,7 +201,7 @@ export default function ProductList() {
                 disabled={pagination.page <= 1}
                 onClick={() => {
                   const newParams = new URLSearchParams(searchParams);
-                  newParams.set('page', String(pagination.page - 1));
+                  newParams.set("page", String(pagination.page - 1));
                   window.location.search = newParams.toString();
                 }}
                 className="btn-ghost disabled:cursor-not-allowed disabled:opacity-50"
@@ -192,7 +215,7 @@ export default function ProductList() {
                 disabled={pagination.page >= pagination.totalPages}
                 onClick={() => {
                   const newParams = new URLSearchParams(searchParams);
-                  newParams.set('page', String(pagination.page + 1));
+                  newParams.set("page", String(pagination.page + 1));
                   window.location.search = newParams.toString();
                 }}
                 className="btn-ghost disabled:cursor-not-allowed disabled:opacity-50"

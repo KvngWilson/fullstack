@@ -1,6 +1,6 @@
-import { createAsyncThunk } from '@reduxjs/toolkit';
-import { authService } from '@/services/api/authService';
-import { getErrorMessage } from '@/utils/getErrorMessage';
+import { createAsyncThunk } from "@reduxjs/toolkit";
+import { authService } from "@/services/authService";
+import { getErrorMessage } from "@/utils/getErrorMessage";
 
 /**
  * Login user
@@ -8,7 +8,7 @@ import { getErrorMessage } from '@/utils/getErrorMessage';
  * Only user data is returned to store in Redux
  */
 export const loginThunk = createAsyncThunk(
-  'auth/login',
+  "auth/login",
   async (credentials, { rejectWithValue }) => {
     try {
       const response = await authService.login(credentials);
@@ -18,7 +18,7 @@ export const loginThunk = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
-  }
+  },
 );
 
 /**
@@ -27,7 +27,7 @@ export const loginThunk = createAsyncThunk(
  * Only user data is returned to store in Redux
  */
 export const registerThunk = createAsyncThunk(
-  'auth/register',
+  "auth/register",
   async (data, { rejectWithValue }) => {
     try {
       const response = await authService.register(data);
@@ -37,7 +37,7 @@ export const registerThunk = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
-  }
+  },
 );
 
 /**
@@ -45,7 +45,7 @@ export const registerThunk = createAsyncThunk(
  * Backend clears httpOnly cookies
  */
 export const logoutThunk = createAsyncThunk(
-  'auth/logout',
+  "auth/logout",
   async (_, { rejectWithValue }) => {
     try {
       await authService.logout();
@@ -56,7 +56,7 @@ export const logoutThunk = createAsyncThunk(
       // Browser will still have the cookies, but they should be expired
       return rejectWithValue(getErrorMessage(error));
     }
-  }
+  },
 );
 
 /**
@@ -65,7 +65,7 @@ export const logoutThunk = createAsyncThunk(
  * Returns updated user data
  */
 export const refreshTokenThunk = createAsyncThunk(
-  'auth/refreshToken',
+  "auth/refreshToken",
   async (_, { rejectWithValue }) => {
     try {
       const response = await authService.refreshToken();
@@ -75,7 +75,7 @@ export const refreshTokenThunk = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
-  }
+  },
 );
 
 /**
@@ -83,7 +83,7 @@ export const refreshTokenThunk = createAsyncThunk(
  * Checks if user is still authenticated
  */
 export const fetchCurrentUserThunk = createAsyncThunk(
-  'auth/fetchCurrentUser',
+  "auth/fetchCurrentUser",
   async (_, { rejectWithValue }) => {
     try {
       const response = await authService.me();
@@ -91,6 +91,5 @@ export const fetchCurrentUserThunk = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
-  }
-
+  },
 );

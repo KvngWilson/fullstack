@@ -36,9 +36,9 @@ export default function Addresses() {
 				prev.map((address) =>
 					address.id === editingId
 						? {
-								...address,
-								...form,
-							}
+							...address,
+							...form,
+						}
 						: address,
 				),
 			);
@@ -54,7 +54,7 @@ export default function Addresses() {
 			},
 		]);
 		resetForm();
-	};
+	}
 
 	const handleEdit = (address) => {
 		setEditingId(address.id);

@@ -1,11 +1,15 @@
-import { createSlice, createEntityAdapter, createSelector } from '@reduxjs/toolkit';
+import {
+  createSlice,
+  createEntityAdapter,
+  createSelector,
+} from "@reduxjs/toolkit";
 import {
   fetchProductsThunk,
   fetchProductByIdThunk,
   fetchCategoriesThunk,
   fetchFeaturedProductsThunk,
   searchProductsThunk,
-} from './productsThunks';
+} from "./productsThunks";
 
 /**
  * Entity Adapter for Products
@@ -41,14 +45,14 @@ const initialState = productsAdapter.getInitialState({
   // Applied filters
   filters: {},
   // Search query
-  searchQuery: '',
+  searchQuery: "",
   // Loading and error states
   isLoading: false,
   error: null,
 });
 
 const productsSlice = createSlice({
-  name: 'products',
+  name: "products",
   initialState,
   reducers: {
     setProductFilters: (state, action) => {
@@ -69,7 +73,7 @@ const productsSlice = createSlice({
     clearProductsError: (state) => {
       state.error = null;
     },
-    // ✅ Entity adapter provides optimized reducers
+    // Entity adapter provides optimized reducers
     ...productsAdapter.getInitialState(),
   },
   extraReducers: (builder) => {
@@ -81,14 +85,14 @@ const productsSlice = createSlice({
       })
       .addCase(fetchProductsThunk.fulfilled, (state, action) => {
         state.isLoading = false;
-        // ✅ Normalize products into entity state
+        // Normalize products into entity state
         productsAdapter.setAll(state, action.payload?.products || []);
         state.pagination = action.payload?.pagination || state.pagination;
         state.searchResultIds = [];
       })
       .addCase(fetchProductsThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Failed to fetch products';
+        state.error = action.payload || "Failed to fetch products";
       });
 
     // Fetch single product
@@ -100,14 +104,14 @@ const productsSlice = createSlice({
       .addCase(fetchProductByIdThunk.fulfilled, (state, action) => {
         state.isLoading = false;
         if (action.payload) {
-          // ✅ Use adapter to upsert product
+          // Use adapter to upsert product
           productsAdapter.upsertOne(state, action.payload);
           state.currentProductId = action.payload.id;
         }
       })
       .addCase(fetchProductByIdThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Failed to fetch product details';
+        state.error = action.payload || "Failed to fetch product details";
       });
 
     // Fetch categories
@@ -116,21 +120,21 @@ const productsSlice = createSlice({
         state.categories = action.payload || [];
       })
       .addCase(fetchCategoriesThunk.rejected, (state, action) => {
-        state.error = action.payload || 'Failed to fetch categories';
+        state.error = action.payload || "Failed to fetch categories";
       });
 
     // Fetch featured products
     builder
       .addCase(fetchFeaturedProductsThunk.fulfilled, (state, action) => {
         if (action.payload && Array.isArray(action.payload)) {
-          // ✅ Normalize featured products
+          // Normalize featured products
           productsAdapter.upsertMany(state, action.payload);
-          // ✅ Store IDs only, not duplicated data
+          // Store IDs only, not duplicated data
           state.featuredIds = action.payload.map((p) => p.id);
         }
       })
       .addCase(fetchFeaturedProductsThunk.rejected, (state, action) => {
-        state.error = action.payload || 'Failed to fetch featured products';
+        state.error = action.payload || "Failed to fetch featured products";
       });
 
     // Search products
@@ -142,16 +146,16 @@ const productsSlice = createSlice({
       .addCase(searchProductsThunk.fulfilled, (state, action) => {
         state.isLoading = false;
         if (action.payload?.products) {
-          // ✅ Normalize search results
+          // Normalize search results
           productsAdapter.upsertMany(state, action.payload.products);
-          // ✅ Store result IDs for filtered view
+          // Store result IDs for filtered view
           state.searchResultIds = action.payload.products.map((p) => p.id);
           state.pagination = action.payload.pagination || state.pagination;
         }
       })
       .addCase(searchProductsThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Failed to search products';
+        state.error = action.payload || "Failed to search products";
       });
   },
 });
@@ -167,7 +171,7 @@ export const {
 
 export default productsSlice.reducer;
 
-// ✅ Auto-generated selectors from entity adapter
+// Auto-generated selectors from entity adapter
 export const {
   selectAll: selectAllProducts,
   selectById: selectProductById,
@@ -176,21 +180,17 @@ export const {
   selectTotal: selectProductsTotal,
 } = productsAdapter.getSelectors((state) => state.products);
 
-// ✅ Custom memoized selectors
+// Custom memoized selectors
 export const selectFeaturedProducts = createSelector(
   [selectAllProducts, (state) => state.products.featuredIds],
   (products, featuredIds) =>
-    featuredIds
-      .map((id) => products.find((p) => p.id === id))
-      .filter(Boolean)
+    featuredIds.map((id) => products.find((p) => p.id === id)).filter(Boolean),
 );
 
 export const selectSearchResults = createSelector(
   [selectAllProducts, (state) => state.products.searchResultIds],
   (products, resultIds) =>
-    resultIds
-      .map((id) => products.find((p) => p.id === id))
-      .filter(Boolean)
+    resultIds.map((id) => products.find((p) => p.id === id)).filter(Boolean),
 );
 
 export const selectCurrentProduct = createSelector(
@@ -198,7 +198,7 @@ export const selectCurrentProduct = createSelector(
   (productsState) =>
     productsState.currentProductId
       ? selectProductById(productsState, productsState.currentProductId)
-      : null
+      : null,
 );
 
 export const selectProductFilters = (state) => state.products.filters;

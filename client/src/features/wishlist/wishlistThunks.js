@@ -1,9 +1,9 @@
-import { createAsyncThunk } from '@reduxjs/toolkit';
-import { wishlistService } from '@/services/api/wishlistService';
-import { getErrorMessage } from '@/utils/getErrorMessage';
+import { createAsyncThunk } from "@reduxjs/toolkit";
+import { wishlistService } from "@/services/wishlistService";
+import { getErrorMessage } from "@/utils/getErrorMessage";
 
 export const fetchWishlistThunk = createAsyncThunk(
-  'wishlist/fetchWishlist',
+  "wishlist/fetchWishlist",
   async (_, { rejectWithValue }) => {
     try {
       const data = await wishlistService.getWishlist();
@@ -11,11 +11,11 @@ export const fetchWishlistThunk = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
-  }
+  },
 );
 
 export const addToWishlistThunk = createAsyncThunk(
-  'wishlist/addToWishlist',
+  "wishlist/addToWishlist",
   async (productId, { rejectWithValue }) => {
     try {
       await wishlistService.addToWishlist(productId);
@@ -23,11 +23,11 @@ export const addToWishlistThunk = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
-  }
+  },
 );
 
 export const removeFromWishlistThunk = createAsyncThunk(
-  'wishlist/removeFromWishlist',
+  "wishlist/removeFromWishlist",
   async (productId, { rejectWithValue }) => {
     try {
       await wishlistService.removeFromWishlist(productId);
@@ -35,11 +35,11 @@ export const removeFromWishlistThunk = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
-  }
+  },
 );
 
 export const clearWishlistThunk = createAsyncThunk(
-  'wishlist/clearWishlist',
+  "wishlist/clearWishlist",
   async (_, { rejectWithValue }) => {
     try {
       await wishlistService.clearWishlist();
@@ -47,5 +47,5 @@ export const clearWishlistThunk = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
-  }
+  },
 );

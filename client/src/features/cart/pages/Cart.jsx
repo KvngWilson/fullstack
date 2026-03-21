@@ -1,20 +1,20 @@
-import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAppDispatch, useAppSelector } from '@/store';
+import { useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "@/store";
 import {
   selectCartError,
   selectCartIsLoading,
   selectCartItems,
   selectCartSubtotal,
-} from '@/features/cart/cartSelectors';
+} from "@/features/cart/cartSelectors";
 import {
   clearCartThunk,
   fetchCartThunk,
   removeFromCartThunk,
   updateCartItemThunk,
-} from '@/features/cart/cartThunks';
-import { EmptyState, ErrorState } from '@/components/common/AsyncState';
-import { TextBlockSkeleton } from '@/components/common/Skeleton';
+} from "@/features/cart/cartThunks";
+import { EmptyState, ErrorState } from "@/components/common/AsyncState";
+import { TextBlockSkeleton } from "@/components/common/Skeleton";
 
 export default function Cart() {
   const dispatch = useAppDispatch();
@@ -32,7 +32,9 @@ export default function Cart() {
 
   useEffect(
     () => () => {
-      Object.values(debounceTimersRef.current).forEach((timer) => clearTimeout(timer));
+      Object.values(debounceTimersRef.current).forEach((timer) =>
+        clearTimeout(timer),
+      );
     },
     [],
   );
@@ -55,7 +57,7 @@ export default function Cart() {
   };
 
   const handleQuantityBlur = (cartItemId) => {
-    const currentValue = pendingQuantitiesRef.current[cartItemId] ?? '1';
+    const currentValue = pendingQuantitiesRef.current[cartItemId] ?? "1";
     if (debounceTimersRef.current[cartItemId]) {
       clearTimeout(debounceTimersRef.current[cartItemId]);
       delete debounceTimersRef.current[cartItemId];
@@ -83,11 +85,11 @@ export default function Cart() {
       return;
     }
     try {
-      localStorage.setItem('checkoutGuestHint', '1');
+      localStorage.setItem("checkoutGuestHint", "1");
     } catch {
       // Ignore storage failures.
     }
-    navigate('/checkout');
+    navigate("/checkout");
   };
 
   return (
@@ -100,7 +102,14 @@ export default function Cart() {
           <TextBlockSkeleton />
         </div>
       )}
-      {error && <ErrorState className="mt-4" title="Failed to load cart" message={error} onRetry={() => dispatch(fetchCartThunk())} />}
+      {error && (
+        <ErrorState
+          className="mt-4"
+          title="Failed to load cart"
+          message={error}
+          onRetry={() => dispatch(fetchCartThunk())}
+        />
+      )}
 
       {!isLoading && !error && (
         <>
@@ -111,11 +120,16 @@ export default function Cart() {
                 className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"
               >
                 <div>
-                  <p className="font-medium">{item.product?.name || 'Product'}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Variant: {item.variant?.sku || item.variant?.id || item.variant_id}
+                  <p className="font-medium">
+                    {item.product?.name || "Product"}
                   </p>
-                  <p className="text-sm text-muted-foreground">Item price: ${item.item_total ?? 0}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Variant:{" "}
+                    {item.variant?.sku || item.variant?.id || item.variant_id}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Item price: ${item.item_total ?? 0}
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -124,7 +138,12 @@ export default function Cart() {
                     type="number"
                     min={1}
                     defaultValue={item.quantity}
-                    onChange={(event) => handleQuantityChange(item.cart_item_id, event.target.value)}
+                    onChange={(event) =>
+                      handleQuantityChange(
+                        item.cart_item_id,
+                        event.target.value,
+                      )
+                    }
                     onBlur={() => handleQuantityBlur(item.cart_item_id)}
                     className="h-10 w-24 rounded-md border px-3"
                   />
@@ -146,7 +165,7 @@ export default function Cart() {
               title="Your cart is empty"
               message="Add some products to continue to checkout."
               actionLabel="Continue Shopping"
-              onAction={() => navigate('/products')}
+              onAction={() => navigate("/products")}
             />
           )}
 

@@ -1,5 +1,5 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import { ordersService } from '@/services/api/ordersService';
+import { ordersService } from '@/services/orderService';
 import { getErrorMessage } from '@/utils/getErrorMessage';
 
 export const fetchOrdersThunk = createAsyncThunk(

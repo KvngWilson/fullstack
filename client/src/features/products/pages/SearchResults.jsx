@@ -1,16 +1,20 @@
-import { useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { useAppDispatch, useAppSelector } from '@/store';
-import { searchProductsThunk } from '@/features/products/productsThunks';
+import { useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "@/store";
+import { searchProductsThunk } from "@/features/products/productsThunks";
 import {
-  selectProducts,
+  selectAllProducts,
   selectProductsError,
-  selectProductsIsLoading,
-  selectProductsPagination,
-} from '@/features/products/productsSelectors';
-import { ProductGridSkeleton } from '@/components/common/Skeleton';
-import { EmptyState, ErrorState } from '@/components/common/AsyncState';
-import { notifyInfo } from '@/utils/toast';
+  selectProductsLoading,
+  selectProductPagination,
+} from "@/features/products/productsSlice";
+
+const selectProducts = selectAllProducts;
+const selectProductsIsLoading = selectProductsLoading;
+const selectProductsPagination = selectProductPagination;
+import { ProductGridSkeleton } from "@/components/common/Skeleton";
+import { EmptyState, ErrorState } from "@/components/common/AsyncState";
+import { notifyInfo } from "@/utils/toast";
 
 export default function SearchResults() {
   const dispatch = useAppDispatch();
@@ -20,7 +24,7 @@ export default function SearchResults() {
   const isLoading = useAppSelector(selectProductsIsLoading);
   const error = useAppSelector(selectProductsError);
 
-  const query = searchParams.get('q') || '';
+  const query = searchParams.get("q") || "";
 
   useEffect(() => {
     if (!query.trim()) return;
@@ -29,17 +33,21 @@ export default function SearchResults() {
 
   const handleRetry = () => {
     if (!query.trim()) return;
-    notifyInfo('Retrying search...');
+    notifyInfo("Retrying search...");
     dispatch(searchProductsThunk({ query }));
   };
 
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold">Search Results</h1>
-      <p className="mt-2 text-sm text-muted-foreground">Query: {query || 'N/A'}</p>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Query: {query || "N/A"}
+      </p>
 
       {!query.trim() && (
-        <p className="mt-4 text-sm text-muted-foreground">Provide a search term using ?q=...</p>
+        <p className="mt-4 text-sm text-muted-foreground">
+          Provide a search term using ?q=...
+        </p>
       )}
 
       {query.trim() && isLoading && (
@@ -67,8 +75,12 @@ export default function SearchResults() {
                 className="rounded-md border p-3 hover:bg-accent"
               >
                 <p className="font-medium">{product.name}</p>
-                <p className="text-sm text-muted-foreground">{product.brand || 'No brand'}</p>
-                <p className="text-sm text-muted-foreground">${product.base_price ?? product.price ?? 0}</p>
+                <p className="text-sm text-muted-foreground">
+                  {product.brand || "No brand"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  ${product.base_price ?? product.price ?? 0}
+                </p>
               </Link>
             ))}
           </div>
@@ -83,7 +95,8 @@ export default function SearchResults() {
 
           {pagination && (
             <p className="mt-4 text-sm text-muted-foreground">
-              Page {pagination.page} of {pagination.totalPages} · {pagination.totalCount} total
+              Page {pagination.page} of {pagination.totalPages} ·{" "}
+              {pagination.totalCount} total
             </p>
           )}
         </>

@@ -1,18 +1,20 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useAppDispatch, useAppSelector } from '@/store';
-import { fetchProductByIdThunk } from '@/features/products/productsThunks';
-import { addToCartThunk } from '@/features/cart/cartThunks';
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "@/store";
+import { fetchProductByIdThunk } from "@/features/products/productsThunks";
+import { addToCartThunk } from "@/features/cart/cartThunks";
 import {
   selectCurrentProduct,
   selectProductsError,
-  selectProductsIsLoading,
-} from '@/features/products/productsSelectors';
-import { selectCartIsLoading } from '@/features/cart/cartSelectors';
-import WishlistButton from '@/features/wishlist/components/WishlistButton';
-import { EmptyState, ErrorState } from '@/components/common/AsyncState';
-import { Skeleton, TextBlockSkeleton } from '@/components/common/Skeleton';
-import { notifySuccess } from '@/utils/toast';
+  selectProductsLoading,
+} from "@/features/products/productsSlice";
+
+const selectProductsIsLoading = selectProductsLoading;
+import { selectCartIsLoading } from "@/features/cart/cartSelectors";
+import WishlistButton from "@/features/wishlist/components/WishlistButton";
+import { EmptyState, ErrorState } from "@/components/common/AsyncState";
+import { Skeleton, TextBlockSkeleton } from "@/components/common/Skeleton";
+import { notifySuccess } from "@/utils/toast";
 
 export default function ProductDetail() {
   const dispatch = useAppDispatch();
@@ -29,12 +31,12 @@ export default function ProductDetail() {
       (!isLoading
         ? {
             id: Number(id) || 1,
-            name: 'Demo Product',
-            brand: 'Demo',
-            description: 'Demo product description.',
+            name: "Demo Product",
+            brand: "Demo",
+            description: "Demo product description.",
             base_price: 49.99,
-            image_url: 'https://via.placeholder.com/600x600?text=Demo+Product',
-            variants: [{ id: 1001, sku: 'DEMO-1001' }],
+            image_url: "https://via.placeholder.com/600x600?text=Demo+Product",
+            variants: [{ id: 1001, sku: "DEMO-1001" }],
           }
         : null),
     [id, isLoading, product],
@@ -58,12 +60,14 @@ export default function ProductDetail() {
         variant_id: defaultVariantId,
         quantity: Math.max(1, Number(quantity) || 1),
         product_name: displayProduct?.name,
-        price: Number(displayProduct?.base_price ?? displayProduct?.price ?? 49.99),
-      })
+        price: Number(
+          displayProduct?.base_price ?? displayProduct?.price ?? 49.99,
+        ),
+      }),
     );
 
     if (addToCartThunk.fulfilled.match(resultAction)) {
-      notifySuccess('Added to cart successfully');
+      notifySuccess("Added to cart successfully");
     }
   };
 
@@ -82,21 +86,30 @@ export default function ProductDetail() {
       )}
 
       {error && (
-        <ErrorState title="Failed to load product" message={error} onRetry={() => dispatch(fetchProductByIdThunk(Number(id)))} />
+        <ErrorState
+          title="Failed to load product"
+          message={error}
+          onRetry={() => dispatch(fetchProductByIdThunk(Number(id)))}
+        />
       )}
 
       {!isLoading && displayProduct && (
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
           <div className="product-image overflow-hidden rounded-lg">
             <img
-              src={displayProduct.image_url || 'https://via.placeholder.com/600x600?text=No+Image'}
+              src={
+                displayProduct.image_url ||
+                "https://via.placeholder.com/600x600?text=No+Image"
+              }
               alt={displayProduct.name}
               className="h-full w-full object-cover"
             />
           </div>
 
           <div className="flex flex-col">
-            <div className="mb-2 text-sm text-gray-500">{displayProduct.brand || 'No brand'}</div>
+            <div className="mb-2 text-sm text-gray-500">
+              {displayProduct.brand || "No brand"}
+            </div>
             <div className="mb-4 flex items-start justify-between gap-4">
               <h1 className="text-4xl font-bold">{displayProduct.name}</h1>
               <WishlistButton productId={displayProduct.id} size="lg" />
@@ -111,13 +124,15 @@ export default function ProductDetail() {
             <div className="mb-8 text-gray-700">
               <h2 className="mb-2 text-lg font-semibold">Description</h2>
               <p className="leading-relaxed">
-                {displayProduct.description || 'No description available.'}
+                {displayProduct.description || "No description available."}
               </p>
             </div>
 
             {displayProduct.variants && displayProduct.variants.length > 0 && (
               <div className="mb-6">
-                <h3 className="mb-2 text-sm font-semibold">Available Variants</h3>
+                <h3 className="mb-2 text-sm font-semibold">
+                  Available Variants
+                </h3>
                 <div className="flex flex-wrap gap-2">
                   {displayProduct.variants.map((variant) => (
                     <div
@@ -136,7 +151,10 @@ export default function ProductDetail() {
               <div className="card-shell mt-auto">
                 <div className="flex flex-wrap items-center gap-4">
                   <div>
-                    <label htmlFor="quantity" className="mb-1 block text-sm font-medium">
+                    <label
+                      htmlFor="quantity"
+                      className="mb-1 block text-sm font-medium"
+                    >
                       Quantity
                     </label>
                     <input
@@ -154,29 +172,36 @@ export default function ProductDetail() {
                     disabled={isCartLoading}
                     className="btn-primary mt-auto disabled:cursor-not-allowed"
                   >
-                    {isCartLoading ? 'Adding...' : 'Add to Cart'}
+                    {isCartLoading ? "Adding..." : "Add to Cart"}
                   </button>
                 </div>
               </div>
             ) : (
               <div className="rounded-md border border-yellow-500 bg-yellow-50 p-4 text-sm text-yellow-900">
-                This product is not available for purchase yet (no variants available).
+                This product is not available for purchase yet (no variants
+                available).
               </div>
             )}
 
             <div className="mt-8 border-t pt-6 text-sm text-gray-600">
               <div className="flex justify-between py-2">
                 <span>SKU:</span>
-                <span className="font-medium">{displayProduct.sku || 'N/A'}</span>
+                <span className="font-medium">
+                  {displayProduct.sku || "N/A"}
+                </span>
               </div>
               <div className="flex justify-between py-2">
                 <span>Category:</span>
-                <span className="font-medium">{displayProduct.category || 'Uncategorized'}</span>
+                <span className="font-medium">
+                  {displayProduct.category || "Uncategorized"}
+                </span>
               </div>
               {displayProduct.weight && (
                 <div className="flex justify-between py-2">
                   <span>Weight:</span>
-                  <span className="font-medium">{displayProduct.weight} lbs</span>
+                  <span className="font-medium">
+                    {displayProduct.weight} lbs
+                  </span>
                 </div>
               )}
             </div>
@@ -189,7 +214,7 @@ export default function ProductDetail() {
           title="Product not found"
           message="The item may have been removed or is no longer available."
           actionLabel="Browse all products"
-          onAction={() => navigate('/products')}
+          onAction={() => navigate("/products")}
         />
       )}
     </div>

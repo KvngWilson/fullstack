@@ -1,11 +1,11 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from "@reduxjs/toolkit";
 import {
   fetchOrdersThunk,
   fetchOrderByIdThunk,
   createOrderThunk,
   cancelOrderThunk,
   trackOrderThunk,
-} from './ordersThunks';
+} from "./ordersThunks";
 
 const initialState = {
   items: [],
@@ -17,7 +17,7 @@ const initialState = {
 };
 
 const ordersSlice = createSlice({
-  name: 'orders',
+  name: "orders",
   initialState,
   reducers: {
     clearCurrentOrder: (state) => {
@@ -40,7 +40,7 @@ const ordersSlice = createSlice({
       })
       .addCase(fetchOrdersThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Failed to fetch orders';
+        state.error = action.payload || "Failed to fetch orders";
       })
       .addCase(fetchOrderByIdThunk.pending, (state) => {
         state.isLoading = true;
@@ -52,7 +52,7 @@ const ordersSlice = createSlice({
       })
       .addCase(fetchOrderByIdThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Failed to fetch order details';
+        state.error = action.payload || "Failed to fetch order details";
       })
       .addCase(createOrderThunk.pending, (state) => {
         state.isLoading = true;
@@ -67,7 +67,7 @@ const ordersSlice = createSlice({
       })
       .addCase(createOrderThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Failed to create order';
+        state.error = action.payload || "Failed to create order";
       })
       .addCase(cancelOrderThunk.fulfilled, (state, action) => {
         const canceledOrder = action.payload;
@@ -77,7 +77,7 @@ const ordersSlice = createSlice({
         }
 
         state.items = state.items.map((order) =>
-          order.id === canceledOrder.id ? canceledOrder : order
+          order.id === canceledOrder.id ? canceledOrder : order,
         );
 
         if (state.currentOrder?.id === canceledOrder.id) {
@@ -85,14 +85,14 @@ const ordersSlice = createSlice({
         }
       })
       .addCase(cancelOrderThunk.rejected, (state, action) => {
-        state.error = action.payload || 'Failed to cancel order';
+        state.error = action.payload || "Failed to cancel order";
       })
       .addCase(trackOrderThunk.fulfilled, (state, action) => {
         const { orderId, tracking } = action.payload;
         state.trackingByOrderId[orderId] = tracking;
       })
       .addCase(trackOrderThunk.rejected, (state, action) => {
-        state.error = action.payload || 'Failed to track order';
+        state.error = action.payload || "Failed to track order";
       });
   },
 });
