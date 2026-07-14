@@ -14,7 +14,4 @@ router.use("/", adminRouter);
 router.use("/analytics", analyticsRouter);
 router.use("/content", contentRouter);
 
-// Expose admin API router so app wiring can use a single adminRoutes import
-router.api = adminApiRouter;
-
 module.exports = router;

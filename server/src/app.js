@@ -35,6 +35,7 @@ const { registerDomainSubscribers } = require("../domain/subscribers");
 const { createAdminApp } = require("./admin-app");
 
 const adminRoutes = require("../api/routes/admin");
+const adminApiRoutes = require("../api/routes/v1/admin");
 const authRoutes = require("../api/routes/v1/auth");
 const identityRoutes = require("../api/routes/v1/identity");
 const catalogRoutes = require("../api/routes/v1/catalog");
@@ -116,7 +117,7 @@ function registerRoutes(app) {
   app.use("/api/v1/payments", paymentsRoutes);
   app.use("/api/v1/vendors", vendorRoutes);
   app.use("/api/v1/wishlist", wishlistRoutes);
-  app.use("/api/v1/admin", adminRoutes.api);
+  app.use("/api/v1/admin", adminApiRoutes);
 
   // Guest checkout - allows non-authenticated users to shop and purchase
   app.use("/api/v1/guest/cart", guestCartRoutes);

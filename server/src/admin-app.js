@@ -8,6 +8,7 @@ const { csrfProtection } = require("../api/middleware/csrf");
 const { getSecurityMiddleware, getCorsOptions } = require("../config/security");
 const { correlationIdMiddleware, requestTimingMiddleware } = require("../api/middleware/requestContext");
 const { errorHandler, notFoundHandler } = require("../api/middleware/error");
+const { healthCheck, detailedHealthCheck, readinessCheck, livenessCheck } = require("../api/controllers/health");
 
 const adminRoutes = require("../api/routes/admin");
 
@@ -46,6 +47,47 @@ function createAdminApp() {
 
   adminApp.set("view engine", "ejs");
   adminApp.set("views", path.join(__dirname, "../views"));
+
+  adminApp.get("/health", healthCheck);
+  adminApp.get("/health/detailed", detailedHealthCheck);
+  adminApp.get("/health/ready", readinessCheck);
+  adminApp.get("/health/live", livenessCheck);
+
+  // Expose Bull queues status for admin monitoring
+  adminApp.get('/health/jobs', async (req, res) => {
+    try {
+      const { getJobQueuesRuntime } = require('../infrastructure/jobs/runtime');
+      const queuesRuntime = getJobQueuesRuntime();
+
+      if (!queuesRuntime) {
+        return res.status(503).json({ 
+          status: 'unavailable', 
+          message: 'Job queues not initialized' 
+        });
+      }
+
+      // Get stats from all queues
+      const queueStats = {};
+      if (queuesRuntime.emailJobQueue) {
+        queueStats.email = await queuesRuntime.emailJobQueue.getStats();
+      }
+      if (queuesRuntime.webhookJobQueue) {
+        queueStats.webhooks = await queuesRuntime.webhookJobQueue.getStats();
+      }
+      if (queuesRuntime.exchangeRateJobQueue) {
+        queueStats['exchange-rates'] = await queuesRuntime.exchangeRateJobQueue.getStats();
+      }
+
+      res.status(200).json({ 
+        status: 'ok', 
+        queues: queueStats,
+        note: 'Jobs are processed by the Bull worker service. See /health/jobs/queue/{name} for details.'
+      });
+    } catch (err) {
+      res.status(500).json({ status: 'error', error: err.message });
+    }
+  });
+
   adminApp.use("/", adminRoutes);
 
   adminApp.use(notFoundHandler);
