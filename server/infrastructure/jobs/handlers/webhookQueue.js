@@ -4,6 +4,7 @@
  */
 
 const { logger } = require('../../../shared/utils/logger');
+const { fireAndForgetWithErrorLog } = require('../../../shared/utils/asyncErrorHandler');
 
 /**
  * Webhook Job Queue.
@@ -169,6 +170,33 @@ class WebhookJobQueue {
     logger.info('Webhook job retry scheduled', { jobId });
 
     return job;
+  }
+
+  /**
+   * Report job failure with standardized error logging
+   * @private
+   * @param {object} job - Bull job object
+   * @param {object} error - Error object
+   */
+  async reportJobFailure(job, error) {
+    await fireAndForgetWithErrorLog(
+      async () => {
+        logger.error('Webhook processing job failure', {
+          jobId: job.id,
+          provider: job.data.provider,
+          event: job.data.event,
+          attempts: job.attemptsMade + 1,
+          maxAttempts: job.opts.attempts,
+          error: error.message,
+        });
+      },
+      {
+        service: 'WebhookJobQueue',
+        operation: 'reportJobFailure',
+        context: { jobId: job.id, provider: job.data.provider, event: job.data.event },
+        severity: 'error'
+      }
+    );
   }
 }
 

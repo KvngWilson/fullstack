@@ -13,6 +13,7 @@ const logger = require('../../../shared/utils/logger');
 const MetricsRegistry = require('../../../infrastructure/metrics/MetricsRegistry');
 const StructuredLogger = require('../../../infrastructure/logging/StructuredLogger');
 const { sendOpsAlert } = require('../../../infrastructure/notifications/alerts');
+const { fireAndForgetWithErrorLog } = require('../../../shared/utils/asyncErrorHandler');
 
 class FailedWebhookHandler {
   constructor(webhookEventRepository, trackingService) {
@@ -191,21 +192,24 @@ class FailedWebhookHandler {
     this.metricsRegistry.incrementCounter('webhook_permanent_failure', 1);
     this.metricsRegistry.incrementCounter(`webhook_failure_by_provider_${event.provider}`, 1);
 
-    try {
-      await sendOpsAlert({
-        severity: 'critical',
-        title: `Webhook Permanently Failed: ${event.provider}`,
-        description: `Failed to process webhook event after max retries. Manual intervention required.`,
+    await fireAndForgetWithErrorLog(
+      async () => {
+        await sendOpsAlert({
+          severity: 'critical',
+          title: `Webhook Permanently Failed: ${event.provider}`,
+          description: `Failed to process webhook event after max retries. Manual intervention required.`,
+          context: alertContext,
+          service: 'shipping-webhooks',
+          actionRequired: true,
+        });
+      },
+      {
+        service: 'FailedWebhookHandler',
+        operation: 'alertPermanentFailure',
         context: alertContext,
-        service: 'shipping-webhooks',
-        actionRequired: true,
-      });
-    } catch (alertError) {
-      this.structuredLogger.error('Failed to send ops alert', {
-        originalError: error.message,
-        alertError: alertError.message,
-      });
-    }
+        severity: 'error'
+      }
+    );
   }
 
   /**

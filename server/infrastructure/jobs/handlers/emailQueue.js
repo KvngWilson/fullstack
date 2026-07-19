@@ -4,6 +4,7 @@
  */
 
 const { logger } = require('../../../shared/utils/logger');
+const { fireAndForgetWithErrorLog } = require('../../../shared/utils/asyncErrorHandler');
 
 /**
  * Email Job Queue.
@@ -207,6 +208,33 @@ class EmailJobQueue {
 
     logger.info('Old failed email jobs cleared', { count: removed });
     return removed;
+  }
+
+  /**
+   * Report job failure with standardized error logging
+   * @private
+   * @param {object} job - Bull job object
+   * @param {object} error - Error object
+   */
+  async reportJobFailure(job, error) {
+    await fireAndForgetWithErrorLog(
+      async () => {
+        logger.error('Email job failure', {
+          jobId: job.id,
+          email: job.data.email,
+          template: job.data.template,
+          attempts: job.attemptsMade + 1,
+          maxAttempts: job.opts.attempts,
+          error: error.message,
+        });
+      },
+      {
+        service: 'EmailJobQueue',
+        operation: 'reportJobFailure',
+        context: { jobId: job.id, email: job.data.email },
+        severity: 'error'
+      }
+    );
   }
 }
 
