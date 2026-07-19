@@ -61,6 +61,7 @@ INSERT INTO users (email, password_hash, first_name, last_name, role, email_veri
     ('admin@example.com', '$argon2id$v=19$m=65536,t=3,p=4$s0X7F4nKvaKGdqATQrcxuw$vT7EkeCi6owWfJNV0EMufiAevAv5jUiOG64IK39GtAg', 'Admin', 'User', 'admin', true, true, true),
     ('vendor1@example.com', '$argon2id$v=19$m=65536,t=3,p=4$nIad+af0ZV66NXmAKQkIGA$qrhFH9wybTvZpYPTm+DbqvJh/YeMYiWO8QbFkEtTQzM', 'John', 'Fashion', 'vendor', true, true, true),
     ('vendor2@example.com', '$argon2id$v=19$m=65536,t=3,p=4$nIad+af0ZV66NXmAKQkIGA$qrhFH9wybTvZpYPTm+DbqvJh/YeMYiWO8QbFkEtTQzM', 'Sarah', 'Tech', 'vendor', true, true, true),
+    ('vendor3@example.com', '$argon2id$v=19$m=65536,t=3,p=4$nIad+af0ZV66NXmAKQkIGA$qrhFH9wybTvZpYPTm+DbqvJh/YeMYiWO8QbFkEtTQzM', 'Mike', 'Fashion2', 'vendor', true, true, true),
     ('customer1@example.com', '$argon2id$v=19$m=65536,t=3,p=4$9vG2da3l0sNnIyE7oorOCA$xU5XeKLGcHzUIyc35sVvd1y+A/pVioQEP/OvqkFrm14', 'John', 'Doe', 'customer', true, true, true),
     ('customer2@example.com', '$argon2id$v=19$m=65536,t=3,p=4$9vG2da3l0sNnIyE7oorOCA$xU5XeKLGcHzUIyc35sVvd1y+A/pVioQEP/OvqkFrm14', 'Jane', 'Smith', 'customer', true, true, true),
     ('customer3@example.com', '$argon2id$v=19$m=65536,t=3,p=4$9vG2da3l0sNnIyE7oorOCA$xU5XeKLGcHzUIyc35sVvd1y+A/pVioQEP/OvqkFrm14', 'Bob', 'Johnson', 'customer', true, true, true),
@@ -74,25 +75,26 @@ INSERT INTO tenant_users (tenant_id, user_id, role, is_active, invited_by, joine
     (1, 1, 'admin', true, NULL, NOW()),
     (1, 2, 'vendor', true, 1, NOW()),
     (1, 3, 'vendor', true, 1, NOW()),
-    (1, 4, 'member', true, 1, NOW()),
+    (1, 4, 'vendor', true, 1, NOW()),
     (1, 5, 'member', true, 1, NOW()),
     (1, 6, 'member', true, 1, NOW()),
-    (1, 7, 'support', true, 1, NOW()),
+    (1, 7, 'member', true, 1, NOW()),
+    (1, 8, 'support', true, 1, NOW()),
     -- Fashion Marketplace
     (2, 1, 'admin', true, NULL, NOW()),
     (2, 2, 'vendor_manager', true, 1, NOW()),
-    (2, 4, 'member', true, 1, NOW()),
+    (2, 5, 'member', true, 1, NOW()),
     -- Tech Store
     (3, 1, 'admin', true, NULL, NOW()),
     (3, 3, 'vendor_manager', true, 1, NOW());
 
 -- ====================
--- 5. Vendors (Vendor Domain)
+-- 5. Vendors (Vendor Domain) - UNIQUE user_id constraint!
 -- ====================
 INSERT INTO vendors (user_id, tenant_id, store_name, slug, description, status) VALUES
     (2, 1, 'Fashion Hub', 'fashion-hub', 'Premium fashion and accessories', 'active'),
     (3, 1, 'Tech Store', 'tech-store', 'Latest electronics and gadgets', 'active'),
-    (2, 2, 'Fashion Marketplace Vendor', 'fashion-marketplace-vendor', 'Primary fashion vendor', 'active');
+    (4, 2, 'Fashion Marketplace Vendor', 'fashion-marketplace-vendor', 'Primary fashion vendor', 'active');
 
 -- ====================
 -- 6. Categories (Catalog Domain)
@@ -119,8 +121,8 @@ INSERT INTO products (vendor_id, tenant_id, category_id, name, slug, description
     (1, 1, 7, 'Designer Handbag', 'designer-handbag', 'Premium leather handbag', 449.99, true, 2),
     (2, 1, 2, 'Gaming Laptop', 'gaming-laptop', 'High-performance gaming laptop', 1299.99, true, 3),
     (2, 1, 3, 'Smartphone Pro', 'smartphone-pro', 'Latest flagship smartphone', 899.99, true, 3),
-    (3, 2, 8, 'Casual Dress', 'casual-dress', 'Comfortable casual dress for women', 59.99, true, 2),
-    (3, 3, 12, 'Workstation PC', 'workstation-pc', 'Professional workstation computer', 1999.99, true, 3);
+    (3, 2, 8, 'Casual Dress', 'casual-dress', 'Comfortable casual dress for women', 59.99, true, 4),
+    (3, 3, 12, 'Workstation PC', 'workstation-pc', 'Professional workstation computer', 1999.99, true, 4);
 
 -- ====================
 -- 8. Product Variants (Catalog Domain)
@@ -155,18 +157,18 @@ INSERT INTO product_variants (product_id, sku, price_cents, stock, attributes) V
 -- 9. Addresses (Ordering Domain)
 -- ====================
 INSERT INTO addresses (user_id, tenant_id, first_name, last_name, phone, street, city, state, postal_code, country, is_primary) VALUES
-    (4, 1, 'John', 'Doe', '555-0101', '123 Main St', 'New York', 'NY', '10001', 'USA', true),
-    (4, 1, 'John', 'Doe', '555-0101', '456 Oak Ave', 'Brooklyn', 'NY', '11201', 'USA', false),
-    (5, 1, 'Jane', 'Smith', '555-0102', '789 Pine Rd', 'Los Angeles', 'CA', '90001', 'USA', true),
-    (6, 1, 'Bob', 'Johnson', '555-0103', '321 Elm St', 'Chicago', 'IL', '60601', 'USA', true);
+    (5, 1, 'John', 'Doe', '555-0101', '123 Main St', 'New York', 'NY', '10001', 'USA', true),
+    (5, 1, 'John', 'Doe', '555-0101', '456 Oak Ave', 'Brooklyn', 'NY', '11201', 'USA', false),
+    (6, 1, 'Jane', 'Smith', '555-0102', '789 Pine Rd', 'Los Angeles', 'CA', '90001', 'USA', true),
+    (7, 1, 'Bob', 'Johnson', '555-0103', '321 Elm St', 'Chicago', 'IL', '60601', 'USA', true);
 
 -- ====================
 -- 10. Carts (Ordering Domain)
 -- ====================
 INSERT INTO carts (user_id, tenant_id, status) VALUES
-    (4, 1, 'active'),
     (5, 1, 'active'),
-    (6, 1, 'active');
+    (6, 1, 'active'),
+    (7, 1, 'active');
 
 -- ====================
 -- 11. Cart Items (Ordering Domain)
@@ -181,11 +183,11 @@ INSERT INTO cart_items (cart_id, tenant_id, product_variant_id, quantity, unit_p
 -- 12. Orders (Ordering Domain)
 -- ====================
 INSERT INTO orders (user_id, tenant_id, order_number, status, payment_status, fulfillment_status, currency, subtotal_cents, tax_cents, shipping_cents, total_cents) VALUES
-    (4, 1, 'ORD-20260719-0001', 'delivered', 'succeeded', 'fulfilled', 'USD', 52997, 3000, 7000, 62997),
-    (5, 1, 'ORD-20260719-0002', 'shipped', 'succeeded', 'partial', 'USD', 89999, 0, 0, 89999),
-    (6, 1, 'ORD-20260719-0003', 'pending', 'pending', 'unfulfilled', 'USD', 129999, 0, 0, 129999),
-    (4, 2, 'ORD-20260719-0004', 'paid', 'succeeded', 'unfulfilled', 'USD', 5999, 400, 0, 6399),
-    (6, 3, 'ORD-20260719-0005', 'processing', 'pending', 'unfulfilled', 'USD', 199999, 15000, 5000, 219999);
+    (5, 1, 'ORD-20260719-0001', 'delivered', 'succeeded', 'fulfilled', 'USD', 52997, 3000, 7000, 62997),
+    (6, 1, 'ORD-20260719-0002', 'shipped', 'succeeded', 'partial', 'USD', 89999, 0, 0, 89999),
+    (7, 1, 'ORD-20260719-0003', 'pending', 'pending', 'unfulfilled', 'USD', 129999, 0, 0, 129999),
+    (5, 2, 'ORD-20260719-0004', 'paid', 'succeeded', 'unfulfilled', 'USD', 5999, 400, 0, 6399),
+    (7, 3, 'ORD-20260719-0005', 'processing', 'pending', 'unfulfilled', 'USD', 199999, 15000, 5000, 219999);
 
 -- ====================
 -- 13. Order Items (Ordering Domain)
@@ -227,11 +229,11 @@ INSERT INTO payments (order_id, stripe_payment_id, processor, status, amount_cen
 -- 16. Reviews
 -- ====================
 INSERT INTO reviews (user_id, product_id, rating, title, comment) VALUES
-    (4, 1, 5, 'Perfect!', 'Beautiful dress, fits perfectly!'),
-    (4, 3, 4, 'Great quality', 'Great quality handbag, love it'),
-    (5, 5, 5, 'Amazing!', 'Amazing phone, best purchase ever!'),
-    (4, 6, 5, 'Excellent', 'Perfect casual dress for everyday wear'),
-    (6, 7, 5, 'Highly recommend', 'Excellent workstation, highly recommend');
+    (5, 1, 5, 'Perfect!', 'Beautiful dress, fits perfectly!'),
+    (5, 3, 4, 'Great quality', 'Great quality handbag, love it'),
+    (6, 5, 5, 'Amazing!', 'Amazing phone, best purchase ever!'),
+    (5, 6, 5, 'Excellent', 'Perfect casual dress for everyday wear'),
+    (7, 7, 5, 'Highly recommend', 'Excellent workstation, highly recommend');
 
 -- ====================
 -- 17. Roles (RBAC)
@@ -290,7 +292,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO vendor_staff (vendor_id, user_id, role_id, status, invited_by) VALUES
     (1, 2, (SELECT id FROM roles WHERE vendor_id = 1 AND code = 'VENDOR_OWNER' LIMIT 1), 'active', 1),
     (2, 3, (SELECT id FROM roles WHERE vendor_id = 2 AND code = 'VENDOR_OWNER' LIMIT 1), 'active', 1),
-    (3, 2, (SELECT id FROM roles WHERE vendor_id = 3 AND code = 'VENDOR_OWNER' LIMIT 1), 'active', 1);
+    (3, 4, (SELECT id FROM roles WHERE vendor_id = 3 AND code = 'VENDOR_OWNER' LIMIT 1), 'active', 1);
 
 -- ====================
 -- 21. Audit Logs
@@ -300,14 +302,14 @@ INSERT INTO audit_logs (vendor_id, user_id, action, resource, metadata) VALUES
     (1, 2, 'create', 'product', '{"product_id": 2, "name": "Leather Jacket"}'),
     (2, 3, 'create', 'product', '{"product_id": 4, "name": "Gaming Laptop"}'),
     (NULL, 1, 'create', 'vendor', '{"vendor_id": 1, "store_name": "Fashion Hub"}'),
-    (3, 2, 'create', 'product', '{"product_id": 6, "name": "Casual Dress"}'),
-    (3, 3, 'create', 'product', '{"product_id": 7, "name": "Workstation PC"}');
+    (3, 4, 'create', 'product', '{"product_id": 6, "name": "Casual Dress"}'),
+    (3, 4, 'create', 'product', '{"product_id": 7, "name": "Workstation PC"}');
 
 -- ====================
 -- 22. Bulk Test Data
 -- ====================
 
--- Additional customers
+-- Additional customers (50 more)
 INSERT INTO users (email, password_hash, role, email_verified, is_verified, is_active)
 SELECT
     'customer' || gs || '@example.com',
@@ -316,14 +318,14 @@ SELECT
     true,
     true,
     true
-FROM generate_series(8, 57) gs;
+FROM generate_series(9, 58) gs;
 
 -- Associate with default tenant
 INSERT INTO tenant_users (tenant_id, user_id, role, is_active, joined_at)
 SELECT 1, id, 'member', true, NOW()
-FROM users WHERE id > 7;
+FROM users WHERE id > 8;
 
--- Additional products
+-- Additional products for vendor 1
 INSERT INTO products (vendor_id, tenant_id, category_id, name, slug, description, base_price, is_active, created_by)
 SELECT
     1,
@@ -347,12 +349,12 @@ SELECT
     ('{"size": "' || (ARRAY['S', 'M', 'L', 'XL'])[((variant_num - 1) % 4) + 1] || '", "color": "' || (ARRAY['Black', 'White', 'Blue', 'Red'])[((variant_num - 1) % 4) + 1] || '"}')::jsonb
 FROM products p
 CROSS JOIN generate_series(1, 2) variant_num
-WHERE p.id > 7 AND p.tenant_id = 1;
+WHERE p.id > 7 AND p.tenant_id = 1 AND p.vendor_id = 1;
 
 -- Additional orders
 INSERT INTO orders (user_id, tenant_id, order_number, status, payment_status, fulfillment_status, currency, subtotal_cents, tax_cents, shipping_cents, total_cents)
 SELECT
-    (8 + (gs % 50)),
+    (9 + (gs % 50)),
     1,
     'ORD-20260719-' || LPAD(gs::TEXT, 4, '0'),
     (ARRAY['pending', 'paid', 'shipped', 'delivered'])[((gs - 1) % 4) + 1]::order_status,
@@ -365,12 +367,12 @@ SELECT
     (10000 + (gs * 1000))
 FROM generate_series(6, 35) gs;
 
--- Order items
+-- Order items for bulk orders
 INSERT INTO order_items (order_id, product_id, product_variant_id, quantity, unit_price_cents, subtotal_cents)
 SELECT
     o.id,
-    18 + ((o.id - 6) % 30),
-    18 + ((o.id - 6) % 40),
+    (1 + ((o.id - 6) % 7)),
+    (1 + ((o.id - 6) % 17)),
     1 + ((o.id - 6) % 3),
     (5000 + (o.id * 1000)),
     ((1 + ((o.id - 6) % 3)) * (5000 + (o.id * 1000)))
@@ -392,9 +394,10 @@ WHERE o.id > 5 AND o.tenant_id = 1;
 -- Additional reviews
 INSERT INTO reviews (user_id, product_id, rating, title, comment)
 SELECT
-    (8 + (gs % 50)),
+    (9 + (gs % 50)),
     (1 + (gs % 7)),
     (3 + (gs % 3)),
     'Review ' || gs,
     'Review comment for product from user ' || gs
-FROM generate_series(6, 35) gs;
+FROM generate_series(6, 35) gs
+ON CONFLICT DO NOTHING;
