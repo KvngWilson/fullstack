@@ -1,24 +1,26 @@
 /**
  * Identity Domain
- * 
+ *
  * Handles authentication, authorization, users, roles, and permissions.
- * 
+ *
  * Services:
- * - AuthService: Authentication logic
+ * - AuthenticationService: Unified authentication (all authentication operations)
  * - UserService: User management
  * - PermissionService: Permission resolution
+ * - AdminAuthService: Admin-specific authentication
  */
 
 module.exports = {
   services: {
-    AuthService: require("./services/AuthService"),
-    EnhancedAuthService: require("./services/EnhancedAuthService"),
+    // Unified authentication service - recommended for all code
+    AuthenticationService: require("./services/AuthenticationService"),
+
     UserService: require("./services/UserService"),
     PermissionService: require("./services/PermissionService"),
+    AdminAuthService: require("../admin/AdminAuthService"),
   },
   repositories: require("./repositories"),
   policies: {
-    PasswordPolicy: require("./policies/PasswordPolicy"),
     PermissionMatrix: require("./policies/PermissionMatrix"),
   },
 };

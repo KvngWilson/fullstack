@@ -1,5 +1,5 @@
 const domain = require("../../../../domain");
-const EnhancedAuthService = domain.identity.services.EnhancedAuthService;
+const AuthenticationService = domain.identity.services.AuthenticationService;
 const { successResponse, errorResponse } = require("../../../../shared/utils/response");
 const { logger } = require("../../../../shared/utils/logger");
 const { pool } = require("../../../../config/db");
@@ -18,7 +18,7 @@ exports.resendEmailVerification = async (req, res) => {
     const userId = req.user.id;
     const email = req.user.email;
 
-    await EnhancedAuthService.sendEmailVerification(userId, email);
+    await AuthenticationService.sendEmailVerification(userId, email);
 
     return successResponse(res, {
       message: "Verification email sent successfully",
@@ -51,7 +51,7 @@ exports.verifyEmail = async (req, res) => {
       });
     }
 
-    const result = await EnhancedAuthService.verifyEmail(token);
+    const result = await AuthenticationService.verifyEmail(token);
 
     return successResponse(res, {
       data: {
@@ -88,7 +88,7 @@ exports.forgotPassword = async (req, res) => {
       });
     }
 
-    await EnhancedAuthService.requestPasswordReset(email, ipAddress);
+    await AuthenticationService.requestPasswordReset(email, ipAddress);
 
     // Always return success to prevent email enumeration
     return successResponse(res, {
@@ -135,7 +135,7 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    const result = await EnhancedAuthService.resetPassword(
+    const result = await AuthenticationService.resetPassword(
       token,
       password,
       ipAddress
@@ -228,7 +228,7 @@ exports.changePassword = async (req, res) => {
     );
 
     // Use reset password function
-    await EnhancedAuthService.resetPassword(tempToken, newPassword, ipAddress);
+    await AuthenticationService.resetPassword(tempToken, newPassword, ipAddress);
 
     return successResponse(res, {
       message: "Password changed successfully",
@@ -254,7 +254,7 @@ exports.getActiveSessions = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const sessions = await EnhancedAuthService.getActiveSessions(userId);
+    const sessions = await AuthenticationService.getActiveSessions(userId);
 
     return successResponse(res, {
       data: sessions,
@@ -281,7 +281,7 @@ exports.logoutAll = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const count = await EnhancedAuthService.revokeAllRefreshTokens(userId, "logout_all");
+    const count = await AuthenticationService.revokeAllRefreshTokens(userId, "logout_all");
 
     return successResponse(res, {
       data: { revokedCount: count },

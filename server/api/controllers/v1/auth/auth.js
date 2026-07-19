@@ -1,14 +1,7 @@
 // Authentication controller: handles login, registration, logout, token verification
 const logger = require("../../../../shared/utils/logger");
-const { verifyToken } = require("../../../../config/auth");
 const domain = require("../../../../domain");
-const {
-  AuthServiceError,
-  registerUser,
-  loginUser,
-  setAuthCookie,
-  clearAuthCookie,
-} = domain.identity.services.AuthService;
+const AuthenticationService = domain.identity.services.AuthenticationService;
 
 function safeRedirect(target, fallback = "/") {
   if (typeof target !== "string") {
@@ -29,7 +22,7 @@ function getAuthenticatedUser(req) {
     return null;
   }
 
-  return verifyToken(token);
+  return AuthenticationService.verifyJWT(token);
 }
 
 function renderLogin(req, res) {
@@ -106,7 +99,7 @@ async function postRegister(req, res) {
       },
     });
   } catch (error) {
-    if (error instanceof AuthServiceError) {
+    if (error.status) {
       return res.status(error.status).render("auth/register", {
         title: "Register",
         user: null,
@@ -144,7 +137,7 @@ async function postLogin(req, res) {
 
     return res.redirect(safeRedirect(returnTo, "/"));
   } catch (error) {
-    if (error instanceof AuthServiceError) {
+    if (error.status) {
       return res.status(error.status).render("auth/login", {
         title: "Login",
         user: null,

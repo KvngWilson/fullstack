@@ -1,25 +1,19 @@
 // User controller: handles user registration and login (legacy auth endpoints)
 const logger = require("../../../../shared/utils/logger");
-const { verifyToken, generateToken } = require("../../../../config/auth");
 const domain = require("../../../../domain");
-const {
-  AuthServiceError,
-  registerUser,
-  loginUser,
-  setAuthCookie,
-} = domain.identity.services.AuthService;
+const AuthenticationService = domain.identity.services.AuthenticationService;
 const userService = domain.identity.services.UserService;
 
 const register = async (req, res) => {
   try {
     const { email, password } = req.body || {};
-    await registerUser({ email, password });
+    await AuthenticationService.registerUser({ email, password });
 
     return res.status(200).json({
       message: "If email is new, check your inbox for registration link",
     });
   } catch (error) {
-    if (error instanceof AuthServiceError) {
+    if (error.status) {
       return res.status(error.status).json({ error: error.message });
     }
 
@@ -46,7 +40,7 @@ const login = async (req, res) => {
       token,
     });
   } catch (error) {
-    if (error instanceof AuthServiceError) {
+    if (error.status) {
       return res.status(error.status).json({ error: error.message });
     }
 

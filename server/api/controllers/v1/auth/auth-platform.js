@@ -6,13 +6,10 @@
 
 const crypto = require("crypto");
 const logger = require("../../../../shared/utils/logger");
-const { generateToken } = require("../../../../config/auth");
 const { redisClient } = require("../../../../config/redis");
 const domain = require("../../../../domain");
-const { AuthServiceError, registerUser, loginUser, setAuthCookie } =
-  domain.identity.services.AuthService;
+const AuthenticationService = domain.identity.services.AuthenticationService;
 const userService = domain.identity.services.UserService;
-const EnhancedAuthService = domain.identity.services.EnhancedAuthService;
 
 /**
  * Register a new user (platform-wide)
@@ -27,17 +24,15 @@ const register = async (req, res) => {
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.headers["user-agent"] || "unknown";
 
-    const result = await registerUser({
+    const result = await AuthenticationService.registerUser({
       email,
       password,
-      first_name,
-      last_name,
     });
 
     // Send email verification if registration successful
     if (result.user && !result.alreadyRegistered) {
       try {
-        await EnhancedAuthService.sendEmailVerification(result.user.id, email);
+        await AuthenticationService.sendEmailVerification(result.user.id, email);
       } catch (emailError) {
         logger.error("Failed to send verification email on registration", {
           userId: result.user.id,
@@ -48,7 +43,7 @@ const register = async (req, res) => {
 
     // If user just registered, automatically log them in
     if (result.user && !result.alreadyRegistered) {
-      const token = generateToken({
+      const token = AuthenticationService.generateJWT({
         id: result.user.id,
         email: result.user.email,
         role: result.user.role,
@@ -61,7 +56,7 @@ const register = async (req, res) => {
         os: parseOS(userAgent),
       };
 
-      const refreshToken = await EnhancedAuthService.generateRefreshToken(
+      const refreshToken = await AuthenticationService.generateRefreshToken(
         result.user.id,
         ipAddress,
         userAgent,
@@ -100,7 +95,7 @@ const register = async (req, res) => {
         "Registration successful. Please check your email to verify your account.",
     });
   } catch (error) {
-    if (error instanceof AuthServiceError) {
+    if (error.status) {
       return res.status(error.status).json({
         success: false,
         error: error.message,
@@ -141,7 +136,7 @@ const login = async (req, res) => {
       os: parseOS(userAgent),
     };
 
-    const refreshToken = await EnhancedAuthService.generateRefreshToken(
+    const refreshToken = await AuthenticationService.generateRefreshToken(
       user.id,
       ipAddress,
       userAgent,
@@ -174,7 +169,7 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
-    if (error instanceof AuthServiceError) {
+    if (error.status) {
       return res.status(error.status).json({
         success: false,
         error: error.message,
@@ -215,7 +210,7 @@ const refreshToken = async (req, res) => {
     }
 
     // Validate and rotate refresh token
-    const result = await EnhancedAuthService.validateAndRotateRefreshToken(
+    const result = await AuthenticationService.validateAndRotateRefreshToken(
       refresh_token,
       ipAddress,
       userAgent,
@@ -275,7 +270,7 @@ const logout = async (req, res) => {
     // Revoke refresh token
     if (refresh_token) {
       try {
-        await EnhancedAuthService.revokeRefreshToken(refresh_token, "logout");
+        await AuthenticationService.revokeRefreshToken(refresh_token, "logout");
       } catch (error) {
         logger.warn("Failed to revoke refresh token on logout", {
           error: error.message,

@@ -5,11 +5,8 @@
  */
 
 const logger = require("../../../../shared/utils/logger");
-const { verifyToken } = require("../../../../config/auth");
 const domain = require("../../../../domain");
-const { AuthServiceError, loginUser, setAuthCookie, clearAuthCookie } =
-  domain.identity.services.AuthService;
-const EnhancedAuthService = domain.identity.services.EnhancedAuthService;
+const AuthenticationService = domain.identity.services.AuthenticationService;
 
 // Admin and employee roles
 const ALLOWED_ADMIN_ROLES = ["admin", "employee"];
@@ -57,7 +54,7 @@ function getAuthenticatedAdminUser(req) {
     return null;
   }
 
-  const decoded = verifyToken(token);
+  const decoded = AuthenticationService.verifyJWT(token);
   if (!decoded) {
     return null;
   }
@@ -131,7 +128,7 @@ async function postAdminLogin(req, res) {
 
     return res.redirect(safeRedirect(returnTo, "/dashboard"));
   } catch (error) {
-    if (error instanceof AuthServiceError) {
+    if (error.status) {
       return res.status(error.status).render("auth/login", {
         title: "Admin Login",
         user: null,
@@ -194,7 +191,7 @@ async function apiAdminLogin(req, res) {
       os: parseOS(userAgent),
     };
 
-    const refreshToken = await EnhancedAuthService.generateRefreshToken(
+    const refreshToken = await AuthenticationService.generateRefreshToken(
       user.id,
       ipAddress,
       userAgent,
@@ -225,7 +222,7 @@ async function apiAdminLogin(req, res) {
       },
     });
   } catch (error) {
-    if (error instanceof AuthServiceError) {
+    if (error.status) {
       return res.status(error.status).json({
         success: false,
         error: error.message,
@@ -252,7 +249,7 @@ async function postAdminLogout(req, res) {
   const refreshToken = req.cookies?.refresh_token;
   if (refreshToken) {
     try {
-      await EnhancedAuthService.revokeRefreshToken(refreshToken, "logout");
+      await AuthenticationService.revokeRefreshToken(refreshToken, "logout");
     } catch (error) {
       logger.warn("Failed to revoke admin refresh token during SSR logout", {
         error: error.message,
@@ -273,7 +270,7 @@ async function apiAdminLogout(req, res) {
   const refreshToken = req.cookies?.refresh_token;
   if (refreshToken) {
     try {
-      await EnhancedAuthService.revokeRefreshToken(refreshToken, "logout");
+      await AuthenticationService.revokeRefreshToken(refreshToken, "logout");
     } catch (error) {
       logger.warn("Failed to revoke admin refresh token during API logout", {
         error: error.message,
