@@ -1,6 +1,7 @@
 const logger = require("../../../shared/utils/logger");
+const { fireAndForgetWithErrorLog } = require("../../../shared/utils/asyncErrorHandler");
 const { pool } = require("../../../config/db");
-const paymentPolicy = require("../../../policies/paymentPolicy");
+const PERMISSIONS = require("../../../shared/constants/permissions");
 const PaymentRepository = require("../repositories/PaymentRepository");
 const BaseService = require("../../base/BaseService");
 
@@ -55,7 +56,7 @@ class PaymentService extends BaseService {
 
     // Permission validation for admin payment creation
     if (employeeId) {
-      await this.validatePermission(employeeId, paymentPolicy.create);
+      await this.validatePermission(employeeId, PERMISSIONS.PAYMENT.CREATE);
     }
 
     // Validate order ownership
@@ -172,15 +173,14 @@ class PaymentService extends BaseService {
       orderId,
     });
 
-    try {
-      await eventDispatcher.publish(initiatedEvent);
-    } catch (publishError) {
-      logger.warn("Payment initiated event publish failed", {
-        paymentId: paymentRecord.id,
-        orderId,
-        error: publishError.message,
-      });
-    }
+    fireAndForgetWithErrorLog(
+        () => eventDispatcher.publish(initiatedEvent),
+        {
+          operation: 'publishPaymentInitiatedEvent',
+          id: payment.id,
+          severity: 'warn'
+        }
+      )
 
     // Audit log
     if (employeeId) {
@@ -212,7 +212,7 @@ class PaymentService extends BaseService {
   async verifyPaymentStatus(reference, userId, employeeId = null) {
     // Permission validation for admin payment verification
     if (employeeId) {
-      await this.validatePermission(employeeId, paymentPolicy.verify);
+      await this.validatePermission(employeeId, PERMISSIONS.PAYMENT.VERIFY);
     }
 
     // Get payment record
@@ -258,14 +258,14 @@ class PaymentService extends BaseService {
         eventType: failedEvent.type,
       });
 
-      try {
-        await eventDispatcher.publish(failedEvent);
-      } catch (publishError) {
-        logger.warn("Payment failed event publish failed", {
-          reference,
-          error: publishError.message,
-        });
-      }
+      fireAndForgetWithErrorLog(
+        () => eventDispatcher.publish(failedEvent),
+        {
+          operation: 'publishPaymentFailedEvent',
+          id: payment.id,
+          severity: 'warn'
+        }
+      )
 
       throw {
         status: 400,
@@ -306,15 +306,14 @@ class PaymentService extends BaseService {
       orderId: updatedPayment.order_id,
     });
 
-    try {
-      await eventDispatcher.publish(successEvent);
-    } catch (publishError) {
-      logger.warn("Payment success event publish failed", {
-        paymentId: updatedPayment.id,
-        orderId: updatedPayment.order_id,
-        error: publishError.message,
-      });
-    }
+    fireAndForgetWithErrorLog(
+        () => eventDispatcher.publish(successEvent),
+        {
+          operation: 'publishPaymentSucceededEvent',
+          id: payment.id,
+          severity: 'warn'
+        }
+      )
 
     // Audit log
     if (employeeId) {

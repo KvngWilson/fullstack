@@ -6,6 +6,7 @@ const {
   validatePassword,
 } = require("../../../shared/utils/validate");
 const { sendEmailJob } = require("../../../infrastructure/email/email");
+const { fireAndForgetWithRetry } = require("../../../shared/utils/asyncErrorHandler");
 
 /**
  * Vendor Application Service

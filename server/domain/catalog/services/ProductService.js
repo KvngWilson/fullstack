@@ -1,10 +1,11 @@
-const productRepository = require("../repositories/ProductRpository");
+const productRepository = require("../repositories/ProductRepository");
 const categoryRepository = require("../repositories/CategoryRepository");
 const BaseService = require("../../base/BaseService");
 const { PricingPolicy } = require("../policies");
 const { ProductCreated } = require("../events");
-const productPolicy = require("../../../policies/productPolicy");
+const PERMISSIONS = require("../../../shared/constants/permissions");
 const logger = require("../../../shared/utils/logger");
+const { fireAndForgetWithErrorLog } = require("../../../shared/utils/asyncErrorHandler");
 const eventDispatcher = require("../../shared/events/dispatcher");
 
 /**
@@ -35,7 +36,7 @@ class ProductService extends BaseService {
   async create(productData, employeeId = null) {
     // Permission validation
     if (employeeId) {
-      await this.validatePermission(employeeId, productPolicy.create);
+      await this.validatePermission(employeeId, PERMISSIONS.PRODUCT.CREATE);
     }
 
     if (productData.base_price !== undefined) {
@@ -60,19 +61,14 @@ class ProductService extends BaseService {
       categoryId: product.category_id,
     });
 
-    try {
-      await eventDispatcher.publish(event);
-      logger.debug("Catalog domain event published", {
-        type: event.eventType || event.type,
-        productId: product.id,
-      });
-    } catch (publishError) {
-      logger.warn("Catalog domain event publish failed", {
-        type: event.eventType || event.type,
-        productId: product.id,
-        error: publishError.message,
-      });
-    }
+    fireAndForgetWithErrorLog(
+      () => eventDispatcher.publish(event),
+      {
+        operation: 'publishProductCreatedEvent',
+        id: product.id,
+        severity: 'warn'
+      }
+    )
 
     // Audit log
     if (employeeId) {
@@ -91,7 +87,7 @@ class ProductService extends BaseService {
   async update(id, productData, employeeId = null) {
     // Permission validation
     if (employeeId) {
-      await this.validatePermission(employeeId, productPolicy.update);
+      await this.validatePermission(employeeId, PERMISSIONS.PRODUCT.UPDATE);
     }
 
     if (productData.base_price !== undefined) {
@@ -127,7 +123,7 @@ class ProductService extends BaseService {
   async delete(id, employeeId = null) {
     // Permission validation
     if (employeeId) {
-      await this.validatePermission(employeeId, productPolicy.delete);
+      await this.validatePermission(employeeId, PERMISSIONS.PRODUCT.DELETE);
     }
 
     await productRepository.delete(id, employeeId);
