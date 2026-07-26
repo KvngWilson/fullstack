@@ -63,6 +63,21 @@ class OrderRepository extends BaseRepository {
     return result.rows[0] || null;
   }
 
+  async getVariantsByIds(client, variantIds) {
+    if (!variantIds || variantIds.length === 0) {
+      return [];
+    }
+
+    const result = await client.query(
+      `SELECT id, price_cents AS price_minor_units, stock AS stock_quantity
+       FROM product_variants
+       WHERE id = ANY($1) AND deleted_at IS NULL`,
+      [variantIds],
+    );
+
+    return result.rows;
+  }
+
   async createOrderRecord(client, { userId, status = "pending", total }) {
     const totalCents = Math.max(0, Math.round(Number(total || 0) * 100));
     const result = await client.query(
@@ -83,18 +98,6 @@ class OrderRepository extends BaseRepository {
        VALUES ($1, $2, $3, $4, $5)`,
       [orderId, productVariantId, quantity, unitPriceCents, subtotalCents],
     );
-  }
-
-  async reserveVariantStock(client, { variantId, quantity }) {
-    const result = await client.query(
-      `UPDATE product_variants
-       SET stock_quantity = stock_quantity - $1
-       WHERE id = $2 AND stock_quantity >= $1
-       RETURNING stock_quantity`,
-      [quantity, variantId],
-    );
-
-    return result.rows.length > 0;
   }
 
   async clearUserCart(client, userId) {

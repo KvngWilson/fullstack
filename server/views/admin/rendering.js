@@ -80,6 +80,7 @@ const buildNavData = (currentRoute) => {
     {
       label: "Logout",
       href: "/auth/logout",
+      method: "post",
       icon:
         '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>',
     },
@@ -122,6 +123,33 @@ const buildPagination = (pagination, originalUrl) => {
   };
 };
 
+function renderAdminTemplate(res, view, locals) {
+  return res.render(view, locals, (error, body) => {
+    if (error) {
+      return renderAdminViewError(res, error.message);
+    }
+
+    return res.render("admin/layouts/main", {
+      ...locals,
+      body,
+    });
+  });
+}
+
+function formatCurrencyValue(value) {
+  const numericValue = Number(value || 0);
+
+  if (!Number.isFinite(numericValue)) {
+    return "0.00";
+  }
+
+  return numericValue.toFixed(2);
+}
+
+function formatCurrencyAmount(value) {
+  return `$${formatCurrencyValue(value)}`;
+}
+
 function renderDashboardView(res, { user, dashboardData, query }) {
   // Map service data to template expectations
   const stats = [
@@ -148,7 +176,7 @@ function renderDashboardView(res, { user, dashboardData, query }) {
     },
     {
       title: "Total Revenue",
-      value: `$${dashboardData.totals.total_revenue}`,
+      value: formatCurrencyAmount(dashboardData.totals.total_revenue),
       trend: 25,
       icon:
         '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6" /></svg>',
@@ -157,15 +185,15 @@ function renderDashboardView(res, { user, dashboardData, query }) {
 
   const topProducts = dashboardData.recentOrders.slice(0, 4).map((order) => ({
     name: `Order #${order.id}`,
-    price: Number(order.total_amount || 0).toFixed(2),
-    revenue: Number(order.total_amount || 0).toFixed(2),
+    price: formatCurrencyValue(order.total_amount),
+    revenue: formatCurrencyValue(order.total_amount),
     initials: `#${order.id}`,
   }));
 
   const orders = dashboardData.recentOrders.map(order => ({
     id: order.id,
     status: order.status,
-    amount: order.total_amount,
+    amount: formatCurrencyValue(order.total_amount),
     date: new Date(order.created_at).toLocaleDateString(),
     customer: order.user_email || 'Guest',
     avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(order.user_email || 'Guest')}`,
@@ -206,7 +234,7 @@ function renderDashboardView(res, { user, dashboardData, query }) {
 
   const { navItems, secondaryNav, currentRoute } = buildNavData("/dashboard");
 
-  return res.render("admin/dashboard", {
+  return renderAdminTemplate(res, "admin/dashboard", {
     title: "Admin Dashboard",
     pageTitle: "Dashboard Overview",
     currentRoute,
@@ -247,7 +275,7 @@ function renderUsersView(res, { user, usersData, query, originalUrl }) {
   const { pagination, prevHref, nextHref } = buildPagination(usersData.pagination, originalUrl);
   const { navItems, secondaryNav, currentRoute } = buildNavData("/users");
 
-  return res.render("admin/users", {
+  return renderAdminTemplate(res, "admin/users", {
     title: "Admin Users",
     pageTitle: "Customers",
     currentRoute,
@@ -279,7 +307,7 @@ function renderOrdersView(res, { user, ordersData, query, originalUrl }) {
   const { pagination, prevHref, nextHref } = buildPagination(ordersData.pagination, originalUrl);
   const { navItems, secondaryNav, currentRoute } = buildNavData("/orders");
 
-  return res.render("admin/orders", {
+  return renderAdminTemplate(res, "admin/orders", {
     title: "Admin Orders",
     pageTitle: "Orders",
     currentRoute,
@@ -305,7 +333,7 @@ function renderOrdersView(res, { user, ordersData, query, originalUrl }) {
 function renderCategoriesView(res, { user, categories, summary }) {
   const { navItems, secondaryNav, currentRoute } = buildNavData("/categories");
 
-  return res.render("admin/categories", {
+  return renderAdminTemplate(res, "admin/categories", {
     title: "Admin Categories",
     pageTitle: "Categories",
     currentRoute,
@@ -320,7 +348,7 @@ function renderCategoriesView(res, { user, categories, summary }) {
 function renderTransactionsView(res, { user, transactions, summary, pagination, prevHref, nextHref }) {
   const { navItems, secondaryNav, currentRoute } = buildNavData("/transactions");
 
-  return res.render("admin/transactions", {
+  return renderAdminTemplate(res, "admin/transactions", {
     title: "Admin Transactions",
     pageTitle: "Transactions",
     currentRoute,
@@ -339,7 +367,7 @@ function renderTransactionsView(res, { user, transactions, summary, pagination, 
 function renderAddProductView(res, { user, categories }) {
   const { navItems, secondaryNav, currentRoute } = buildNavData("/products/add");
 
-  return res.render("admin/products-add", {
+  return renderAdminTemplate(res, "admin/products-add", {
     title: "Add Product",
     pageTitle: "Add Product",
     currentRoute,
@@ -353,7 +381,7 @@ function renderAddProductView(res, { user, categories }) {
 function renderAdminRoleView(res, { user, profile, permissions }) {
   const { navItems, secondaryNav, currentRoute } = buildNavData("/admin-role");
 
-  return res.render("admin/admin-role", {
+  return renderAdminTemplate(res, "admin/admin-role", {
     title: "Admin Role",
     pageTitle: "Admin Role",
     currentRoute,
@@ -366,7 +394,7 @@ function renderAdminRoleView(res, { user, profile, permissions }) {
 }
 
 function renderAdminViewError(res, message) {
-  return res.status(500).render("/404", { message });
+  return res.status(500).render("404", { message });
 }
 
 module.exports = {

@@ -1,8 +1,8 @@
 const router = require("express").Router();
-const { protect, permission } = require("../../decorators");
-const adminPolicy = require("../../../policies/adminPolicy");
-const orderPolicy = require("../../../policies/orderPolicy");
-const productPolicy = require("../../../policies/productPolicy");
+const PERMISSIONS = require("../../../shared/constants/permissions");
+const domain = require("../../../domain");
+const { getAuthenticatedAdminUser } = require("../../controllers/admin/auth");
+const permissionService = domain.identity.services.PermissionService;
 
 const {
   renderDashboard,
@@ -17,66 +17,95 @@ const {
   postOrderStatusUpdate,
 } = require("../../controllers/admin/admin");
 
+function redirectToAdminLogin(req, res, errorMessage) {
+  const params = new URLSearchParams();
+  params.set("returnTo", req.originalUrl || "/dashboard");
+  if (errorMessage) {
+    params.set("error", errorMessage);
+  }
+  return res.redirect(`/auth/login?${params.toString()}`);
+}
+
+const protectedWithPermission = (requiredPermission) => async (req, res, next) => {
+  try {
+    const user = getAuthenticatedAdminUser(req);
+    if (!user) {
+      return redirectToAdminLogin(req, res);
+    }
+
+    req.user = user;
+
+    if (!requiredPermission) {
+      return next();
+    }
+
+    const allowed = await permissionService.hasPermission(user, requiredPermission);
+    if (!allowed) {
+      return redirectToAdminLogin(req, res, "Access denied");
+    }
+
+    return next();
+  } catch (_error) {
+    return redirectToAdminLogin(req, res, "Please sign in again");
+  }
+};
+
 // SSR Routes (Server-Side Rendered Views)
 router.get("/", (req, res) => res.redirect("/dashboard"));
 
 router.get(
   "/dashboard",
-  ...protect(),
-  ...permission(adminPolicy.dashboard.read),
+  protectedWithPermission(PERMISSIONS.ADMIN.DASHBOARD.READ),
   renderDashboard,
 );
 
-router.get("/users", ...protect(), ...permission(adminPolicy.users.read), renderUsers);
+router.get(
+  "/users",
+  protectedWithPermission(PERMISSIONS.ADMIN.USERS.READ),
+  renderUsers,
+);
 
 router.post(
   "/users/:userId/role",
-  ...protect(),
-  ...permission(adminPolicy.users.update),
+  protectedWithPermission(PERMISSIONS.ADMIN.USERS.UPDATE),
   postUserRoleUpdate,
 );
 
 router.post(
   "/users/:userId/delete",
-  ...protect(),
-  ...permission(adminPolicy.users.delete),
+  protectedWithPermission(PERMISSIONS.ADMIN.USERS.DELETE),
   postUserDelete,
 );
 
-router.get("/orders", ...protect(), ...permission(orderPolicy.read), renderOrders);
+router.get("/orders", protectedWithPermission(PERMISSIONS.ORDER.READ), renderOrders);
 
 router.get(
   "/categories",
-  ...protect(),
-  ...permission(productPolicy.update),
+  protectedWithPermission(PERMISSIONS.PRODUCT.UPDATE),
   renderCategories,
 );
 
 router.get(
   "/transactions",
-  ...protect(),
-  ...permission(orderPolicy.read),
+  protectedWithPermission(PERMISSIONS.ORDER.READ),
   renderTransactions,
 );
 
 router.get(
   "/products/add",
-  ...protect(),
-  ...permission(productPolicy.create),
+  protectedWithPermission(PERMISSIONS.PRODUCT.CREATE),
   renderAddProduct,
 );
 
 router.get(
   "/admin-role",
-  ...protect(),
-  ...permission(adminPolicy.users.read),
+  protectedWithPermission(PERMISSIONS.ADMIN.USERS.READ),
   renderAdminRole,
 );
 
 router.post(
   "/orders/:orderId/status",
-  ...protect(),
-  ...permission(orderPolicy.update),
+  protectedWithPermission(PERMISSIONS.ORDER.UPDATE),
   postOrderStatusUpdate,
 );
 

@@ -6,7 +6,7 @@ require("dotenv").config();
 
 const { pool } = require("../config/db");
 
-const BASELINE_FILE = "001_initial_schema.sql";
+const BASELINE_FILE = "025_initial_schema.sql";
 const PREVIOUS_VERSIONS = [
   "001_initial_schema",
 ];

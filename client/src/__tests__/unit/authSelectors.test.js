@@ -11,12 +11,12 @@ import {
   selectUserRole,
   selectAuthIsHydrated,
   selectIsCustomer,
-} from '@/features/auth/authSelectors';
+} from "@/features/auth/authSelectors";
 
-describe('authSelectors', () => {
+describe("authSelectors", () => {
   const state = {
     auth: {
-      user: { id: 1, role: 'customer', email: 'user@example.com' },
+      user: { id: 1, role: "customer", email: "user@example.com" },
       isAuthenticated: true,
       isLoading: false,
       isHydrated: true,
@@ -24,7 +24,7 @@ describe('authSelectors', () => {
     },
   };
 
-  it('selects auth subtree and aliases consistently', () => {
+  it("selects auth subtree and aliases consistently", () => {
     expect(selectAuth(state)).toEqual(state.auth);
     expect(selectUser(state)).toEqual(state.auth.user);
     expect(selectAuthUser(state)).toEqual(state.auth.user);
@@ -32,7 +32,7 @@ describe('authSelectors', () => {
     expect(selectAuthError(state)).toBeNull();
   });
 
-  it('selects auth status flags and aliases consistently', () => {
+  it("selects auth status flags and aliases consistently", () => {
     expect(selectIsAuthenticated(state)).toBe(true);
     expect(selectIsLoading(state)).toBe(false);
     expect(selectAuthIsLoading(state)).toBe(false);
@@ -40,24 +40,24 @@ describe('authSelectors', () => {
     expect(selectAuthIsHydrated(state)).toBe(true);
   });
 
-  it('selects user role and customer role predicate', () => {
-    expect(selectUserRole(state)).toBe('customer');
+  it("selects user role and customer role predicate", () => {
+    expect(selectUserRole(state)).toBe("customer");
     expect(selectIsCustomer(state)).toBe(true);
   });
 
-  it('handles missing user values', () => {
+  it("handles missing user values", () => {
     const anonymousState = {
       auth: {
         user: null,
         isAuthenticated: false,
         isLoading: true,
         isHydrated: false,
-        error: 'boom',
+        error: "boom",
       },
     };
 
     expect(selectUserRole(anonymousState)).toBeUndefined();
     expect(selectIsCustomer(anonymousState)).toBe(false);
-    expect(selectError(anonymousState)).toBe('boom');
+    expect(selectError(anonymousState)).toBe("boom");
   });
 });

@@ -51,20 +51,20 @@ export default class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-orange-50 p-4">
-          <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
+        <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-red-50 to-orange-50 p-4">
+          <div className="max-w-md w-full bg-card rounded-lg shadow-xl p-8">
             {/* Error Icon */}
             <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-                <AlertTriangle className="w-8 h-8 text-red-600" />
+              <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-8 h-8 text-destructive" />
               </div>
             </div>
 
             {/* Error Message */}
-            <h1 className="text-2xl font-bold text-center text-gray-900 mb-2">
+            <h1 className="text-2xl font-bold text-center text-foreground mb-2">
               Oops! Something went wrong
             </h1>
-            <p className="text-center text-gray-600 mb-6">
+            <p className="text-center text-muted-foreground mb-6">
               We encountered an unexpected error. Please try again or contact support if the problem persists.
             </p>
 
@@ -73,19 +73,19 @@ export default class ErrorBoundary extends React.Component {
               <div className="mb-6">
                 <button
                   onClick={this.toggleDetails}
-                  className="w-full text-left text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors flex items-center justify-between"
+                  className="w-full text-left text-sm font-medium text-foreground hover:text-foreground/80 transition-colors flex items-center justify-between"
                 >
                   <span>Error Details</span>
                   <span className="text-lg">{this.state.isExpanded ? '−' : '+'}</span>
                 </button>
                 {this.state.isExpanded && (
-                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded overflow-auto max-h-48">
-                    <p className="text-xs text-red-700 font-mono whitespace-pre-wrap break-words">
+                  <div className="mt-3 p-3 bg-destructive/10 border border-destructive/30 rounded overflow-auto max-h-48">
+                    <p className="text-xs text-destructive font-mono whitespace-pre-wrap wrap-break-word">
                       {this.state.error.toString()}
                     </p>
                     {this.state.errorInfo && (
-                      <div className="mt-2 border-t border-red-200 pt-2">
-                        <p className="text-xs text-red-600 font-mono whitespace-pre-wrap break-words">
+                      <div className="mt-2 border-t border-destructive/30 pt-2">
+                        <p className="text-xs text-destructive font-mono whitespace-pre-wrap wrap-break-word">
                           {this.state.errorInfo.componentStack}
                         </p>
                       </div>
@@ -99,14 +99,14 @@ export default class ErrorBoundary extends React.Component {
             <div className="space-y-3">
               <button
                 onClick={this.handleReloadPage}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground font-medium rounded-lg hover:bg-destructive/90 transition-colors"
               >
                 <RefreshCw className="w-4 h-4" />
                 Try Again
               </button>
               <button
                 onClick={this.handleReload}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-muted text-foreground font-medium rounded-lg hover:bg-muted/80 transition-colors"
               >
                 <Home className="w-4 h-4" />
                 Go to Home
@@ -114,11 +114,11 @@ export default class ErrorBoundary extends React.Component {
             </div>
 
             {/* Support Message */}
-            <p className="text-center text-xs text-gray-500 mt-6">
+            <p className="text-center text-xs text-muted-foreground mt-6">
               If the problem persists, please{' '}
               <a
                 href="mailto:support@example.com"
-                className="text-red-600 hover:text-red-700 font-medium"
+                className="text-destructive hover:text-destructive/80 font-medium"
               >
                 contact support
               </a>

@@ -9,11 +9,29 @@ const {
   APP_URL,
   parseCreatePaymentPayload,
   getPagination,
-} = require("./payment-helpers");
+} = require("../../../../domain/payment/services/payment.support");
+const { getJobQueuesRuntime } = require("../../../../infrastructure/jobs/runtime");
 
 // Format error response with message, status, and optional details
 function toErrorOptions(message, status = 500, details) {
   return { message, status, details };
+}
+
+/**
+ * Enqueue a webhook job via Bull instead of processing it synchronously.
+ * Falls back to immediate processing if the job queue is not available.
+ */
+async function enqueueWebhookJob(provider, event, data) {
+  const runtime = getJobQueuesRuntime();
+  if (runtime?.webhookJobQueue) {
+    await runtime.webhookJobQueue.addWebhookJob(provider, event, data);
+    return true;
+  }
+  // Queue not available — process synchronously as fallback
+  logger.warn("Webhook queue unavailable; processing synchronously", { provider, event });
+  const paymentService = new PaymentService();
+  await paymentService.handleWebhook(event, data, provider);
+  return false;
 }
 
 exports.createPayment = async (req, res) => {
@@ -229,12 +247,12 @@ exports.handleWebhook = async (req, res) => {
 
     const { event, data = {} } = payload;
 
-    const paymentService = new PaymentService();
-    await paymentService.handleWebhook(event, data, "paystack");
+    // Enqueue for async processing — ack immediately so Paystack doesn't retry
+    await enqueueWebhookJob("paystack", event, data);
 
-    return res.status(200).json({ success: true, status: "success" });
+    return res.status(200).json({ success: true, status: "accepted" });
   } catch (error) {
-    logger.error("Webhook error", { error });
+    logger.error("Paystack webhook error", { error });
     return res.status(500).json({ status: "error" });
   }
 };
@@ -249,10 +267,11 @@ exports.handleStripeWebhook = async (req, res) => {
       return res.status(400).send("Webhook Error: Missing stripe-signature header");
     }
 
+    // Validate signature first — reject bad payloads before enqueuing
     const event = StripeService.validateStripeWebhook(req.body, signature);
 
-    const paymentService = new PaymentService();
-    await paymentService.handleWebhook(event.type, event.data, "stripe");
+    // Enqueue for async processing — ack immediately so Stripe doesn't retry
+    await enqueueWebhookJob("stripe", event.type, event.data);
 
     return res.status(200).json({ received: true });
   } catch (error) {

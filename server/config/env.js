@@ -3,13 +3,26 @@ const { logger } = require("../shared/utils/logger");
 
 const SECRET_MIN_LENGTH = 32;
 
-/**
- * Environment validation error for missing or invalid config.
- */
 class EnvValidationError extends Error {
   constructor(message) {
     super(message);
     this.name = "EnvValidationError";
+  }
+}
+
+function requireSecret(name) {
+  const value = process.env[name];
+  if (!value) throw new EnvValidationError(`${name} is required`);
+  if (value.length < SECRET_MIN_LENGTH) {
+    throw new EnvValidationError(`${name} must be at least ${SECRET_MIN_LENGTH} characters`);
+  }
+}
+
+function validateProductionSecrets() {
+  if (process.env.NODE_ENV === 'production') {
+    requireSecret('JWT_SECRET');
+    requireSecret('SESSION_SECRET');
+    requireSecret('REDIS_PASSWORD');
   }
 }
 
@@ -39,6 +52,8 @@ function validateEnv() {
     }
   }
 
+  validateProductionSecrets();
+
   // Production-specific checks
   if (process.env.NODE_ENV === "production") {
     if (process.env.DB_HOST === "localhost") {
@@ -67,4 +82,6 @@ module.exports = {
   validateEnv,
   generateSecrets,
   EnvValidationError,
+  requireSecret,
+  validateProductionSecrets,
 };

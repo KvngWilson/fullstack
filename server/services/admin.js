@@ -34,7 +34,7 @@ class AdminDashboardService {
             (SELECT COUNT(*) FROM users) AS total_users,
             (SELECT COUNT(*) FROM products WHERE deleted_at IS NULL) AS active_products,
             (SELECT COUNT(*) FROM orders) AS total_orders,
-            (SELECT COALESCE(SUM(total), 0) FROM orders WHERE status = 'paid') AS total_revenue
+            (SELECT COALESCE(SUM(total_cents), 0) / 100.0 FROM orders WHERE status = 'paid') AS total_revenue
         `),
         pool.query(`
           SELECT status, COUNT(*)::int AS count
@@ -47,7 +47,7 @@ class AdminDashboardService {
             SELECT
               o.id,
               o.status,
-              COALESCE(o.total, 0) AS total_amount,
+              COALESCE(o.total_cents, 0) / 100.0 AS total_amount,
               o.created_at,
               u.email AS user_email
             FROM orders o
@@ -138,7 +138,7 @@ class AdminDashboardService {
         o.id,
         o.user_id,
         o.status,
-        COALESCE(o.total, 0) AS total_amount,
+        COALESCE(o.total_cents, 0) / 100.0 AS total_amount,
         o.created_at,
         u.email AS user_email
       FROM orders o

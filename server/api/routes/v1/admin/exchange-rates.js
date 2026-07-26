@@ -10,7 +10,7 @@ const {
   validateCreateExchangeRate,
   validateUpdateExchangeRate,
 } = require("../../../validators/admin");
-const adminPolicy = require("../../../../policies/adminPolicy");
+const PERMISSIONS = require("../../../../shared/constants/permissions");
 
 const router = express.Router();
 
@@ -28,7 +28,7 @@ router.use(...protect());
 // GET /api/v1/admin/exchange-rates - List exchange rates
 router.get(
   "/",
-  ...permission(adminPolicy.exchangeRates.read),
+  ...permission(PERMISSIONS.EXCHANGE_RATES.READ),
   ...query(validateListRatesQuery),
   exchangeRatesControllers.listExchangeRates,
 );
@@ -36,7 +36,7 @@ router.get(
 // GET /api/v1/admin/exchange-rates/history/:from/:to - Get rate history
 router.get(
   "/history/:from/:to",
-  ...permission(adminPolicy.exchangeRates.read),
+  ...permission(PERMISSIONS.EXCHANGE_RATES.READ),
   ...params(validateRateHistoryParams),
   ...query(validateRateHistoryQuery),
   exchangeRatesControllers.getRateHistory,
@@ -45,7 +45,7 @@ router.get(
 // POST /api/v1/admin/exchange-rates - Create exchange rate
 router.post(
   "/",
-  ...permission(adminPolicy.exchangeRates.create),
+  ...permission(PERMISSIONS.EXCHANGE_RATES.CREATE),
   ...body(validateCreateExchangeRate),
   exchangeRatesControllers.createExchangeRate,
 );
@@ -53,7 +53,7 @@ router.post(
 // GET /api/v1/admin/exchange-rates/:id - Get exchange rate details
 router.get(
   "/:id",
-  ...permission(adminPolicy.exchangeRates.read),
+  ...permission(PERMISSIONS.EXCHANGE_RATES.READ),
   ...params(validateExchangeRateIdParam),
   exchangeRatesControllers.getExchangeRate,
 );
@@ -61,7 +61,7 @@ router.get(
 // PUT /api/v1/admin/exchange-rates/:id - Update exchange rate
 router.put(
   "/:id",
-  ...permission(adminPolicy.exchangeRates.update),
+  ...permission(PERMISSIONS.EXCHANGE_RATES.UPDATE),
   ...params(validateExchangeRateIdParam),
   ...body(validateUpdateExchangeRate),
   exchangeRatesControllers.updateExchangeRate,
@@ -70,7 +70,7 @@ router.put(
 // DELETE /api/v1/admin/exchange-rates/:id - Deactivate exchange rate
 router.delete(
   "/:id",
-  ...permission(adminPolicy.exchangeRates.deactivate),
+  ...permission(PERMISSIONS.EXCHANGE_RATES.DEACTIVATE),
   ...params(validateExchangeRateIdParam),
   exchangeRatesControllers.deactivateRate,
 );

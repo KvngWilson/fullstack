@@ -2,31 +2,31 @@ import React from 'react';
 import { cva } from 'class-variance-authority';
 
 const inputVariants = cva(
-  'flex w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 focus:border-transparent disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-500 transition-colors',
+  "flex w-full rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3 text-sm text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)] backdrop-blur-sm placeholder:text-slate-400 focus:border-sky-300 focus:outline-none focus:ring-4 focus:ring-sky-100 focus:ring-offset-0 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400",
   {
     variants: {
       variant: {
-        default: 'border-neutral-300',
-        error: 'border-red-500 focus:ring-red-500',
-        success: 'border-green-500 focus:ring-green-500',
+        default: "border-slate-200/80",
+        error: "border-red-400 focus:border-red-300 focus:ring-red-100",
+        success: "border-emerald-400 focus:border-emerald-300 focus:ring-emerald-100",
       },
       size: {
-        sm: 'h-8 px-2 text-sm',
-        md: 'h-10 px-3 text-sm',
-        lg: 'h-10 px-4 text-base',
+        sm: "h-10 px-3 text-sm",
+        md: "h-11 px-4 text-sm",
+        lg: "h-12 px-4 text-base",
       },
     },
     defaultVariants: {
-      variant: 'default',
-      size: 'md',
+      variant: "default",
+      size: "md",
     },
-  }
+  },
 );
 
 export const Input = React.forwardRef(
   (
-    { variant = 'default', size = 'md', type = 'text', className, ...props },
-    ref
+    { variant = "default", size = "md", type = "text", className, ...props },
+    ref,
   ) => {
     return (
       <input
@@ -39,26 +39,26 @@ export const Input = React.forwardRef(
   }
 );
 
-Input.displayName = 'Input';
+Input.displayName = "Input";
 
 const textareaVariants = cva(
-  'flex w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 focus:border-transparent disabled:cursor-not-allowed disabled:bg-neutral-50 transition-colors resize-none',
+  "flex w-full resize-none rounded-[1.35rem] border border-slate-200/80 bg-white/90 px-4 py-3 text-sm text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)] backdrop-blur-sm placeholder:text-slate-400 focus:border-sky-300 focus:outline-none focus:ring-4 focus:ring-sky-100 focus:ring-offset-0 disabled:cursor-not-allowed disabled:bg-slate-100",
   {
     variants: {
       variant: {
-        default: 'border-neutral-300',
-        error: 'border-red-500 focus:ring-red-500',
-        success: 'border-green-500 focus:ring-green-500',
+        default: "border-slate-200/80",
+        error: "border-red-400 focus:border-red-300 focus:ring-red-100",
+        success: "border-emerald-400 focus:border-emerald-300 focus:ring-emerald-100",
       },
     },
     defaultVariants: {
-      variant: 'default',
+      variant: "default",
     },
-  }
+  },
 );
 
 export const Textarea = React.forwardRef(
-  ({ variant = 'default', className, ...props }, ref) => {
+  ({ variant = "default", className, ...props }, ref) => {
     return (
       <textarea
         ref={ref}
@@ -69,7 +69,7 @@ export const Textarea = React.forwardRef(
   }
 );
 
-Textarea.displayName = 'Textarea';
+Textarea.displayName = "Textarea";
 
 export const FormField = React.forwardRef(
   (
@@ -84,30 +84,30 @@ export const FormField = React.forwardRef(
     ref
   ) => {
     return (
-      <div className={`flex flex-col gap-1 ${className || ''}`} ref={ref}>
+      <div className={`flex flex-col gap-1 ${className || ""}`} ref={ref}>
         {label && (
-          <label className="text-sm font-medium text-neutral-900">
+          <label className="text-sm font-medium text-slate-700">
             {label}
-            {required && <span className="text-red-500 ml-1">*</span>}
+            {required && <span className="ml-1 text-red-500">*</span>}
           </label>
         )}
 
         {children}
 
         {error && (
-          <p className="text-sm text-red-600" role="alert">
+          <p className="text-sm text-red-500" role="alert">
             {error}
           </p>
         )}
 
         {hint && !error && (
-          <p className="text-sm text-neutral-500">{hint}</p>
+          <p className="text-sm text-slate-500">{hint}</p>
         )}
       </div>
     );
   }
 );
 
-FormField.displayName = 'FormField';
+FormField.displayName = "FormField";
 
 export default Input;

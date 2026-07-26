@@ -6,9 +6,11 @@
 
 const logger = require("../../../../shared/utils/logger");
 const { pool } = require("../../../../config/db");
-const { verifyToken } = require("../../../../config/auth");
+const domain = require("../../../../domain");
+const AuthenticationService = domain.identity.services.AuthenticationService;
 const crypto = require("crypto");
 const argon2 = require("argon2");
+const { verifyToken } = require("../../../../config/auth");
 const GuestCartService = require("../../../../domain/ordering/services/GuestCartService");
 const {
   getShippingRates,

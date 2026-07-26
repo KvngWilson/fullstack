@@ -16,6 +16,7 @@
  */
 
 const BaseService = require("../../base/BaseService");
+const PERMISSIONS = require("../../../shared/constants/permissions");
 
 const DEFAULT_LANGUAGE = 'en';
 const SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'zh', 'ko'];
@@ -32,7 +33,7 @@ class TranslationService extends BaseService {
     this.db = dbPool;
     this.cacheTTL = options.cacheTTL || 3600000; // 1 hour default
     this.cache = new Map(); // Cache structure: "type:id:lang" → { data, expiresAt }
-    this.managePermissionCode = options.managePermissionCode || "translations:manage";
+    this.managePermissionCode = options.managePermissionCode || PERMISSIONS.TRANSLATION.MANAGE;
   }
 
   async _authorizeTranslationWrite(adminId) {

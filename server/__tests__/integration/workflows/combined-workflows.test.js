@@ -11,12 +11,11 @@ const {
   createToken,
   createTestUser,
   createTestVendor,
-  createTestProducts,
   createTestExchangeRates,
   createTestOrder,
   findAuditLog,
   createDbInfraGuard,
-} = require('../../helpers/test-utils');
+} = require('../../helpers/testHelpers');
 
 describe('Integration Tests - Combined Workflows', () => {
   let app;

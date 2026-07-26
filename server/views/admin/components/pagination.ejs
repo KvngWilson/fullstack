@@ -1,11 +1,21 @@
 <% if (pagination) { %>
-  <div class="pagination">
-    <p class="pagination-info">
-      Page <%= pagination.page %> of <%= pagination.totalPages %> • <%= pagination.total %> <%= label || 'items' %>
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mt-6">
+    <p class="text-xs text-gray-500">
+      Page <%= pagination.page %> of <%= pagination.totalPages %>  <%= pagination.total %> <%= label || 'items' %>
     </p>
-    <div class="pagination-actions">
-      <a class="pagination-item <%= pagination.hasPrevious ? '' : 'pagination-item-disabled' %>" href="<%= pagination.hasPrevious ? prevHref : '#' %>">Previous</a>
-      <a class="pagination-item <%= pagination.hasNext ? '' : 'pagination-item-disabled' %>" href="<%= pagination.hasNext ? nextHref : '#' %>">Next</a>
+    <div class="flex items-center gap-2">
+      <a
+        class="px-3 py-1 rounded border border-gray-300 text-sm font-medium transition
+          <%= pagination.hasPrevious ? 'bg-white text-gray-700 hover:bg-gray-100' : 'bg-gray-100 text-gray-400 cursor-not-allowed' %>"
+        href="<%= pagination.hasPrevious ? prevHref : '#' %>">
+        Previous
+      </a>
+      <a
+        class="px-3 py-1 rounded border border-gray-300 text-sm font-medium transition
+          <%= pagination.hasNext ? 'bg-white text-gray-700 hover:bg-gray-100' : 'bg-gray-100 text-gray-400 cursor-not-allowed' %>"
+        href="<%= pagination.hasNext ? nextHref : '#' %>">
+        Next
+      </a>
     </div>
   </div>
 <% } %>

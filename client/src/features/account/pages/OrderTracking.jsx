@@ -7,8 +7,10 @@ import {
   selectOrdersError,
   selectOrdersIsLoading,
 } from "@/features/orders/ordersSelectors";
+import AccountHeader from "@/components/layout/AccountHeader";
 import { EmptyState, ErrorState } from "@/components/common/AsyncState";
 import { TextBlockSkeleton } from "@/components/common/Skeleton";
+import { Card, Badge } from "@/components/ui";
 import { useAppPreferences } from "@/contexts/AppPreferencesContext";
 
 export default function OrderTracking() {
@@ -24,22 +26,30 @@ export default function OrderTracking() {
     dispatch(trackOrderThunk(Number(id)));
   }, [dispatch, id]);
 
-  const tracking = id
-    ? trackingByOrderId[id] || trackingByOrderId[Number(id)]
-    : null;
+  const tracking = id ? trackingByOrderId[id] || trackingByOrderId[Number(id)] : null;
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold">{t("orderTracking.title")}</h1>
+    <div className="landing-container section-wrap">
+      <AccountHeader
+        title={t("orderTracking.title")}
+        description="Get the latest shipment updates and jump to the carrier when a live tracking URL is available."
+        badge="Shipment tracking"
+        actions={
+          <Link className="btn-ghost" to={`/account/orders/${id}`}>
+            {t("orderTracking.backToOrder")}
+          </Link>
+        }
+      />
 
       {isLoading && (
-        <div className="mt-4">
+        <Card className="mt-8">
           <TextBlockSkeleton />
-        </div>
+        </Card>
       )}
+
       {error && (
         <ErrorState
-          className="mt-4"
+          className="mt-8"
           title={t("orderTracking.failedLoad")}
           message={error}
           onRetry={() => dispatch(trackOrderThunk(Number(id)))}
@@ -47,40 +57,36 @@ export default function OrderTracking() {
       )}
 
       {!isLoading && !error && tracking && (
-        <div className="mt-4 rounded-md border p-4">
-          <p className="font-medium">{t("orders.orderNumber", { id })}</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t("orderTracking.status", {
-              status: tracking.status || t("common.notAvailable"),
-            })}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t("orderTracking.lastUpdate", {
-              lastUpdate: tracking.updated_at || t("common.notAvailable"),
-            })}
-          </p>
-          {tracking.tracking_url && (
+        <Card className="mt-8">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">
+              {t("orderTracking.status", {
+                status: tracking.status || t("common.notAvailable"),
+              })}
+            </Badge>
+            <Badge variant="secondary">
+              {t("orderTracking.lastUpdate", {
+                lastUpdate: tracking.updated_at || t("common.notAvailable"),
+              })}
+            </Badge>
+          </div>
+
+          {tracking.tracking_url ? (
             <a
               href={tracking.tracking_url}
               target="_blank"
               rel="noreferrer"
-              className="mt-2 inline-block text-sm underline"
+              className="btn-primary mt-6"
             >
               {t("orderTracking.openCarrierLink")}
             </a>
-          )}
-          <Link
-            to={`/account/orders/${id}`}
-            className="mt-2 block text-sm underline"
-          >
-            {t("orderTracking.backToOrder")}
-          </Link>
-        </div>
+          ) : null}
+        </Card>
       )}
 
       {!isLoading && !error && !tracking && (
         <EmptyState
-          className="mt-4"
+          className="mt-8"
           title={t("orderTracking.notFoundTitle")}
           message={t("orderTracking.notFoundMessage")}
         />

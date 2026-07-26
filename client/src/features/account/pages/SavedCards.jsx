@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import AccountHeader from "@/components/layout/AccountHeader";
+import { Button, Card, Input, Badge } from "@/components/ui";
 import { useAppPreferences } from "@/contexts/AppPreferencesContext";
 
 const INITIAL_CARDS = [
@@ -85,57 +87,51 @@ export default function SavedCards() {
   };
 
   const handleSetDefault = (id) => {
-    setCards((prev) =>
-      prev.map((card) => ({ ...card, isDefault: card.id === id })),
-    );
+    setCards((prev) => prev.map((card) => ({ ...card, isDefault: card.id === id })));
   };
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="text-3xl font-bold">{t("savedCards.title")}</h1>
-      <p className="mt-2 text-muted-foreground">{t("savedCards.subtitle")}</p>
+    <div className="landing-container section-wrap">
+      <AccountHeader
+        title={t("savedCards.title")}
+        description={t("savedCards.subtitle")}
+        badge="Payment methods"
+        stats={[{ label: "Saved cards", value: String(cards.length) }]}
+      />
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_1.15fr]">
-        <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
-          <h2 className="text-xl font-semibold">{t("savedCards.listTitle")}</h2>
+      <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_1.1fr]">
+        <Card variant="outline">
+          <h2 className="font-heading text-2xl font-semibold tracking-tight text-slate-950">
+            {t("savedCards.listTitle")}
+          </h2>
 
           {cards.length === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground">
-              {t("savedCards.empty")}
-            </p>
+            <p className="mt-4 text-sm text-slate-500">{t("savedCards.empty")}</p>
           ) : (
-            <ul className="mt-4 space-y-3">
+            <ul className="mt-5 space-y-4">
               {cards.map((card) => (
-                <li
-                  key={card.id}
-                  className="rounded-md border border-border bg-background p-4"
-                >
+                <li key={card.id} className="rounded-card border border-slate-100 bg-slate-50/90 p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="font-medium">
+                      <p className="font-medium text-slate-950">
                         {card.brand} •••• {card.last4}
                       </p>
-                      <p className="text-sm text-muted-foreground">
-                        {card.holder}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {t("savedCards.expires")}: {card.expiryMonth}/
-                        {card.expiryYear}
+                      <p className="mt-2 text-sm text-slate-500">{card.holder}</p>
+                      <p className="text-sm text-slate-500">
+                        {t("savedCards.expires")}: {card.expiryMonth}/{card.expiryYear}
                       </p>
                     </div>
                     {card.isDefault ? (
-                      <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                        {t("savedCards.defaultBadge")}
-                      </span>
+                      <Badge variant="secondary">{t("savedCards.defaultBadge")}</Badge>
                     ) : null}
                   </div>
 
-                  <div className="mt-3 flex flex-wrap gap-3">
+                  <div className="mt-4 flex flex-wrap gap-3">
                     {!card.isDefault ? (
                       <button
                         type="button"
                         onClick={() => handleSetDefault(card.id)}
-                        className="text-sm font-medium text-primary hover:underline"
+                        className="text-sm font-semibold text-sky-600 hover:text-sky-700"
                       >
                         {t("savedCards.actions.setDefault")}
                       </button>
@@ -143,7 +139,7 @@ export default function SavedCards() {
                     <button
                       type="button"
                       onClick={() => handleDelete(card.id)}
-                      className="text-sm font-medium text-destructive hover:underline"
+                      className="text-sm font-semibold text-red-500 hover:text-red-600"
                     >
                       {t("savedCards.actions.delete")}
                     </button>
@@ -152,102 +148,73 @@ export default function SavedCards() {
               ))}
             </ul>
           )}
-        </section>
+        </Card>
 
-        <form
-          onSubmit={handleAddCard}
-          className="rounded-lg border border-border bg-card p-6 shadow-sm"
-        >
-          <h2 className="text-xl font-semibold">{t("savedCards.addCard")}</h2>
+        <form onSubmit={handleAddCard}>
+          <Card>
+            <h2 className="font-heading text-2xl font-semibold tracking-tight text-slate-950">
+              {t("savedCards.addCard")}
+            </h2>
 
-          <div className="mt-5 grid gap-4">
-            <label className="space-y-1">
-              <span className="text-sm font-medium">
-                {t("savedCards.fields.cardholder")}
-              </span>
-              <input
+            <div className="mt-5 grid gap-4">
+              <Input
                 type="text"
                 name="holder"
                 value={form.holder}
                 onChange={onChange}
-                className="w-full rounded-md border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                placeholder={t("savedCards.fields.cardholder")}
                 required
               />
-            </label>
 
-            <label className="space-y-1">
-              <span className="text-sm font-medium">
-                {t("savedCards.fields.number")}
-              </span>
-              <input
+              <Input
                 type="text"
                 name="number"
                 value={form.number}
                 onChange={onChange}
                 inputMode="numeric"
                 autoComplete="cc-number"
-                className="w-full rounded-md border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                placeholder={t("savedCards.fields.number")}
                 required
               />
-            </label>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="space-y-1">
-                <span className="text-sm font-medium">
-                  {t("savedCards.fields.expiryMonth")}
-                </span>
-                <input
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input
                   type="number"
                   name="expiryMonth"
                   value={form.expiryMonth}
                   onChange={onChange}
                   min={1}
                   max={12}
-                  className="w-full rounded-md border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  placeholder={t("savedCards.fields.expiryMonth")}
                   required
                 />
-              </label>
-
-              <label className="space-y-1">
-                <span className="text-sm font-medium">
-                  {t("savedCards.fields.expiryYear")}
-                </span>
-                <input
+                <Input
                   type="number"
                   name="expiryYear"
                   value={form.expiryYear}
                   onChange={onChange}
                   min={new Date().getFullYear()}
-                  className="w-full rounded-md border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  placeholder={t("savedCards.fields.expiryYear")}
                   required
                 />
-              </label>
-            </div>
+              </div>
 
-            <label className="space-y-1">
-              <span className="text-sm font-medium">
-                {t("savedCards.fields.cvc")}
-              </span>
-              <input
+              <Input
                 type="password"
                 name="cvc"
                 value={form.cvc}
                 onChange={onChange}
                 inputMode="numeric"
                 autoComplete="cc-csc"
-                className="w-full rounded-md border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                placeholder={t("savedCards.fields.cvc")}
                 required
               />
-            </label>
-          </div>
+            </div>
 
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="mt-6 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {t("savedCards.actions.save")}
-          </button>
+            <Button type="submit" disabled={!canSubmit} className="mt-6">
+              {t("savedCards.actions.save")}
+            </Button>
+          </Card>
         </form>
       </div>
     </div>

@@ -5,7 +5,7 @@ const distPath = path.resolve(process.cwd(), 'dist');
 const limitBytes = Number(process.env.BUNDLE_SIZE_LIMIT_BYTES ?? 3145728); // 3MB default
 
 if (!fs.existsSync(distPath)) {
-  console.error(`❌ Build output not found at ${distPath}`);
+  console.error(`[FAIL] Build output not found at ${distPath}`);
   console.error('Run `npm run build` before bundle-size gate.');
   process.exit(1);
 }
@@ -33,8 +33,8 @@ const totalMb = (totalBytes / (1024 * 1024)).toFixed(2);
 const limitMb = (limitBytes / (1024 * 1024)).toFixed(2);
 
 if (totalBytes > limitBytes) {
-  console.error(`❌ Bundle size gate failed: ${totalMb}MB > ${limitMb}MB limit`);
+  console.error(`[FAIL] Bundle size gate failed: ${totalMb}MB > ${limitMb}MB limit`);
   process.exit(1);
 }
 
-console.log(`✅ Bundle size gate passed: ${totalMb}MB <= ${limitMb}MB limit`);
+console.log(`[PASS] Bundle size gate passed: ${totalMb}MB <= ${limitMb}MB limit`);

@@ -33,6 +33,6 @@ router.use("/audit-logs", require("./audit-logs"));
 router.use("/jobs", require("./jobs"));
 
 // Legacy admin management API endpoints migrated from SSR router
-router.use("/", require("./management"));
+router.use("/", require("../../admin/management"));
 
 module.exports = router;

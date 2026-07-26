@@ -8,8 +8,10 @@ import {
   selectOrdersIsLoading,
   selectOrdersPagination,
 } from "@/features/orders/ordersSelectors";
+import AccountHeader from "@/components/layout/AccountHeader";
 import { EmptyState, ErrorState } from "@/components/common/AsyncState";
 import { TextBlockSkeleton } from "@/components/common/Skeleton";
+import { Card, Badge } from "@/components/ui";
 import { paymentsService } from "@/services/paymentService";
 import { getStoredCurrency } from "@/preferences";
 import { formatPrice } from "@/utils/format";
@@ -73,13 +75,10 @@ export default function Orders() {
           }
         });
 
-        const normalized = Object.entries(statuses).reduce(
-          (acc, [orderId, value]) => {
-            acc[orderId] = value.status;
-            return acc;
-          },
-          {},
-        );
+        const normalized = Object.entries(statuses).reduce((acc, [orderId, value]) => {
+          acc[orderId] = value.status;
+          return acc;
+        }, {});
 
         setPaymentStatusByOrderId(normalized);
       } catch {
@@ -97,18 +96,27 @@ export default function Orders() {
   }, [visibleOrderIds]);
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold">{t("orders.title")}</h1>
+    <div className="landing-container section-wrap">
+      <AccountHeader
+        title={t("orders.title")}
+        description="Track every order, review payment progress, and jump straight into detailed shipment updates."
+        badge="Order history"
+        stats={[
+          { label: "Visible orders", value: String(orders.length) },
+          { label: "Current page", value: String(pagination?.page || 1) },
+          { label: "Page size", value: "10" },
+        ]}
+      />
 
       {isLoading && (
-        <div className="mt-4 space-y-4">
+        <Card className="mt-8">
           <TextBlockSkeleton />
-          <TextBlockSkeleton />
-        </div>
+        </Card>
       )}
+
       {error && (
         <ErrorState
-          className="mt-4"
+          className="mt-8"
           title={t("orders.failedLoad")}
           message={error}
           onRetry={() => dispatch(fetchOrdersThunk({ page: 1, pageSize: 10 }))}
@@ -116,32 +124,40 @@ export default function Orders() {
       )}
 
       {!isLoading && !error && (
-        <div className="mt-4 space-y-3">
+        <div className="mt-8 space-y-4">
           {orders.map((order) => (
-            <Link
-              key={order.id}
-              to={`/account/orders/${order.id}`}
-              className="block rounded-md border p-3 hover:bg-accent"
-            >
-              <p className="font-medium">
-                {t("orders.orderNumber", { id: order.id })}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {t("orders.statusLine", {
-                  status: order.status || t("common.pending"),
-                  payment:
-                    paymentStatusByOrderId[order.id] ||
-                    order.payment_status ||
-                    t("common.pending"),
-                  total: formatPrice(
-                    Number(order.total_amount ?? order.total ?? 0),
-                    currency,
-                  ),
-                })}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t("orders.trackHint", { id: order.id })}
-              </p>
+            <Link key={order.id} to={`/account/orders/${order.id}`} className="block">
+              <Card className="hover:-translate-y-1">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-sky-600">
+                      {t("orders.orderNumber", { id: order.id })}
+                    </p>
+                    <p className="mt-3 text-lg font-semibold text-slate-950">
+                      {formatPrice(Number(order.total_amount ?? order.total ?? 0), currency)}
+                    </p>
+                    <p className="mt-2 text-sm text-slate-500">
+                      {t("orders.trackHint", { id: order.id })}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary">
+                      {t("orders.statusLine", {
+                        status: order.status || t("common.pending"),
+                        payment:
+                          paymentStatusByOrderId[order.id] ||
+                          order.payment_status ||
+                          t("common.pending"),
+                        total: formatPrice(
+                          Number(order.total_amount ?? order.total ?? 0),
+                          currency,
+                        ),
+                      })}
+                    </Badge>
+                  </div>
+                </div>
+              </Card>
             </Link>
           ))}
 
@@ -149,11 +165,15 @@ export default function Orders() {
             <EmptyState
               title={t("orders.noOrdersTitle")}
               message={t("orders.noOrdersMessage")}
+              actionLabel="Browse products"
+              onAction={() => {
+                window.location.href = "/products";
+              }}
             />
           )}
 
           {pagination && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-slate-500">
               {t("common.pageOf", {
                 page: pagination.page,
                 totalPages: pagination.totalPages,

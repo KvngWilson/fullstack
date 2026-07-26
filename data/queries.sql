@@ -205,7 +205,7 @@ CREATE TABLE permissions (
     UNIQUE (resource, action)
 );
 
--- Role ↔ Permission assignments
+-- Role-permission assignments
 CREATE TABLE role_permissions (
     role_id BIGINT NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
     permission_id BIGINT NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
@@ -320,6 +320,95 @@ ALTER TABLE role_permissions ENABLE ROW LEVEL SECURITY;
 -- The application must set `app.current_vendor` (BIGINT) in the session.
 CREATE POLICY vendor_isolation_policy ON vendor_staff
     USING (vendor_id = current_setting('app.current_vendor')::BIGINT);
+
+-- =====================================================
+-- Multi-Currency Support
+-- =====================================================
+
+-- Global system settings (e.g. base currency)
+CREATE TABLE IF NOT EXISTS system_config (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    key         TEXT UNIQUE NOT NULL,
+    value       TEXT NOT NULL,
+    description TEXT,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_by  BIGINT REFERENCES users(id)
+);
+
+INSERT INTO system_config (key, value, description)
+VALUES ('base_currency', 'USD', 'Base currency for all monetary calculations')
+ON CONFLICT (key) DO NOTHING;
+
+-- Live and historical exchange rates
+CREATE TABLE IF NOT EXISTS exchange_rates (
+    id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    from_currency  VARCHAR(3)     NOT NULL,
+    to_currency    VARCHAR(3)     NOT NULL,
+    rate           NUMERIC(18,8)  NOT NULL,
+    provider       VARCHAR(100),
+    effective_date DATE           NOT NULL,
+    expires_at     TIMESTAMPTZ    NOT NULL,
+    is_cached      BOOLEAN        DEFAULT false,
+    created_at     TIMESTAMPTZ    NOT NULL DEFAULT now(),
+
+    UNIQUE  (from_currency, to_currency, effective_date),
+    CHECK   (from_currency != to_currency),
+    CHECK   (rate > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_exchange_rates_lookup
+    ON exchange_rates (from_currency, to_currency, effective_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_exchange_rates_expires
+    ON exchange_rates (expires_at);
+
+-- Immutable rate snapshot locked to each order
+CREATE TABLE IF NOT EXISTS order_exchange_rates (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    order_id        BIGINT REFERENCES orders(id) ON DELETE CASCADE UNIQUE NOT NULL,
+    from_currency   VARCHAR(3)    NOT NULL,
+    to_currency     VARCHAR(3)    NOT NULL,
+    rate            NUMERIC(18,8) NOT NULL,
+    original_amount BIGINT,
+    locked_at       TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    created_at      TIMESTAMPTZ   NOT NULL DEFAULT now(),
+
+    CONSTRAINT order_exchange_rates_currencies_differ CHECK (from_currency != to_currency),
+    CONSTRAINT order_exchange_rates_positive_rate     CHECK (rate > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_exchange_rates_order_id
+    ON order_exchange_rates (order_id);
+
+-- Currency columns on orders (minor units)
+ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS currency                VARCHAR(3)     NOT NULL DEFAULT 'USD',
+    ADD COLUMN IF NOT EXISTS subtotal_cents          INTEGER        NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS tax_cents               INTEGER        NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS shipping_cents          INTEGER        NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS total_cents             INTEGER        NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS exchange_rate_at_time   NUMERIC(18,8),
+    ADD COLUMN IF NOT EXISTS exchange_rate_locked_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_orders_currency ON orders (currency);
+
+-- Currency columns on product_variants (minor units)
+ALTER TABLE product_variants
+    DROP   COLUMN IF EXISTS price,
+    ADD    COLUMN IF NOT EXISTS price_minor_units INTEGER NOT NULL DEFAULT 0,
+    ADD    COLUMN IF NOT EXISTS currency          VARCHAR(3) NOT NULL DEFAULT 'USD',
+    ADD    COLUMN IF NOT EXISTS is_price_locked   BOOLEAN DEFAULT false;
+
+CREATE INDEX IF NOT EXISTS idx_product_variants_currency ON product_variants (currency);
+CREATE INDEX IF NOT EXISTS idx_product_variants_price    ON product_variants (price_minor_units);
+
+-- Cleanup function for expired rates
+CREATE OR REPLACE FUNCTION clean_expired_exchange_rates()
+RETURNS void AS $$
+BEGIN
+    DELETE FROM exchange_rates WHERE expires_at < now();
+END;
+$$ LANGUAGE plpgsql;
 
 -- =====================================================
 -- Seed data (permissions and system role templates)

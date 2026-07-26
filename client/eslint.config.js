@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'coverage', 'playwright-report', 'test-results']),
+  globalIgnores(['dist', 'coverage', 'test-results', '.cache/Cypress']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [js.configs.recommended],
@@ -46,20 +46,22 @@ export default defineConfig([
       'src/**/*.{test,spec}.{js,jsx}',
       'src/**/__tests__/**/*.{js,jsx}',
       'e2e/**/*.{js,jsx}',
-      'playwright.config.js',
-      'vitest.config.js',
+      'cypress.config.js',
+      'jest.config.cjs',
+      'babel.config.cjs',
     ],
     languageOptions: {
       globals: {
         ...globals.browser,
         ...globals.node,
-        ...globals.vitest,
+        ...globals.jest,
+        cy: 'readonly',
+        Cypress: 'readonly',
       },
     },
   },
   {
     files: [
-      '.storybook/**/*.{js,jsx}',
       'scripts/**/*.{js,mjs,cjs}',
       'vite.config.js',
       'postcss.config.js',

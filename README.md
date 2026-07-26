@@ -6,7 +6,7 @@ Production-oriented e-commerce monorepo with:
 - `server/`: Node.js + Express API (DDD-inspired structure)
 - PostgreSQL + Redis + Docker Compose runtime
 
-The stack supports authenticated and guest shopping flows, checkout/order/payment pipelines, RBAC-admin APIs, and migration tooling for database hygiene.
+The stack supports authenticated and guest shopping flows, checkout/order/payment pipelines, RBAC-admin APIs, dual admin surfaces (CSR + SSR), and migration tooling for database hygiene.
 
 ## Contents
 
@@ -27,13 +27,13 @@ The stack supports authenticated and guest shopping flows, checkout/order/paymen
 - React 19 + React Router + Redux Toolkit
 - Tailwind CSS + component primitives
 - Vite build pipeline
-- Vitest unit tests + Playwright e2e suite
+- Jest unit/integration tests + Cypress e2e suite
 
 ### Backend (`server/`)
 
 - Express 5, Node 20 runtime
 - PostgreSQL (primary data), Redis (sessions/cache/guest sessions)
-- JWT auth + refresh token flows
+- Cookie-first auth (`token`, `refresh_token`) with JWT support for API clients
 - Joi-based request validation
 - Domain modules under `server/domain/*`
 - API surface under `server/api/*`
@@ -45,8 +45,14 @@ Main compose file (`docker-compose.yml`) runs:
 - `postgres` (5432)
 - `redis` (6379)
 - `server` + `server-replica`
+- `worker` (background job processor)
 - `gateway` (NGINX reverse proxy, exposed at 5000)
-- `client` (exposed at 5173 by default)
+- `client` (direct frontend container, exposed at 5173 by default)
+
+Gateway host routing:
+- `localhost:5000` serves the client app (CSR)
+- `admin.localhost:5000` serves the admin SSR app
+- `localhost:5000/api/v1/*` (plus `/health`, `/metrics`, `/api-docs`, `/uploads`) routes to backend
 
 ## Core Features
 
@@ -62,15 +68,20 @@ Main compose file (`docker-compose.yml`) runs:
 ### 1) Start stack
 
 ```bash
+cp .env.example .env
 docker compose up -d
 ```
 
 ### 2) Access services
 
-- Frontend: `http://localhost:5173`
-- API gateway: `http://localhost:5000`
+- Frontend (via gateway): `http://localhost:5000`
+- Frontend (direct client container): `http://localhost:5173`
+- Admin CSR routes (v1): `http://localhost:5000/admin`
+- Admin SSR subdomain: `http://admin.localhost:5000`
+- API gateway (same host): `http://localhost:5000/api/v1`
 - Health: `http://localhost:5000/health/live`
 - Swagger: `http://localhost:5000/api-docs`
+- MailHog (dev email inbox): `http://localhost:8025`
 
 ### 3) Stop stack
 
@@ -82,12 +93,6 @@ docker compose down
 
 ```bash
 docker compose logs -f
-```
-
-For a richer local stack (for example, MailHog and expanded env defaults), use:
-
-```bash
-docker compose -f docker-compose.dev.yml up -d
 ```
 
 ## Local Development
@@ -108,7 +113,15 @@ cd ..
 
 ### Configure env
 
-Create env files as needed for your environment (server/client). If you use Docker Compose, many defaults are already provided through compose env values.
+Copy `.env.example` to `.env` in the repository root and adjust values for your machine.  
+If you use Docker Compose, most local defaults are already wired through compose env values.
+
+If you run services directly on your host while using Docker-managed Postgres/Redis, use:
+
+- `DB_HOST=localhost`
+- `DB_PORT=54322`
+- `REDIS_HOST=localhost`
+- `REDIS_PORT=63799`
 
 ### Run backend
 
@@ -123,6 +136,8 @@ npm run dev
 cd server
 npm run dev:admin
 ```
+
+If testing subdomain SSR locally, ensure your hosts file maps `admin.localhost` to `127.0.0.1`.
 
 ### Run frontend
 
@@ -209,6 +224,7 @@ cd server
 npm test
 npm run test:unit
 npm run test:integration
+npm run test:e2e
 npm run test:security
 ```
 
@@ -237,6 +253,8 @@ npm test -- __tests__/integration/ordering/guest-session.integration.test.js --r
 cd server
 npm run dev
 npm run dev:admin
+npm run start
+npm run start:admin
 npm run migrate
 npm run migrate:audit
 ```
@@ -271,6 +289,36 @@ docker compose ps
 docker compose logs -f gateway server
 ```
 
+### Admin SSR subdomain not loading
+
+- Verify the full stack is up: `docker compose ps`
+- Open `http://admin.localhost:5000` (include `:5000`)
+- If your machine does not resolve `admin.localhost`, add `127.0.0.1 admin.localhost` to your hosts file
+
+### UI changes not appearing
+
+- Prefer the gateway URL: `http://localhost:5000` (it reflects the current composed routing model).
+- Rebuild and recreate frontend/gateway after UI edits:
+
+```bash
+docker compose up -d --build client gateway
+```
+
+- If stale assets persist, force recreation:
+
+```bash
+docker compose up -d --build --force-recreate client gateway
+```
+
+### `Unknown command: "dev:admin"`
+
+- Run admin runtime scripts from [server/](/home/wilson/Desktop/fullstack/server), not repository root:
+
+```bash
+cd server
+npm run dev:admin
+```
+
 ### Test DB warnings in unit/integration runs
 
 Some suites may emit local DB availability warnings (for example, `ECONNREFUSED 127.0.0.1:5445`) depending on test harness mode. If a suite still passes, that warning is non-fatal for the run.
@@ -284,3 +332,4 @@ Some suites may emit local DB availability warnings (for example, `ECONNREFUSED 
 ---
 
 For deeper backend internals, inspect `server/api`, `server/domain`, and migration docs under `server/infrastructure/database/migrations`.
+For end-to-end infrastructure and runtime topology, see [BACKEND_ARCHITECTURE.md](/home/wilson/Desktop/fullstack/docs/BACKEND_ARCHITECTURE.md).

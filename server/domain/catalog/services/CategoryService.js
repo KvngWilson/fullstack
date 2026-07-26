@@ -1,6 +1,6 @@
 const categoryRepository = require("../repositories/CategoryRepository");
 const BaseService = require("../../base/BaseService");
-const catalogPolicy = require("../../../policies/catalogPolicy");
+const PERMISSIONS = require("../../../shared/constants/permissions");
 
 /**
  * Category Service.
@@ -21,7 +21,7 @@ class CategoryService extends BaseService {
 
   async create(categoryData, employeeId = null) {
     if (employeeId) {
-      await this.validatePermission(employeeId, catalogPolicy.category.create);
+      await this.validatePermission(employeeId, PERMISSIONS.CATEGORY.CREATE);
     }
 
     const category = await categoryRepository.create(categoryData);
@@ -37,7 +37,7 @@ class CategoryService extends BaseService {
 
   async update(id, categoryData, employeeId = null) {
     if (employeeId) {
-      await this.validatePermission(employeeId, catalogPolicy.category.update);
+      await this.validatePermission(employeeId, PERMISSIONS.CATEGORY.UPDATE);
     }
 
     const category = await categoryRepository.update(id, categoryData);
@@ -53,7 +53,7 @@ class CategoryService extends BaseService {
 
   async delete(id, employeeId = null) {
     if (employeeId) {
-      await this.validatePermission(employeeId, catalogPolicy.category.delete);
+      await this.validatePermission(employeeId, PERMISSIONS.CATEGORY.DELETE);
     }
 
     const deleted = await categoryRepository.delete(id);

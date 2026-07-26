@@ -9,20 +9,15 @@ import {
   selectCartSubtotal,
 } from "@/features/cart/cartSelectors";
 import { createOrderThunk } from "@/features/orders/ordersThunks";
-import {
-  fetchAddressesThunk,
-  fetchSavedCardsThunk,
-} from "@/features/user/userThunks";
-import {
-  selectUserAddresses,
-  selectUserSavedCards,
-} from "@/features/user/userSelectors";
+import { fetchAddressesThunk, fetchSavedCardsThunk } from "@/features/user/userThunks";
+import { selectUserAddresses, selectUserSavedCards } from "@/features/user/userSelectors";
 import { shippingService } from "@/services/shippingService";
 import { paymentsService } from "@/services/paymentService";
 import { guestCheckoutService } from "@/services/guestCheckoutService";
 import { getStoredCurrency } from "@/preferences";
 import { formatPrice } from "@/utils/format";
 import { useAppPreferences } from "@/contexts/AppPreferencesContext";
+import { Badge, Button, Card, Input, Select } from "@/components/ui";
 
 export default function Checkout() {
   const dispatch = useAppDispatch();
@@ -123,9 +118,7 @@ export default function Checkout() {
 
   const selectedShippingRate = useMemo(
     () =>
-      shippingRates.find(
-        (rate) => String(rate.id) === String(selectedShippingRateId),
-      ) || null,
+      shippingRates.find((rate) => String(rate.id) === String(selectedShippingRateId)) || null,
     [shippingRates, selectedShippingRateId],
   );
 
@@ -185,9 +178,7 @@ export default function Checkout() {
 
       const shippingItems = items.map((item) => {
         const quantity = Number(item.quantity || 1);
-        const unitPrice = Number(
-          item.unit_price ?? item.price ?? item.base_price ?? 0,
-        );
+        const unitPrice = Number(item.unit_price ?? item.price ?? item.base_price ?? 0);
         const weight = Number(item.weight || item.variant?.weight || 0.5);
 
         return {
@@ -312,10 +303,7 @@ export default function Checkout() {
               const paymentInit = await paymentsService.createPayment({
                 order_id: Number(createdOrder.id),
                 amount: Number(
-                  createdOrder?.total_amount ??
-                    createdOrder?.net_amount ??
-                    orderTotal ??
-                    0,
+                  createdOrder?.total_amount ?? createdOrder?.net_amount ?? orderTotal ?? 0,
                 ),
                 currency,
                 processor: selectedProcessor,
@@ -325,9 +313,7 @@ export default function Checkout() {
                 paymentInit?.reference || paymentInit?.data?.reference || "";
 
               const authorizationUrl =
-                paymentInit?.authorization_url ||
-                paymentInit?.data?.authorization_url ||
-                "";
+                paymentInit?.authorization_url || paymentInit?.data?.authorization_url || "";
 
               if (selectedProcessor === "stripe" && authorizationUrl) {
                 window.location.href = authorizationUrl;
@@ -338,14 +324,11 @@ export default function Checkout() {
                 setPaymentReference(confirmationPaymentReference);
 
                 try {
-                  const verification =
-                    await paymentsService.verifyPaymentStatus(
-                      confirmationPaymentReference,
-                    );
+                  const verification = await paymentsService.verifyPaymentStatus(
+                    confirmationPaymentReference,
+                  );
                   confirmationPaymentStatus =
-                    verification?.status ||
-                    verification?.data?.status ||
-                    t("common.pending");
+                    verification?.status || verification?.data?.status || t("common.pending");
                   setPaymentStatus(confirmationPaymentStatus);
                 } catch {
                   confirmationPaymentStatus = t("common.pending");
@@ -380,238 +363,178 @@ export default function Checkout() {
 
       setSubmitError("Please select shipping and billing addresses.");
     } catch (error) {
-      setSubmitError(
-        error?.message || "Failed to place order. Please try again.",
-      );
+      setSubmitError(error?.message || "Failed to place order. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold">{t("checkout.title")}</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        {t("checkout.continueAsGuest")}
-      </p>
-      <span className="sr-only">guest|continue as guest</span>
+    <div className="landing-container section-wrap">
+      <div className="rounded-section border border-white/70 bg-white/82 p-6 shadow-[0_26px_90px_-52px_rgba(15,23,42,0.28)] backdrop-blur-xl lg:p-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-600">
+              Checkout
+            </p>
+            <h1 className="mt-3 font-heading text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">
+              A cleaner finish for your order.
+            </h1>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-500 sm:text-base">
+              {t("checkout.continueAsGuest")}
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <Badge variant={step === "shipping" ? "primary" : "secondary"}>Shipping</Badge>
+            <Badge variant={step === "payment" ? "primary" : "secondary"}>Payment</Badge>
+            <Badge variant={step === "confirmation" ? "primary" : "secondary"}>
+              Confirmation
+            </Badge>
+          </div>
+        </div>
+      </div>
 
       {cartLoading && (
-        <p className="mt-4 text-sm text-muted-foreground">
-          {t("checkout.loadingData")}
-        </p>
+        <p className="mt-6 text-sm text-slate-500">{t("checkout.loadingData")}</p>
       )}
 
-      <form onSubmit={handlePlaceOrder} className="mt-6 max-w-2xl space-y-6">
-        {step === "shipping" && (
-          <div className="space-y-6">
-            <div className="rounded-md border p-4">
-              <h2 className="mb-3 text-lg font-semibold">
+      <form onSubmit={handlePlaceOrder} className="mt-8 grid gap-6 lg:grid-cols-[1.08fr_0.92fr]">
+        <div className="space-y-6">
+          {step === "shipping" && (
+            <Card>
+              <h2 className="font-heading text-2xl font-semibold tracking-tight text-slate-950">
                 {t("checkout.shippingInfo")}
               </h2>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <input
+              <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Input
                   id="firstName"
                   name="firstName"
                   value={shippingForm.firstName}
                   onChange={handleShippingInputChange}
                   placeholder="First name"
-                  className="h-10 rounded-md border px-3"
+                  autoComplete="given-name"
                 />
-                <input
+                <Input
                   id="lastName"
                   name="lastName"
                   value={shippingForm.lastName}
                   onChange={handleShippingInputChange}
                   placeholder="Last name"
-                  className="h-10 rounded-md border px-3"
+                  autoComplete="family-name"
                 />
-                <input
+                <Input
                   id="email"
                   name="email"
                   type="email"
                   value={shippingForm.email}
                   onChange={handleShippingInputChange}
                   placeholder="Email"
-                  className="h-10 rounded-md border px-3"
+                  autoComplete="email"
                 />
-                <input
+                <Input
                   id="phone"
                   name="phone"
                   value={shippingForm.phone}
                   onChange={handleShippingInputChange}
                   placeholder="Phone"
-                  className="h-10 rounded-md border px-3"
+                  autoComplete="tel"
                 />
-                <input
+                <Input
                   id="address"
                   name="address"
                   value={shippingForm.address}
                   onChange={handleShippingInputChange}
                   placeholder="Address"
-                  className="h-10 rounded-md border px-3 sm:col-span-2"
+                  className="sm:col-span-2"
+                  autoComplete="street-address"
                 />
-                <input
+                <Input
                   id="city"
                   name="city"
                   value={shippingForm.city}
                   onChange={handleShippingInputChange}
                   placeholder="City"
-                  className="h-10 rounded-md border px-3"
+                  autoComplete="address-level2"
                 />
-                <input
+                <Input
                   id="state"
                   name="state"
                   value={shippingForm.state}
                   onChange={handleShippingInputChange}
                   placeholder="State"
-                  className="h-10 rounded-md border px-3"
+                  autoComplete="address-level1"
                 />
-                <input
+                <Input
                   id="zip"
                   name="zip"
                   value={shippingForm.zip}
                   onChange={handleShippingInputChange}
                   placeholder="Zip"
-                  className="h-10 rounded-md border px-3"
+                  autoComplete="postal-code"
                 />
-                <input
+                <Input
                   id="country"
                   name="country"
                   value={shippingForm.country}
                   onChange={handleShippingInputChange}
                   placeholder="Country"
-                  className="h-10 rounded-md border px-3"
+                  autoComplete="country"
                 />
               </div>
-            </div>
 
-            <div className="rounded-md border bg-muted p-4">
-              <div className="flex justify-between text-sm">
-                <span>{t("checkout.subtotal")}</span>
-                <span>{formatPrice(Number(subtotal ?? 0), currency)}</span>
-              </div>
-              <div className="mt-2 flex justify-between text-sm">
-                <span>{t("checkout.shipping")}</span>
-                <span>{formatPrice(shippingCost, currency)}</span>
-              </div>
-              <div className="mt-2 flex justify-between text-sm font-semibold">
-                <span>{t("checkout.total")}</span>
-                <span>{formatPrice(orderTotal, currency)}</span>
-              </div>
+              <Button
+                type="button"
+                onClick={handleContinue}
+                disabled={!orderItems.length}
+                className="mt-6 w-full"
+                variant="primary"
+                size="lg"
+              >
+                {t("checkout.continue")}
+              </Button>
+            </Card>
+          )}
 
-              {shippingRatesLoading && (
-                <p className="mt-3 text-xs text-muted-foreground">
-                  {t("checkout.loadingShippingOptions")}
-                </p>
-              )}
-
-              {shippingRateError && (
-                <p className="mt-3 text-xs text-destructive">
-                  {shippingRateError}
-                </p>
-              )}
-
-              {shippingRates.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  <p className="text-xs font-medium uppercase text-muted-foreground">
-                    {t("checkout.shippingOptions")}
-                  </p>
-                  {shippingRates.map((rate) => {
-                    const rateId = String(rate.id);
-                    const isSelected =
-                      String(selectedShippingRateId) === rateId;
-
-                    return (
-                      <label
-                        key={rateId}
-                        className={`flex items-center justify-between rounded border p-2 text-sm ${isSelected ? "border-primary" : ""}`}
-                      >
-                        <span className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            name="shippingRate"
-                            value={rateId}
-                            checked={isSelected}
-                            onChange={(e) =>
-                              setSelectedShippingRateId(e.target.value)
-                            }
-                          />
-                          <span>
-                            {rate.name ||
-                              rate.service ||
-                              t("checkout.standardShipping")}
-                          </span>
-                        </span>
-                        <span>
-                          {formatPrice(
-                            Number(rate.cost || 0),
-                            rate.currency || currency,
-                          )}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={handleContinue}
-              disabled={!orderItems.length}
-              className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {t("checkout.continue")}
-            </button>
-          </div>
-        )}
-
-        {step === "payment" && (
-          <div className="space-y-6">
-            <div className="rounded-md border p-4">
-              <h2 className="mb-3 text-lg font-semibold">
+          {step === "payment" && (
+            <Card>
+              <h2 className="font-heading text-2xl font-semibold tracking-tight text-slate-950">
                 {t("checkout.payment")}
               </h2>
-              <p className="text-sm text-muted-foreground">
-                {t("checkout.methodStepReady")}
-              </p>
+              <p className="mt-3 text-sm text-slate-500">{t("checkout.methodStepReady")}</p>
 
-              <div className="mt-3 space-y-2">
-                <p className="text-xs font-medium uppercase text-muted-foreground">
+              <div className="mt-6 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
                   {t("checkout.paymentProcessor")}
                 </p>
-                <label className="flex items-center gap-2 rounded border p-2 text-sm">
-                  <input
-                    type="radio"
-                    name="paymentProcessor"
-                    value="stripe"
-                    checked={selectedProcessor === "stripe"}
-                    onChange={(event) =>
-                      setSelectedProcessor(event.target.value)
-                    }
-                  />
-                  <span>{t("checkout.processorStripe")}</span>
-                </label>
-                <label className="flex items-center gap-2 rounded border p-2 text-sm">
-                  <input
-                    type="radio"
-                    name="paymentProcessor"
-                    value="paystack"
-                    checked={selectedProcessor === "paystack"}
-                    onChange={(event) =>
-                      setSelectedProcessor(event.target.value)
-                    }
-                  />
-                  <span>{t("checkout.processorPaystack")}</span>
-                </label>
+                {[
+                  { value: "stripe", label: t("checkout.processorStripe") },
+                  { value: "paystack", label: t("checkout.processorPaystack") },
+                ].map((option) => (
+                  <label
+                    key={option.value}
+                    className={`flex items-center gap-3 rounded-card border p-4 text-sm ${
+                      selectedProcessor === option.value
+                        ? "border-sky-300 bg-sky-50/80"
+                        : "border-slate-200/80 bg-white"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentProcessor"
+                      value={option.value}
+                      checked={selectedProcessor === option.value}
+                      onChange={(event) => setSelectedProcessor(event.target.value)}
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                ))}
               </div>
 
               {selectedShippingRate && (
-                <p className="mt-2 text-sm text-muted-foreground">
+                <p className="mt-4 text-sm text-slate-500">
                   {t("checkout.selectedShipping", {
-                    name:
-                      selectedShippingRate.name || selectedShippingRate.service,
+                    name: selectedShippingRate.name || selectedShippingRate.service,
                     cost: formatPrice(
                       Number(selectedShippingRate.cost || 0),
                       selectedShippingRate.currency || currency,
@@ -621,11 +544,18 @@ export default function Checkout() {
               )}
 
               {!!savedCards.length && (
-                <div className="mt-3 space-y-2">
+                <div className="mt-6 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                    Saved cards
+                  </p>
                   {savedCards.map((card) => (
                     <label
                       key={card.id}
-                      className="flex items-center gap-2 rounded border p-2 text-sm"
+                      className={`flex items-center gap-3 rounded-card border p-4 text-sm ${
+                        selectedCardId === String(card.id)
+                          ? "border-sky-300 bg-sky-50/80"
+                          : "border-slate-200/80 bg-white"
+                      }`}
                     >
                       <input
                         type="radio"
@@ -641,69 +571,140 @@ export default function Checkout() {
                   ))}
                 </div>
               )}
+
+              <Button
+                type="submit"
+                disabled={isSubmitting || !orderItems.length}
+                className="mt-6 w-full"
+                variant="primary"
+                size="lg"
+                state={isSubmitting ? "loading" : "default"}
+              >
+                {isSubmitting ? t("checkout.placingOrder") : t("checkout.placeOrder")}
+              </Button>
+            </Card>
+          )}
+
+          {step === "confirmation" && (
+            <Card>
+              <div className="flex flex-col gap-3">
+                <Badge variant="success">Order confirmed</Badge>
+                <span className="font-heading text-2xl font-semibold tracking-tight text-slate-950">
+                  {confirmationMessage || t("checkout.orderConfirmationSuccess")}
+                </span>
+                {paymentReference && (
+                  <Badge variant="secondary">
+                    {t("checkout.reference", { reference: paymentReference })}
+                  </Badge>
+                )}
+                {paymentStatus && (
+                  <Badge variant="secondary">
+                    {t("checkout.paymentStatusLabel", { status: paymentStatus })}
+                  </Badge>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {submitError && (
+            <Card className="border border-red-100 bg-red-50/90 text-red-700" role="alert">
+              <span className="text-sm">{submitError}</span>
+            </Card>
+          )}
+        </div>
+
+        <div className="space-y-6">
+          <Card variant="outline">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+              Order summary
+            </p>
+            <div className="mt-5 space-y-3 text-sm text-slate-600">
+              <div className="flex justify-between gap-4">
+                <span>{t("checkout.subtotal")}</span>
+                <span>{formatPrice(Number(subtotal ?? 0), currency)}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span>{t("checkout.shipping")}</span>
+                <span>{formatPrice(shippingCost, currency)}</span>
+              </div>
+              <div className="flex justify-between gap-4 text-base font-semibold text-slate-950">
+                <span>{t("checkout.total")}</span>
+                <span>{formatPrice(orderTotal, currency)}</span>
+              </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={isSubmitting || !orderItems.length}
-              className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSubmitting
-                ? t("checkout.placingOrder")
-                : t("checkout.placeOrder")}
-            </button>
-          </div>
-        )}
-
-        {step === "confirmation" && (
-          <div className="rounded-md border border-green-300 bg-green-50 p-4 text-green-900">
-            {confirmationMessage || t("checkout.orderConfirmationSuccess")}
-            {paymentReference && (
-              <p className="mt-2 text-sm">
-                {t("checkout.reference", { reference: paymentReference })}
-              </p>
+            {shippingRatesLoading && (
+              <p className="mt-4 text-xs text-slate-500">{t("checkout.loadingShippingOptions")}</p>
             )}
-            {paymentStatus && (
-              <p className="mt-1 text-sm">
-                {t("checkout.paymentStatusLabel", { status: paymentStatus })}
-              </p>
+
+            {shippingRateError && (
+              <p className="mt-4 text-xs text-red-500">{shippingRateError}</p>
             )}
-          </div>
-        )}
 
-        {submitError && (
-          <div
-            role="alert"
-            className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
-          >
-            {submitError}
-          </div>
-        )}
+            {shippingRates.length > 0 && (
+              <div className="mt-5 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  {t("checkout.shippingOptions")}
+                </p>
+                {shippingRates.map((rate) => {
+                  const rateId = String(rate.id);
+                  const isSelected = String(selectedShippingRateId) === rateId;
 
-        {!!addresses.length && step !== "confirmation" && (
-          <div className="hidden">
-            <select
-              value={shippingAddressId}
-              onChange={(e) => setShippingAddressId(e.target.value)}
-            >
-              {addresses.map((addr) => (
-                <option key={addr.id} value={addr.id}>
-                  {addr.id}
-                </option>
-              ))}
-            </select>
-            <select
-              value={billingAddressId}
-              onChange={(e) => setBillingAddressId(e.target.value)}
-            >
-              {addresses.map((addr) => (
-                <option key={addr.id} value={addr.id}>
-                  {addr.id}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+                  return (
+                    <label
+                      key={rateId}
+                      className={`flex items-center justify-between gap-3 rounded-card border p-4 text-sm ${
+                        isSelected
+                          ? "border-sky-300 bg-sky-50/80"
+                          : "border-slate-200/80 bg-white"
+                      }`}
+                    >
+                      <span className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          name="shippingRate"
+                          value={rateId}
+                          checked={isSelected}
+                          onChange={(e) => setSelectedShippingRateId(e.target.value)}
+                        />
+                        <span>
+                          {rate.name || rate.service || t("checkout.standardShipping")}
+                        </span>
+                      </span>
+                      <span>
+                        {formatPrice(Number(rate.cost || 0), rate.currency || currency)}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+
+          {!!addresses.length && step !== "confirmation" && (
+            <Card variant="outline">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                Saved addresses
+              </p>
+              <div className="mt-4 grid gap-4">
+                <Select value={shippingAddressId} onChange={(e) => setShippingAddressId(e.target.value)}>
+                  {addresses.map((addr) => (
+                    <option key={addr.id} value={addr.id}>
+                      {addr.id}
+                    </option>
+                  ))}
+                </Select>
+                <Select value={billingAddressId} onChange={(e) => setBillingAddressId(e.target.value)}>
+                  {addresses.map((addr) => (
+                    <option key={addr.id} value={addr.id}>
+                      {addr.id}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            </Card>
+          )}
+        </div>
       </form>
     </div>
   );

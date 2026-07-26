@@ -39,8 +39,7 @@ const csrfProtection = (options = {}) => {
     excludePaths = DEFAULT_EXCLUDE_PATHS,
     headerName = "x-csrf-token",
     tokenKeyPrefix = "csrf-token",
-  } =
-    options;
+  } = options;
 
   return async (req, res, next) => {
     // Only validate state-changing requests

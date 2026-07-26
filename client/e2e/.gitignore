@@ -1,6 +1,0 @@
-# Playwright test artifacts
-test-results/
-playwright-report/
-
-# Playwright browser binaries
-browsers/

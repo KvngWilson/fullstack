@@ -1,6 +1,6 @@
 const userRepository = require("../repositories/UserRepository");
 const BaseService = require("../../base/BaseService");
-const adminPolicy = require("../../../policies/adminPolicy");
+const PERMISSIONS = require("../../../shared/constants/permissions");
 
 /**
  * User Service.
@@ -22,7 +22,7 @@ class UserService extends BaseService {
 	async updateUser(userId, userData, employeeId = null) {
 		// Permission validation for admin user updates
 		if (employeeId) {
-			await this.validatePermission(employeeId, adminPolicy.users.update);
+			await this.validatePermission(employeeId, PERMISSIONS.ADMIN.USERS.UPDATE);
 		}
 
 		const updatedUser = await userRepository.update(userId, userData);
@@ -31,7 +31,7 @@ class UserService extends BaseService {
 		if (employeeId) {
 			await this.auditLog(
 				employeeId,
-				"user:update",
+				PERMISSIONS.ADMIN.USERS.UPDATE,
 				"user",
 				userId,
 				{ changes: userData }
@@ -44,7 +44,7 @@ class UserService extends BaseService {
 	async lockUser(userId, reason, employeeId = null) {
 		// Permission validation
 		if (employeeId) {
-			await this.validatePermission(employeeId, adminPolicy.users.lock);
+			await this.validatePermission(employeeId, PERMISSIONS.ADMIN.USERS.LOCK);
 		}
 
 		const updatedUser = await userRepository.update(userId, {
@@ -55,7 +55,7 @@ class UserService extends BaseService {
 
 		// Audit log
 		if (employeeId) {
-			await this.auditLog(employeeId, "user:lock", "user", userId, {
+			await this.auditLog(employeeId, PERMISSIONS.ADMIN.USERS.LOCK, "user", userId, {
 				reason,
 			});
 		}
@@ -66,7 +66,7 @@ class UserService extends BaseService {
 	async unlockUser(userId, employeeId = null) {
 		// Permission validation
 		if (employeeId) {
-			await this.validatePermission(employeeId, adminPolicy.users.unlock);
+			await this.validatePermission(employeeId, PERMISSIONS.ADMIN.USERS.UNLOCK);
 		}
 
 		const updatedUser = await userRepository.update(userId, {
@@ -77,7 +77,7 @@ class UserService extends BaseService {
 
 		// Audit log
 		if (employeeId) {
-			await this.auditLog(employeeId, "user:unlock", "user", userId, {
+			await this.auditLog(employeeId, PERMISSIONS.ADMIN.USERS.UNLOCK, "user", userId, {
 				unlocked: true,
 			});
 		}

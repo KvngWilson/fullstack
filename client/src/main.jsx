@@ -1,14 +1,14 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import AppProviders from './app/providers/AppProviders';
-import AppRouter from './app/router';
-import './i18n';
-import './styles/consolidated.css';
+import React from "react";
+import ReactDOM from "react-dom/client";
+import AppProviders from "./app/providers/AppProviders";
+import AppRouter from "./app/router";
+import "./i18n";
+import "./styles/consolidated.css";
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <AppProviders>
       <AppRouter />
     </AppProviders>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

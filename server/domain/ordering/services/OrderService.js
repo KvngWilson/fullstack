@@ -1,16 +1,19 @@
 const { pool } = require("../../../config/db");
 const BaseService = require("../../base/BaseService");
 const { orderRepository } = require("../repositories");
+const { InventoryRepository: inventoryRepository } = require("../../catalog/repositories");
 const {
   InvalidOrderError,
   InsufficientStockError,
   AuthorizationError,
+  ConflictError,
 } = require("../../../shared/utils/errors");
 const logger = require("../../../shared/utils/logger");
-const orderPolicy = require("../../../policies/orderPolicy");
+const PERMISSIONS = require("../../../shared/constants/permissions");
 const taxService = require("./TaxService");
-const { getJobQueuesRuntime } = require("../../../infrastructure/jobs/runtime");
+const EmailQueueProvider = require("../../../infrastructure/jobs/EmailQueueProvider");
 const eventDispatcher = require("../../shared/events/dispatcher");
+const { fireAndForgetWithErrorLog } = require("../../../shared/utils/asyncErrorHandler");
 
 /**
  * Order Service.
@@ -18,9 +21,8 @@ const eventDispatcher = require("../../shared/events/dispatcher");
  * Extends BaseService for permission validation and cross-tenant isolation.
  */
 class OrderService extends BaseService {
-  constructor(emailQueue = null) {
+  constructor() {
     super();
-    this.emailQueue = emailQueue;
   }
 
   /**
@@ -31,7 +33,7 @@ class OrderService extends BaseService {
   async createOrder(userId, shippingAddressId, billingAddressId, employeeId = null) {
     // If called by employee, validate permission
     if (employeeId) {
-      await this.validatePermission(employeeId, orderPolicy.create);
+      await this.validatePermission(employeeId, PERMISSIONS.ORDER.CREATE);
       await this.auditLog(employeeId, 'create', 'order', null, { userId, shippingAddressId });
     }
 
@@ -74,12 +76,20 @@ class OrderService extends BaseService {
       });
 
       for (const item of pricedItems) {
-        const reserved = await orderRepository.reserveVariantStock(client, {
-          variantId: item.product_variant_id,
-          quantity: item.quantity,
-        });
+        const reservation = await inventoryRepository.reserveStockWithOptimisticLock(
+          client,
+          {
+            variantId: item.product_variant_id,
+            quantity: item.quantity,
+          },
+        );
 
-        if (!reserved) {
+        if (!reservation.reserved) {
+          if (reservation.reason === "version_conflict") {
+            throw new ConflictError(
+              `Stock reservation conflict for variant ${item.product_variant_id}, please retry`,
+            );
+          }
           throw new InsufficientStockError(
             `Insufficient stock for variant ${item.product_variant_id}`,
           );
@@ -116,8 +126,8 @@ class OrderService extends BaseService {
       // Capture exchange rate snapshot for audit trail
       await this._captureExchangeRateSnapshot(client, {
         orderId: order.id,
-        customerCurrency: 'USD', // TODO: Get from user preferences
-        baseCurrency: 'USD',
+        customerCurrency: user?.currency_preference ?? process.env.DEFAULT_CURRENCY ?? 'USD',
+        baseCurrency: process.env.BASE_CURRENCY ?? 'USD',
         total,
       });
 
@@ -125,28 +135,24 @@ class OrderService extends BaseService {
 
       const fullOrder = await orderRepository.findByIdWithItems(order.id);
 
-      this._publishOrderCreatedEvent({
-        orderId: order.id,
-        userId,
-        total,
-        subtotal,
-        tax,
-        discount,
-        shippingCost,
-        items: pricedItems,
-      }).catch((err) => {
-        logger.error("Order event publish failed", {
-          error: err,
+      fireAndForgetWithErrorLog(
+        () => this._publishOrderCreatedEvent({
           orderId: order.id,
-        });
-      });
+          userId,
+          total,
+          subtotal,
+          tax,
+          discount,
+          shippingCost,
+          items: pricedItems,
+        }),
+        { operation: 'publishOrderCreatedEvent', orderId: order.id }
+      );
 
-      this._queueOrderConfirmationEmail(fullOrder, this.emailQueue).catch((err) => {
-        logger.error("Failed to queue order confirmation email", {
-          error: err,
-          orderId: fullOrder.id,
-        });
-      });
+      fireAndForgetWithErrorLog(
+        () => this._queueOrderConfirmationEmail(fullOrder),
+        { operation: 'queueOrderConfirmationEmail', orderId: fullOrder.id }
+      );
 
       return fullOrder;
     } catch (error) {
@@ -163,25 +169,31 @@ class OrderService extends BaseService {
   }
 
   async _priceCartItems(client, cartItems) {
-    const pricedItems = [];
+    if (!cartItems || cartItems.length === 0) {
+      return [];
+    }
 
-    for (const item of cartItems) {
-      const variant = await orderRepository.getVariantById(
-        client,
-        item.product_variant_id,
-      );
+    // Batch load all variants in single query (prevents N+1)
+    const variantIds = cartItems.map(item => item.product_variant_id);
+    const variants = await orderRepository.getVariantsByIds(client, variantIds);
 
+    // Create lookup map for O(1) access
+    const variantMap = new Map(variants.map(v => [v.id, v]));
+
+    // Match cart items with variants
+    const pricedItems = cartItems.map(item => {
+      const variant = variantMap.get(item.product_variant_id);
       if (!variant) {
         throw new InvalidOrderError(
           `Variant ${item.product_variant_id} not found`,
         );
       }
 
-      pricedItems.push({
+      return {
         ...item,
-        unit_price: Number.parseFloat(variant.price),
-      });
-    }
+        unit_price: Number.parseFloat(variant.price_minor_units) / 100,
+      };
+    });
 
     return pricedItems;
   }
@@ -203,7 +215,9 @@ class OrderService extends BaseService {
     return Number.parseFloat((subtotal * discountRate).toFixed(2));
   }
 
-  _calculateShippingCost(_pricedItems, _context = {}) {
+  _calculateShippingCost(pricedItems, _context = {}) {
+    // Future: Integrate with ShippingService.calculateCost(pricedItems, context)
+    // For now: No shipping cost applied
     return 0;
   }
 
@@ -245,14 +259,7 @@ class OrderService extends BaseService {
     });
   }
 
-  async _queueOrderConfirmationEmail(order, emailQueue) {
-    const resolvedEmailQueue = emailQueue || this._resolveEmailQueue();
-
-    if (!resolvedEmailQueue) {
-      logger.warn("Email queue not initialized, skipping order confirmation email");
-      return;
-    }
-
+  async _queueOrderConfirmationEmail(order) {
     try {
       const { user_id, id: orderId, total, items = [] } = order;
       const user = await orderRepository.getUserById(user_id);
@@ -272,8 +279,7 @@ class OrderService extends BaseService {
         subtotal: (item.unit_price * item.quantity).toFixed(2),
       }));
 
-      await require("../../../infrastructure/jobs/initializeEmailQueue").queueEmail(
-        resolvedEmailQueue,
+      await EmailQueueProvider.queueEmail(
         user.email,
         "orderConfirmation",
         {
@@ -284,7 +290,6 @@ class OrderService extends BaseService {
         },
         {
           attempts: 3,
-          backoffDelay: 2000,
         }
       );
 
@@ -298,20 +303,6 @@ class OrderService extends BaseService {
         error: error.message,
       });
     }
-  }
-
-  _resolveEmailQueue() {
-    const runtime = getJobQueuesRuntime();
-
-    if (runtime?.emailJobQueue?.queue) {
-      return runtime.emailJobQueue.queue;
-    }
-
-    if (runtime?.queueManager && typeof runtime.queueManager.getQueue === "function") {
-      return runtime.queueManager.getQueue("email");
-    }
-
-    return null;
   }
 
   async getOrder(orderId, userId, isAdmin) {
@@ -335,7 +326,7 @@ class OrderService extends BaseService {
   async updateOrderStatus(orderId, newStatus, userId, isAdmin, employeeId = null) {
     // Service-layer RBAC: Always validate permission if called by employee
     if (employeeId) {
-      await this.validatePermission(employeeId, orderPolicy.update);
+      await this.validatePermission(employeeId, PERMISSIONS.ORDER.UPDATE);
       await this.auditLog(employeeId, 'update', 'order', orderId, { newStatus });
     } else if (!isAdmin) {
       throw new AuthorizationError("Unauthorized: Only admins/employees can update order status");
@@ -348,18 +339,14 @@ class OrderService extends BaseService {
     }
 
     if (newStatus === "shipped") {
-      this._sendShippingNotification(order).catch((err) =>
-        logger.error("Failed to send shipping notification", {
-          error: err,
-          orderId: order.id,
-        }),
+      fireAndForgetWithErrorLog(
+        () => this._sendShippingNotification(order),
+        { operation: 'sendShippingNotification', orderId: order.id }
       );
     } else if (newStatus === "delivered") {
-      this._sendDeliveryNotification(order).catch((err) =>
-        logger.error("Failed to send delivery notification", {
-          error: err,
-          orderId: order.id,
-        }),
+      fireAndForgetWithErrorLog(
+        () => this._sendDeliveryNotification(order),
+        { operation: 'sendDeliveryNotification', orderId: order.id }
       );
     }
 
@@ -369,7 +356,7 @@ class OrderService extends BaseService {
   async cancelOrder(orderId, userId, isAdmin, employeeId = null) {
     // Service-layer RBAC: Validate permission if called by employee
     if (employeeId) {
-      await this.validatePermission(employeeId, orderPolicy.cancel);
+      await this.validatePermission(employeeId, PERMISSIONS.ORDER.CANCEL);
       await this.auditLog(employeeId, 'cancel', 'order', orderId, {});
     } else if (!isAdmin) {
       throw new AuthorizationError("Unauthorized: Cannot cancel this order");
@@ -408,19 +395,47 @@ class OrderService extends BaseService {
     );
 
     for (const item of itemsResult.rows) {
-      await pool.query(
-        "UPDATE product_variants SET stock = stock + $1 WHERE id = $2",
-        [item.quantity, item.product_variant_id],
-      );
+      await inventoryRepository.releaseStock(pool, {
+        variantId: item.product_variant_id,
+        quantity: item.quantity,
+      });
     }
   }
 
   async _sendShippingNotification(order) {
-    return order;
+    try {
+      const event = {
+        type: 'order.shipped',
+        occurredAt: new Date(),
+        orderId: order.id,
+        userId: order.user_id,
+      };
+      await eventDispatcher.publish(event);
+      logger.info('Shipping notification queued', { orderId: order.id });
+    } catch (error) {
+      logger.error('Failed to queue shipping notification', {
+        orderId: order.id,
+        error: error.message,
+      });
+    }
   }
 
   async _sendDeliveryNotification(order) {
-    return order;
+    try {
+      const event = {
+        type: 'order.delivered',
+        occurredAt: new Date(),
+        orderId: order.id,
+        userId: order.user_id,
+      };
+      await eventDispatcher.publish(event);
+      logger.info('Delivery notification queued', { orderId: order.id });
+    } catch (error) {
+      logger.error('Failed to queue delivery notification', {
+        orderId: order.id,
+        error: error.message,
+      });
+    }
   }
 
   /**

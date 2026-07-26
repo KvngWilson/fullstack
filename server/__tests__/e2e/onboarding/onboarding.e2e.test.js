@@ -3,14 +3,14 @@
  * Tests complete API workflows with realistic scenarios
  */
 
-jest.mock('../../config/db', () => ({
+jest.mock('../../../config/db', () => ({
   pool: {
     query: jest.fn(),
     connect: jest.fn(),
   },
 }));
 
-jest.mock('../../infrastructure/email', () => ({
+jest.mock('../../../infrastructure/email', () => ({
   sendEmail: jest.fn(),
 }));
 

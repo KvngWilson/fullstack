@@ -1,7 +1,7 @@
 const logger = require("../../../shared/utils/logger");
 const PaymentRepository = require("../repositories/PaymentRepository");
 const { pool } = require("../../../config/db");
-const paymentPolicy = require("../../../policies/paymentPolicy");
+const PERMISSIONS = require("../../../shared/constants/permissions");
 const BaseService = require("../../base/BaseService");
 
 /**
@@ -151,7 +151,7 @@ class RefundService extends BaseService {
    */
   async processRefund(refundId, userId, isAdmin = false, employeeId = null) {
     if (employeeId) {
-      await this.validatePermission(employeeId, paymentPolicy.refund);
+      await this.validatePermission(employeeId, PERMISSIONS.PAYMENT.REFUND);
     } else if (!isAdmin) {
       throw {
         status: 403,
@@ -201,7 +201,7 @@ class RefundService extends BaseService {
    */
   async rejectRefund(refundId, userId, reason = "", isAdmin = false, employeeId = null) {
     if (employeeId) {
-      await this.validatePermission(employeeId, paymentPolicy.refund);
+      await this.validatePermission(employeeId, PERMISSIONS.PAYMENT.REFUND);
     } else if (!isAdmin) {
       throw {
         status: 403,

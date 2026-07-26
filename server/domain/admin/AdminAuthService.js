@@ -1,6 +1,6 @@
 const { pool } = require("../../config/db");
 const BaseService = require("../base/BaseService");
-const adminPolicy = require("../../policies/adminPolicy");
+const PERMISSIONS = require("../../shared/constants/permissions");
 const { AuthorizationError, NotFoundError } = require("../../shared/utils/errors");
 const { logger } = require("../../shared/utils/logger");
 
@@ -71,7 +71,7 @@ class AdminAuthService extends BaseService {
    * Get full admin user profile for dashboard
    */
   async getAdminUserProfile(employeeId) {
-    await this.validatePermission(employeeId, adminPolicy.dashboard.read);
+    await this.validatePermission(employeeId, PERMISSIONS.ADMIN.DASHBOARD.READ);
 
     const result = await pool.query(
       `SELECT 
@@ -117,11 +117,11 @@ class AdminAuthService extends BaseService {
 
     // Additional validation: check if this is a sensitive action
     const sensitiveActions = [
-      'user:delete',
-      'user:suspend',
-      'user:force_password_reset',
-      'order:refund',
-      'security:manage',
+      PERMISSIONS.ADMIN.USERS.DELETE,
+      PERMISSIONS.ADMIN.USERS.LOCK,
+      PERMISSIONS.ORDER.CANCEL,
+      PERMISSIONS.PAYMENT.REFUND,
+      PERMISSIONS.SECURITY.MANAGE,
     ];
 
     if (sensitiveActions.includes(action)) {
@@ -241,7 +241,7 @@ class AdminAuthService extends BaseService {
    * Get all permissions for an employee (for UI permission state)
    */
   async getEmployeePermissions(employeeId) {
-    await this.validatePermission(employeeId, adminPolicy.dashboard.read);
+    await this.validatePermission(employeeId, PERMISSIONS.ADMIN.DASHBOARD.READ);
     return await this._getEmployeePermissions(employeeId);
   }
 }

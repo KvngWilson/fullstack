@@ -1,18 +1,10 @@
 /**
- * Query result caching service
- * Caches frequently accessed database queries to reduce load
+ * Cache Service - Unified interface
+ * Migrated to use Redis (CacheManager) for distributed caching
+ * Maintains backward compatibility with existing CacheService API
  */
 
-const NodeCache = require('node-cache');
-
-// Cache configuration
-// stdTTL: standard time to live in seconds (5 minutes)
-// checkperiod: auto-delete check interval (60 seconds)
-const queryCache = new NodeCache({ 
-  stdTTL: 300, 
-  checkperiod: 60,
-  useClones: false // Return object references for performance
-});
+const { CacheManager } = require('../infrastructure/cache/CacheManager');
 
 class CacheService {
   /**
@@ -23,21 +15,7 @@ class CacheService {
    * @returns {Promise} Query result
    */
   static async getCacheable(key, queryFn, ttl = 300) {
-    // Check cache first
-    const cached = queryCache.get(key);
-    if (cached !== undefined) {
-      return Promise.resolve(cached);
-    }
-
-    // Execute query if not cached
-    try {
-      const result = await queryFn();
-      queryCache.set(key, result, ttl);
-      return result;
-    } catch (error) {
-      // Don't cache errors
-      throw error;
-    }
+    return CacheManager.getOrSet(key, queryFn, ttl);
   }
 
   /**
@@ -45,32 +23,21 @@ class CacheService {
    * @param {string|RegExp} pattern - Pattern to match keys
    */
   static invalidate(pattern) {
-    const keys = queryCache.keys();
-    const isRegex = pattern instanceof RegExp;
-
-    keys.forEach(key => {
-      const matches = isRegex 
-        ? pattern.test(key)
-        : key.includes(pattern);
-      
-      if (matches) {
-        queryCache.del(key);
-      }
-    });
+    return CacheManager.invalidatePattern(pattern);
   }
 
   /**
    * Clear all cache
    */
   static clear() {
-    queryCache.flushAll();
+    return CacheManager.invalidatePattern('*');
   }
 
   /**
    * Get cache statistics
    */
   static getStats() {
-    return queryCache.getStats();
+    return { cached: true, backend: 'redis' };
   }
 
   /**
@@ -79,9 +46,11 @@ class CacheService {
    * @param {number} ttl - Time to live
    */
   static setMultiple(items, ttl = 300) {
-    Object.entries(items).forEach(([key, value]) => {
-      queryCache.set(key, value, ttl);
-    });
+    return Promise.all(
+      Object.entries(items).map(([key, value]) =>
+        CacheManager.set(key, value, ttl)
+      )
+    );
   }
 
   /**
@@ -90,14 +59,7 @@ class CacheService {
    * @returns {Object} Key-value pairs
    */
   static getMultiple(keys) {
-    const result = {};
-    keys.forEach(key => {
-      const value = queryCache.get(key);
-      if (value !== undefined) {
-        result[key] = value;
-      }
-    });
-    return result;
+    return CacheManager.getMultiple(keys);
   }
 }
 

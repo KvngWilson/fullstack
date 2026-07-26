@@ -1,5 +1,6 @@
 const { pool } = require("../../../../config/db");
 const AdminAuthService = require("../../../../domain/admin/AdminAuthService");
+const PermissionService = require("../../../../shared/core/PermissionService");
 
 const adminAuthService = new AdminAuthService();
 
@@ -293,6 +294,10 @@ exports.deletePermission = async (req, res) => {
 
     // Delete permission
     await pool.query("DELETE FROM permissions WHERE id = $1", [id]);
+
+    // Deleted permission may still be cached in employee permission sets
+    // (e.g. via employee-level overrides)
+    await PermissionService.invalidateAllPermissions();
 
     // Audit log
     await adminAuthService.auditLog(

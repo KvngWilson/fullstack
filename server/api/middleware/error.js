@@ -1,5 +1,5 @@
 const { AppError } = require("../../shared/utils/errors");
-const logger = require("../..//shared/utils/logger");
+const logger = require("../../shared/utils/logger");
 
 // Centralized error handling middleware
 function errorHandler(err, req, res, next) {

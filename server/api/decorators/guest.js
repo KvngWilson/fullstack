@@ -14,7 +14,7 @@ const { pool } = require("../../config/db");
  *   - req.guest (from guest token in header/cookie)
  */
 function guestOrAuth() {
-  const { verifyToken } = require("../../config/auth");
+  const { verifyToken } = require("../../core/auth");
   const { redisClient } = require("../../config/redis");
 
   const getAuthTokenFromCookies = (cookies = {}) =>
@@ -30,13 +30,15 @@ function guestOrAuth() {
           // Attempt JWT verification
           try {
             const payload = verifyToken(token);
-            const userResult = await pool.query(
-              "SELECT id, email, role FROM users WHERE id = $1",
-              [payload.userId]
-            );
 
-            if (userResult.rows.length > 0) {
-              req.user = userResult.rows[0];
+            // FIX: Extract user from JWT claims instead of querying database
+            // This eliminates N+1 queries on every authenticated request
+            if (payload && payload.id) {
+              req.user = {
+                id: payload.id,
+                email: payload.email,
+                role: payload.role
+              };
               req.isAuthenticated = true;
               return next();
             }
@@ -107,7 +109,7 @@ function guestOnly() {
         // Reject if user is authenticated
         const authToken = getAuthTokenFromCookies(req.cookies);
         if (authToken) {
-          const { verifyToken } = require("../../config/auth");
+          const { verifyToken } = require("../../core/auth");
           try {
             verifyToken(authToken);
             return res.status(403).json({

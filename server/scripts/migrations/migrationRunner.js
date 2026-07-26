@@ -228,6 +228,7 @@ async function rollbackMigration() {
 }
 
 module.exports = {
+  pool,
   runMigrations,
   rollbackMigration,
   inspectMigrationFiles,

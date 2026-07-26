@@ -8,11 +8,10 @@ module.exports = {
   
   // Test matching patterns
   testMatch: [
-    '**/tests/unit/**/*.test.js',
-    '**/tests/integration/**/*.test.js',
-    '**/tests/e2e/**/*.test.js',
-    '**/tests/security/**/*.test.js',
-    '**/__tests__/**/*.test.js',
+    '<rootDir>/__tests__/unit/**/*.test.js',
+    '<rootDir>/__tests__/integration/**/*.test.js',
+    '<rootDir>/__tests__/e2e/**/*.test.js',
+    '<rootDir>/__tests__/security/**/*.test.js',
   ],
 
   // Module paths
@@ -21,6 +20,7 @@ module.exports = {
     '^@config/(.*)$': '<rootDir>/config/$1',
     '^@helpers/(.*)$': '<rootDir>/__tests__/helpers/$1',
     '^@factories/(.*)$': '<rootDir>/__tests__/factories/$1',
+    '^util/types$': '<rootDir>/__tests__/mocks/util-types.js',
   },
 
   // Setup and teardown
@@ -45,7 +45,6 @@ module.exports = {
   // Timeout and isolation
   testTimeout: 10000,
   maxWorkers: 1, // Run sequentially for test isolation
-  detectOpenHandles: true,
   forceExit: true,
 
   // Reporter configuration

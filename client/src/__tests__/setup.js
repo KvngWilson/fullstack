@@ -1,46 +1,39 @@
 import '@testing-library/jest-dom';
-import { afterEach, beforeAll, afterAll, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 
-vi.stubEnv('VITE_API_URL', 'http://localhost:5000');
+process.env.VITE_API_URL = 'http://localhost:5000';
 
 // Cleanup after each test
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
+  jest.clearAllMocks();
+  jest.restoreAllMocks();
+  process.env.NODE_ENV = 'test';
+  process.env.DEV = 'true';
+  process.env.PROD = '';
 });
 
-// Mock localStorage
-const localStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-};
-global.localStorage = localStorageMock;
+beforeAll(() => {
+  process.env.NODE_ENV = 'test';
+  process.env.DEV = 'true';
+  process.env.PROD = '';
+});
 
-// Mock sessionStorage
-const sessionStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-};
-global.sessionStorage = sessionStorageMock;
+const noop = () => {};
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: vi.fn().mockImplementation(query => ({
+  value: (query) => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })),
+    addListener: noop,
+    removeListener: noop,
+    addEventListener: noop,
+    removeEventListener: noop,
+    dispatchEvent: noop,
+  }),
 });
 
 // Mock IntersectionObserver

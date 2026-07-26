@@ -9,6 +9,7 @@ const router = express.Router();
 
 const guestCheckout = require("../../../controllers/v1/ordering/guest-checkout");
 const { guestOnly } = require("../../../decorators/guest");
+const { idempotency } = require("../../../middleware/idempotency");
 
 /**
  * GET /api/v1/checkout/guest/session
@@ -48,7 +49,7 @@ router.post("/session", guestOnly(), guestCheckout.saveGuestSession);
  * Returns: { orderId, total }
  * Requires: guest token
  */
-router.post("/finalize", guestOnly(), guestCheckout.finalizeGuestCheckout);
+router.post("/finalize", guestOnly(), idempotency(), guestCheckout.finalizeGuestCheckout);
 
 /**
  * GET /api/v1/checkout/guest/convert

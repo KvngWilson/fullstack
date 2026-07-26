@@ -1,6 +1,6 @@
 const { pool } = require("../../../../config/db");
 const AdminAuthService = require("../../../../domain/admin/AdminAuthService");
-const adminPolicy = require("../../../../policies/adminPolicy");
+const PERMISSIONS = require("../../../../shared/constants/permissions");
 const logger = require("../../../../shared/utils/logger");
 
 const adminAuthService = new AdminAuthService();
@@ -131,7 +131,7 @@ exports.getSSRHydrationData = async (req, res, next) => {
 exports.getAdminDashboardData = async (req, res) => {
   try {
     // Validate access
-    await adminAuthService.validatePermission(req.employee.id, adminPolicy.dashboard.read);
+    await adminAuthService.validatePermission(req.employee.id, PERMISSIONS.ADMIN.DASHBOARD.READ);
 
     // Get admin profile with role and permissions
     const profile = await adminAuthService.getAdminUserProfile(req.employee.id);

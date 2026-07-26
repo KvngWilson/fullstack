@@ -1,18 +1,16 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-
-async function loadRequestCacheModule() {
-  vi.resetModules();
-  return import('@/api/requestCache');
+function loadRequestCacheModule() {
+  jest.resetModules();
+  return require("@/api/interceptors/requestCache");
 }
 
-describe('requestCacheInterceptor', () => {
+describe("requestCacheInterceptor", () => {
   beforeEach(() => {
-    vi.resetModules();
+    jest.resetModules();
   });
 
-  it('returns config as-is for non-GET requests', async () => {
-    const { requestCacheInterceptor } = await loadRequestCacheModule();
-    const config = { method: 'POST', url: '/payments' };
+  it("returns config as-is for non-GET requests", async () => {
+    const { requestCacheInterceptor } = loadRequestCacheModule();
+    const config = { method: "POST", url: "/payments" };
 
     const result = requestCacheInterceptor.request(config);
 
@@ -20,16 +18,22 @@ describe('requestCacheInterceptor', () => {
     expect(config._cacheKey).toBeUndefined();
   });
 
-  it('returns cached promise for duplicate GET requests and resolves after response', async () => {
-    const { requestCacheInterceptor } = await loadRequestCacheModule();
+  it("returns cached promise for duplicate GET requests and resolves after response", async () => {
+    const { requestCacheInterceptor } = loadRequestCacheModule();
 
-    const firstConfig = { method: 'GET', url: '/orders', params: { page: 1 } };
+    const firstConfig = { method: "GET", url: "/orders", params: { page: 1 } };
     const firstResult = requestCacheInterceptor.request(firstConfig);
     expect(firstResult).toBe(firstConfig);
     expect(firstConfig._cacheKey).toBeTruthy();
 
-    const duplicateConfig = { method: 'GET', url: '/orders', params: { page: 1 } };
-    const cachedError = await Promise.resolve(requestCacheInterceptor.request(duplicateConfig)).catch((err) => err);
+    const duplicateConfig = {
+      method: "GET",
+      url: "/orders",
+      params: { page: 1 },
+    };
+    const cachedError = await Promise.resolve(
+      requestCacheInterceptor.request(duplicateConfig),
+    ).catch((err) => err);
 
     const cachedPromise = requestCacheInterceptor.error(cachedError);
 
@@ -44,29 +48,43 @@ describe('requestCacheInterceptor', () => {
     await expect(cachedPromise).resolves.toEqual(response);
   });
 
-  it('rejects cached duplicate promise when source request fails', async () => {
-    const { requestCacheInterceptor } = await loadRequestCacheModule();
+  it("rejects cached duplicate promise when source request fails", async () => {
+    const { requestCacheInterceptor } = loadRequestCacheModule();
 
-    const firstConfig = { method: 'GET', url: '/shipping/rates', params: { country: 'US' } };
+    const firstConfig = {
+      method: "GET",
+      url: "/shipping/rates",
+      params: { country: "US" },
+    };
     requestCacheInterceptor.request(firstConfig);
 
-    const duplicateConfig = { method: 'GET', url: '/shipping/rates', params: { country: 'US' } };
-    const cachedError = await Promise.resolve(requestCacheInterceptor.request(duplicateConfig)).catch((err) => err);
+    const duplicateConfig = {
+      method: "GET",
+      url: "/shipping/rates",
+      params: { country: "US" },
+    };
+    const cachedError = await Promise.resolve(
+      requestCacheInterceptor.request(duplicateConfig),
+    ).catch((err) => err);
 
     const queuedPromise = requestCacheInterceptor.error(cachedError);
 
-    const sourceError = new Error('Network failure');
+    const sourceError = new Error("Network failure");
     sourceError.config = firstConfig;
 
-    await expect(requestCacheInterceptor.error(sourceError)).rejects.toThrow('Network failure');
-    await expect(queuedPromise).rejects.toThrow('Network failure');
+    await expect(requestCacheInterceptor.error(sourceError)).rejects.toThrow(
+      "Network failure",
+    );
+    await expect(queuedPromise).rejects.toThrow("Network failure");
   });
 
-  it('passes through non-cached errors', async () => {
-    const { requestCacheInterceptor } = await loadRequestCacheModule();
+  it("passes through non-cached errors", async () => {
+    const { requestCacheInterceptor } = loadRequestCacheModule();
 
-    const error = new Error('Bad request');
+    const error = new Error("Bad request");
 
-    await expect(requestCacheInterceptor.error(error)).rejects.toThrow('Bad request');
+    await expect(requestCacheInterceptor.error(error)).rejects.toThrow(
+      "Bad request",
+    );
   });
 });

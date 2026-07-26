@@ -1,11 +1,14 @@
 const request = require('supertest');
 const { createApp } = require('../../../src/app');
+const { createAdminApp } = require('../../../src/admin-app');
 
 describe('Health Endpoints (Integration)', () => {
   let app;
+  let adminApp;
 
   beforeAll(() => {
     app = createApp();
+    adminApp = createAdminApp();
   });
 
   test('GET /health returns 200', async () => {
@@ -15,6 +18,11 @@ describe('Health Endpoints (Integration)', () => {
 
   test('GET /health/live returns 200', async () => {
     const response = await request(app).get('/health/live');
+    expect(response.status).toBe(200);
+  });
+
+  test('GET /health/live returns 200 on the admin app', async () => {
+    const response = await request(adminApp).get('/health/live');
     expect(response.status).toBe(200);
   });
 

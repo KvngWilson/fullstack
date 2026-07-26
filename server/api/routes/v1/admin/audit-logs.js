@@ -1,7 +1,7 @@
 const express = require("express");
 const { protect, permission } = require("../../../decorators");
 const auditLogsControllers = require("../../../controllers/v1/admin/audit-logs");
-const adminPolicy = require("../../../../policies/adminPolicy");
+const PERMISSIONS = require("../../../../shared/constants/permissions");
 
 const router = express.Router();
 
@@ -16,35 +16,35 @@ router.use(...protect());
 // GET /api/v1/admin/audit-logs - List audit logs with filters
 router.get(
   "/",
-  ...permission(adminPolicy.audit.read),
+  ...permission(PERMISSIONS.AUDIT.READ),
   auditLogsControllers.listAuditLogs,
 );
 
 // GET /api/v1/admin/audit-logs/statistics - Get audit statistics
 router.get(
   "/statistics",
-  ...permission(adminPolicy.audit.read),
+  ...permission(PERMISSIONS.AUDIT.READ),
   auditLogsControllers.getAuditStatistics,
 );
 
 // GET /api/v1/admin/audit-logs/search - Search audit logs
 router.get(
   "/search",
-  ...permission(adminPolicy.audit.read),
+  ...permission(PERMISSIONS.AUDIT.READ),
   auditLogsControllers.searchAuditLogs,
 );
 
 // GET /api/v1/admin/audit-logs/export - Export audit logs
 router.get(
   "/export",
-  ...permission(adminPolicy.audit.export),
+  ...permission(PERMISSIONS.AUDIT.EXPORT),
   auditLogsControllers.exportAuditLogs,
 );
 
 // GET /api/v1/admin/audit-logs/:id - Get single audit log entry
 router.get(
   "/:id",
-  ...permission(adminPolicy.audit.read),
+  ...permission(PERMISSIONS.AUDIT.READ),
   auditLogsControllers.getAuditLog,
 );
 

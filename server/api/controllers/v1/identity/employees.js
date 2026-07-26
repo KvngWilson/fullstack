@@ -2,7 +2,8 @@ const { pool } = require("../../../../config/db");
 const { logger } = require("../../../../shared/utils/logger");
 const InvitationService = require("../../../../services/invitation");
 const { sendEmail } = require("../../../../infrastructure/email");
-const { PermissionChecker } = require("../../../middleware/rbac");
+const { PermissionChecker, invalidateEmployeeLookup } = require("../../../middleware/rbac");
+const PermissionService = require("../../../../shared/core/PermissionService");
 const { successResponse, errorResponse } = require("../../../../shared/utils/response");
 
 /**
@@ -391,6 +392,8 @@ exports.updateEmployeeRole = async (req, res) => {
 
     await client.query("COMMIT");
 
+    await PermissionService.invalidateEmployeePermissions(id);
+
     return successResponse(res, {
       data: updateResult.rows[0],
       message: "Employee role updated successfully",
@@ -466,6 +469,10 @@ exports.updateEmployeeStatus = async (req, res) => {
 
     await client.query("COMMIT");
 
+    // Deactivated employees must lose cached access immediately
+    await PermissionService.invalidateEmployeePermissions(id);
+    await invalidateEmployeeLookup(targetUserId);
+
     return successResponse(res, {
       data: result.rows[0],
       message: "Employee status updated successfully",
@@ -528,6 +535,8 @@ exports.setPermissionOverride = async (req, res) => {
       permissionCode,
       grantType,
     });
+
+    await PermissionService.invalidateEmployeePermissions(id);
 
     return successResponse(res, {
       data: result.rows[0],

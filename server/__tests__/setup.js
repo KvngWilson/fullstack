@@ -19,6 +19,7 @@ global.__TEST_DB_SETUP_ERROR = null;
 beforeAll(async () => {
   const { pool } = require('../config/db');
   const compatibilityWarnings = [];
+  const requireTestDb = process.env.REQUIRE_TEST_DB === 'true';
 
   const statements = [
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS password TEXT",
@@ -185,6 +186,9 @@ beforeAll(async () => {
 
     if (!global.__TEST_DB_AVAILABLE && global.__TEST_DB_SETUP_ERROR) {
       process.stderr.write(`Test DB setup unavailable: ${global.__TEST_DB_SETUP_ERROR.message}\n`);
+      if (requireTestDb) {
+        throw new Error(`REQUIRE_TEST_DB=true but test DB setup failed: ${global.__TEST_DB_SETUP_ERROR.message}`);
+      }
       return;
     }
 
@@ -197,6 +201,9 @@ beforeAll(async () => {
     global.__TEST_DB_AVAILABLE = false;
     global.__TEST_DB_SETUP_ERROR = error;
     process.stderr.write(`Test DB setup unavailable: ${error.message}\n`);
+    if (requireTestDb) {
+      throw new Error(`REQUIRE_TEST_DB=true but test DB setup failed: ${error.message}`);
+    }
   }
 });
 

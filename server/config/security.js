@@ -15,8 +15,8 @@ function getSecurityMiddleware() {
     helmet.contentSecurityPolicy({
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for admin panel
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"], // Removed 'unsafe-inline'
+        styleSrc: ["'self'"],
         imgSrc: ["'self'", 'data:', 'https:'],
         connectSrc: ["'self'"],
         fontSrc: ["'self'"],
@@ -55,11 +55,9 @@ function getCorsOptions() {
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, Postman, etc.)
       if (!origin) return callback(null, true);
-      
-      const allowedOrigins = process.env.ALLOWED_ORIGINS 
+      const allowedOrigins = process.env.ALLOWED_ORIGINS
         ? process.env.ALLOWED_ORIGINS.split(',')
         : ['http://localhost:5000', 'http://localhost:5173'];
-      
       if (allowedOrigins.includes(origin) || !isProduction) {
         callback(null, true);
       } else {
@@ -79,6 +77,8 @@ function getCorsOptions() {
       'X-Guest-Token',
     ],
     exposedHeaders: ['X-Correlation-ID', 'X-Response-Time'],
+    preflightContinue: false,
+    maxAge: 86400,
   };
 }
 

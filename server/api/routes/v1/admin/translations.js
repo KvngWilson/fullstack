@@ -1,7 +1,7 @@
 const express = require("express");
 const { protect, permission } = require("../../../decorators");
 const translationsControllers = require("../../../controllers/v1/admin/translations");
-const adminPolicy = require("../../../../policies/adminPolicy");
+const PERMISSIONS = require("../../../../shared/constants/permissions");
 
 const router = express.Router();
 
@@ -29,7 +29,7 @@ router.get(
 );
 
 // POST /api/v1/admin/translations/products/:productId - Create product translation
-router.use(...protect(), ...permission(adminPolicy.translations.manage));
+router.use(...protect(), ...permission(PERMISSIONS.TRANSLATION.MANAGE));
 
 router.post(
   "/products/:productId",

@@ -16,11 +16,11 @@ export default function LoadingSpinner({
 
   return (
     <div className={`${wrapperClasses} ${className}`} role="status" aria-live="polite">
-      <div className="flex flex-col items-center gap-3">
+      <div className="flex flex-col items-center gap-section-sm">
         <div
           className={`animate-spin rounded-full border-muted border-b-primary ${sizeClasses[size] || sizeClasses.lg}`}
         />
-        {text ? <p className="text-sm text-muted-foreground">{text}</p> : null}
+        {text ? <p className="text-body-sm text-muted-foreground">{text}</p> : null}
       </div>
     </div>
   );

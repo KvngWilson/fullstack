@@ -1,7 +1,7 @@
 const express = require("express");
 const { protect, permission } = require("../../../decorators");
 const rolesControllers = require("../../../controllers/v1/admin/roles");
-const adminPolicy = require("../../../../policies/adminPolicy");
+const PERMISSIONS = require("../../../../shared/constants/permissions");
 
 const router = express.Router();
 
@@ -13,32 +13,32 @@ const router = express.Router();
 router.use(...protect());
 
 // GET /api/v1/admin/roles - List all roles
-router.get("/", ...permission(adminPolicy.roles.read), rolesControllers.listRoles);
+router.get("/", ...permission(PERMISSIONS.ADMIN.ROLES.READ), rolesControllers.listRoles);
 
 // POST /api/v1/admin/roles - Create new role
-router.post("/", ...permission(adminPolicy.roles.create), rolesControllers.createRole);
+router.post("/", ...permission(PERMISSIONS.ADMIN.ROLES.CREATE), rolesControllers.createRole);
 
 // GET /api/v1/admin/roles/:id - Get role with permissions
 router.get(
   "/:id",
-  ...permission(adminPolicy.roles.read),
+  ...permission(PERMISSIONS.ADMIN.ROLES.READ),
   rolesControllers.getRoleWithPermissions,
 );
 
 // PUT /api/v1/admin/roles/:id - Update role
-router.put("/:id", ...permission(adminPolicy.roles.update), rolesControllers.updateRole);
+router.put("/:id", ...permission(PERMISSIONS.ADMIN.ROLES.UPDATE), rolesControllers.updateRole);
 
 // PUT /api/v1/admin/roles/:id/permissions - Assign permissions to role
 router.put(
   "/:id/permissions",
-  ...permission(adminPolicy.roles.permissions),
+  ...permission(PERMISSIONS.ADMIN.ROLES.UPDATE),
   rolesControllers.assignPermissionsToRole,
 );
 
 // DELETE /api/v1/admin/roles/:id - Delete role
 router.delete(
   "/:id",
-  ...permission(adminPolicy.roles.delete),
+  ...permission(PERMISSIONS.ADMIN.ROLES.DELETE),
   rolesControllers.deleteRole,
 );
 

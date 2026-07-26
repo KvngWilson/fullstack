@@ -8,6 +8,7 @@ const crypto = require("crypto");
 const logger = require("../../../../shared/utils/logger");
 const { redisClient } = require("../../../../config/redis");
 const domain = require("../../../../domain");
+const AuthTokenManager = require("../../../../infrastructure/security/AuthTokenManager");
 const AuthenticationService = domain.identity.services.AuthenticationService;
 const userService = domain.identity.services.UserService;
 
@@ -264,6 +265,30 @@ const refreshToken = async (req, res) => {
  */
 const logout = async (req, res) => {
   try {
+    const tokenManager = new AuthTokenManager();
+
+    // Get access token from cookie or Authorization header
+    let accessToken = req.cookies?.token || req.cookies?.access_token;
+    if (!accessToken && req.headers.authorization) {
+      const parts = req.headers.authorization.split(' ');
+      if (parts.length === 2 && parts[0] === 'Bearer') {
+        accessToken = parts[1];
+      }
+    }
+
+    // Blacklist the access token (invalidate all subsequent uses)
+    if (accessToken) {
+      try {
+        await tokenManager.blacklistToken(accessToken);
+        logger.info('Access token blacklisted on logout', { userId: req.user?.id });
+      } catch (error) {
+        logger.warn('Failed to blacklist access token on logout', {
+          error: error.message,
+        });
+        // Continue with logout even if blacklist fails
+      }
+    }
+
     // Get refresh token from cookie for revocation
     const refresh_token = req.cookies?.refresh_token;
 

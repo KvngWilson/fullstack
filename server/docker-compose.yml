@@ -16,7 +16,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8"
     ports:
-      - "5432:5432"
+      - "54322:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ../data/queries.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
@@ -46,7 +46,7 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_1234567890}
     command: sh -c 'redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"'
     ports:
-      - "6379:6379"
+      - "63799:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -104,7 +104,7 @@ services:
 
       APP_URL: ${APP_URL:-http://localhost:5000}
       LOG_LEVEL: debug
-    command: npm run dev
+    command: nodemon src/admin-index.js
     ports:
       - "5000:5000"
     depends_on:
@@ -117,7 +117,9 @@ services:
       - ./uploads:/app/uploads
       - ./src:/app/src
       - ./api:/app/api
+      - ./core:/app/core
       - ./config:/app/config
+      - ./policies:/app/policies
       - ./domain:/app/domain
       - ./services:/app/services
       - ./shared:/app/shared
@@ -143,6 +145,60 @@ services:
       timeout: 5s
       retries: 3
       start_period: 40s
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: development
+    container_name: ecommerce-worker-dev
+    labels:
+      environment: "development"
+      service: "worker"
+    environment:
+      NODE_ENV: development
+
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-ecommerce_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_1234567890}
+
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production}
+      SESSION_SECRET: ${SESSION_SECRET:-dev-session-secret-change-in-production}
+
+      LOG_LEVEL: debug
+      ALLOW_IMMEDIATE_JOBS: 'true'
+    command: nodemon src/worker.js
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+      - ./src:/app/src
+      - ./api:/app/api
+      - ./core:/app/core
+      - ./config:/app/config
+      - ./policies:/app/policies
+      - ./domain:/app/domain
+      - ./services:/app/services
+      - ./shared:/app/shared
+      - ./views:/app/views
+      - ./data:/app/data
+      - ./infrastructure:/app/infrastructure
+      - ./public:/app/public
+    restart: unless-stopped
+    networks:
+      - server-network
 
 volumes:
   postgres_data:

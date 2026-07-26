@@ -2,7 +2,7 @@
 
 require("dotenv").config();
 
-const { runMigrations, rollbackMigration } = require("./migrations/migrationRunner");
+const { runMigrations, rollbackMigration, pool } = require("./migrations/migrationRunner");
 const { inspectMigrationFiles } = require("./migrations/migrationRunner");
 const { runInitialBaselineMigration } = require("./migrate-initial-baseline");
 
@@ -32,27 +32,35 @@ async function main() {
   try {
     if (mode === "pending") {
       await runMigrations();
-      return;
+      await pool.end();
+      process.exit(0);
     }
 
     if (mode === "initial") {
       await runInitialBaselineMigration();
-      return;
+      process.exit(0);
     }
 
     if (mode === "rollback") {
       await rollbackMigration();
-      return;
+      await pool.end();
+      process.exit(0);
     }
 
     if (mode === "audit") {
       await auditMigrations();
-      return;
+      await pool.end();
+      process.exit(process.exitCode || 0);
     }
 
     throw new Error(`Unknown migration mode: ${mode}. Use one of: pending, initial, rollback, audit`);
   } catch (error) {
     console.error(error);
+    try {
+      await pool.end();
+    } catch (poolError) {
+      console.error("Error closing pool:", poolError.message);
+    }
     process.exit(1);
   }
 }

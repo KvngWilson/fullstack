@@ -88,7 +88,7 @@ const computeSummaryFromFinal = (coverageFinal) => {
 };
 
 if (!fs.existsSync(summaryPath) && !fs.existsSync(finalPath)) {
-  console.error(`❌ Coverage data not found at ${summaryPath} or ${finalPath}`);
+  console.error(`[FAIL] Coverage data not found at ${summaryPath} or ${finalPath}`);
   console.error('Run `npm run test:coverage` before coverage gate.');
   process.exit(1);
 }
@@ -99,7 +99,7 @@ const summary = fs.existsSync(summaryPath)
 const total = summary?.total;
 
 if (!total) {
-  console.error('❌ Invalid coverage summary format: missing `total` section.');
+  console.error('[FAIL] Invalid coverage summary format: missing `total` section.');
   process.exit(1);
 }
 
@@ -111,16 +111,16 @@ for (const metric of metrics) {
   const threshold = metricThresholds[metric];
 
   if (!Number.isFinite(threshold)) {
-    console.error(`❌ Invalid threshold for ${metric}: ${threshold}`);
+    console.error(`[FAIL] Invalid threshold for ${metric}: ${threshold}`);
     failed = true;
     continue;
   }
 
   if (pct < threshold) {
     failed = true;
-    console.error(`❌ Coverage gate failed for ${metric}: ${pct}% < ${threshold}%`);
+    console.error(`[FAIL] Coverage gate failed for ${metric}: ${pct}% < ${threshold}%`);
   } else {
-    console.log(`✅ Coverage ${metric}: ${pct}% >= ${threshold}%`);
+    console.log(`[PASS] Coverage ${metric}: ${pct}% >= ${threshold}%`);
   }
 }
 
@@ -130,7 +130,7 @@ if (criticalFiles.length > 0 && criticalThreshold > 0) {
     : null;
 
   if (!coverageFinal) {
-    console.error('❌ Critical coverage gate requires coverage-final.json');
+    console.error('[FAIL] Critical coverage gate requires coverage-final.json');
     failed = true;
   } else {
     for (const relativeFile of criticalFiles) {
@@ -141,7 +141,7 @@ if (criticalFiles.length > 0 && criticalThreshold > 0) {
 
       if (!matchedPath) {
         failed = true;
-        console.error(`❌ Critical coverage file not found in report: ${relativeFile}`);
+        console.error(`[FAIL] Critical coverage file not found in report: ${relativeFile}`);
         continue;
       }
 
@@ -154,11 +154,11 @@ if (criticalFiles.length > 0 && criticalThreshold > 0) {
       if (statementPct < criticalThreshold) {
         failed = true;
         console.error(
-          `❌ Critical coverage failed for ${relativeFile}: ${statementPct}% < ${criticalThreshold}%`,
+          `[FAIL] Critical coverage failed for ${relativeFile}: ${statementPct}% < ${criticalThreshold}%`,
         );
       } else {
         console.log(
-          `✅ Critical coverage ${relativeFile}: ${statementPct}% >= ${criticalThreshold}%`,
+          `[PASS] Critical coverage ${relativeFile}: ${statementPct}% >= ${criticalThreshold}%`,
         );
       }
     }
@@ -173,4 +173,4 @@ const thresholdSummary = metrics
   .map((metric) => `${metric}=${metricThresholds[metric]}%`)
   .join(', ');
 
-console.log(`🎉 Coverage gate passed (${thresholdSummary}).`);
+console.log(`[PASS] Coverage gate passed (${thresholdSummary}).`);

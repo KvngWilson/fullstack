@@ -28,8 +28,16 @@ function processQueue(error) {
  */
 async function refreshAuthToken(apiClient) {
   try {
-    // Backend will use refresh token from httpOnly cookie automatically
-    await apiClient.post("/identity/users/refresh-token");
+    // Backend will use refresh token from httpOnly cookie automatically.
+    await apiClient.post(
+      "/auth/refresh-token",
+      {},
+      {
+        skipAuthRefresh: true,
+        skipAuthRedirect: true,
+        skipErrorLogging: true,
+      },
+    );
     return true;
   } catch (_error) {
     // Refresh failed - user must login again
@@ -41,8 +49,27 @@ function isAuthPage(pathname) {
   return (
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
-    pathname.startsWith("/forgot-password")
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password")
   );
+}
+
+function isProtectedRoute(pathname) {
+  return (
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/account") ||
+    pathname.startsWith("/vendor") ||
+    pathname.startsWith("/admin")
+  );
+}
+
+function shouldRedirectToExpiredLogin(pathname, shouldSkipRedirect) {
+  if (shouldSkipRedirect || isAuthPage(pathname)) {
+    return false;
+  }
+
+  // Avoid bouncing public routes to /login?expired=true on first load.
+  return isProtectedRoute(pathname);
 }
 
 /**
@@ -61,9 +88,11 @@ export const createAuthInterceptor = (apiClient) => ({
 
   error: async (error) => {
     const originalRequest = error.config;
+    const shouldSkipRefresh = Boolean(originalRequest?.skipAuthRefresh);
+    const shouldSkipRedirect = Boolean(originalRequest?.skipAuthRedirect);
 
     // Check for 401 and ensure we don't retry the same request infinitely
-    if (error.response?.status === 401 && !originalRequest._retried) {
+    if (error.response?.status === 401 && !originalRequest._retried && !shouldSkipRefresh) {
       if (isRefreshing) {
         // Token refresh is already in progress
         // Queue this request to retry after refresh completes
@@ -87,15 +116,24 @@ export const createAuthInterceptor = (apiClient) => ({
         } else {
           // Token refresh failed - logout user
           processQueue(error);
-          // Clear auth state and redirect to login unless already on auth page
-          if (!isAuthPage(window.location.pathname)) {
+          if (
+            shouldRedirectToExpiredLogin(
+              window.location.pathname,
+              shouldSkipRedirect,
+            )
+          ) {
             window.location.href = "/login?expired=true";
           }
           return Promise.reject(error);
         }
       } catch (refreshError) {
         processQueue(refreshError);
-        if (!isAuthPage(window.location.pathname)) {
+        if (
+          shouldRedirectToExpiredLogin(
+            window.location.pathname,
+            shouldSkipRedirect,
+          )
+        ) {
           window.location.href = "/login?expired=true";
         }
         return Promise.reject(refreshError);

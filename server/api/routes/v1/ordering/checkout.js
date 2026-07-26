@@ -1,6 +1,7 @@
 const router = require("express").Router();
 const { protect, customer } = require("../../../decorators");
 const { privateData } = require("../../../middleware/cache-headers");
+const { idempotency } = require("../../../middleware/idempotency");
 const createCheckoutValidationMiddleware = require("../../../middleware/checkoutValidationMiddleware");
 const createCheckoutController = require("../../../controllers/v1/ordering/checkout");
 
@@ -53,6 +54,7 @@ router.post(
   "/finalize",
   ...customer(),
   privateData,
+  idempotency(),
   checkoutValidationMiddleware,
   checkoutController.finalizeCheckout
 );

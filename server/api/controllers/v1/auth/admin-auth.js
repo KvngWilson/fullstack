@@ -69,95 +69,6 @@ function getAuthenticatedAdminUser(req) {
 }
 
 /**
- * GET /admin/auth/login
- * Render admin login page (SSR)
- */
-function renderAdminLogin(req, res) {
-  const user = getAuthenticatedAdminUser(req);
-  const returnTo = safeRedirect(req.query.returnTo, "/dashboard");
-
-  if (user) {
-    return res.redirect(returnTo);
-  }
-
-  return res.render("auth/login", {
-    title: "Admin Login",
-    user: null,
-    cartCount: 0,
-    error_msg: req.query.error || "",
-    success_msg: req.query.success || "",
-    form: {
-      email: req.query.email || "",
-      returnTo,
-    },
-  });
-}
-
-/**
- * POST /admin/auth/login
- * Process admin login (SSR)
- */
-async function postAdminLogin(req, res) {
-  const { email, password, returnTo } = req.body || {};
-
-  try {
-    const { user, token } = await loginUser({ email, password });
-
-    // Validate user is admin or employee
-    const validation = validateAdminRole(user);
-    if (!validation.valid) {
-      logger.warn("Non-admin user attempted admin login", {
-        email,
-        role: user.role,
-      });
-
-      return res.status(403).render("auth/login", {
-        title: "Admin Login",
-        user: null,
-        cartCount: 0,
-        error_msg: validation.error,
-        success_msg: "",
-        form: {
-          email: email || "",
-          returnTo: safeRedirect(returnTo, "/dashboard"),
-        },
-      });
-    }
-
-    setAuthCookie(res, token);
-
-    return res.redirect(safeRedirect(returnTo, "/dashboard"));
-  } catch (error) {
-    if (error.status) {
-      return res.status(error.status).render("auth/login", {
-        title: "Admin Login",
-        user: null,
-        cartCount: 0,
-        error_msg: error.message,
-        success_msg: "",
-        form: {
-          email: email || "",
-          returnTo: safeRedirect(returnTo, "/dashboard"),
-        },
-      });
-    }
-
-    logger.error("Admin login failed", { error: error.message });
-    return res.status(500).render("auth/login", {
-      title: "Admin Login",
-      user: null,
-      cartCount: 0,
-      error_msg: "Login failed. Please try again.",
-      success_msg: "",
-      form: {
-        email: email || "",
-        returnTo: safeRedirect(returnTo, "/dashboard"),
-      },
-    });
-  }
-}
-
-/**
  * POST /api/v1/admin/auth/login
  * Admin API login endpoint (JSON)
  */
@@ -195,7 +106,7 @@ async function apiAdminLogin(req, res) {
       user.id,
       ipAddress,
       userAgent,
-      deviceInfo
+      deviceInfo,
     );
 
     // Set HTTP-only cookies
@@ -242,27 +153,6 @@ async function apiAdminLogin(req, res) {
 }
 
 /**
- * POST /admin/auth/logout
- * Admin logout (SSR)
- */
-async function postAdminLogout(req, res) {
-  const refreshToken = req.cookies?.refresh_token;
-  if (refreshToken) {
-    try {
-      await AuthenticationService.revokeRefreshToken(refreshToken, "logout");
-    } catch (error) {
-      logger.warn("Failed to revoke admin refresh token during SSR logout", {
-        error: error.message,
-      });
-    }
-  }
-
-  clearAuthCookie(res);
-  clearRefreshCookie(res);
-  return res.redirect("/admin/auth/login?success=Signed%20out%20successfully");
-}
-
-/**
  * POST /api/v1/admin/auth/logout
  * Admin API logout
  */
@@ -305,11 +195,6 @@ function parseOS(userAgent) {
 }
 
 module.exports = {
-  // SSR endpoints
-  renderAdminLogin,
-  postAdminLogin,
-  postAdminLogout,
-
   // API endpoints
   apiAdminLogin,
   apiAdminLogout,

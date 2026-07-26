@@ -6,7 +6,8 @@ const logger = require("../../shared/utils/logger");
  */
 class StructuredLogger {
   constructor(name) {
-    this.logger = logger.child({ component: name });
+    this.logger =
+      typeof logger.child === "function" ? logger.child({ component: name }) : logger;
   }
 
   debug(message, context = {}) {

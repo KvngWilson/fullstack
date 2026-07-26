@@ -91,6 +91,8 @@ function requestLoggerMiddleware(req, res, next) {
   next();
 }
 
+// Export the logger directly for `const logger = require('./shared/utils/logger')`
+// and also provide a `logger` property for destructuring imports
 module.exports = logger;
 module.exports.logger = logger;
 module.exports.requestLoggerMiddleware = requestLoggerMiddleware;

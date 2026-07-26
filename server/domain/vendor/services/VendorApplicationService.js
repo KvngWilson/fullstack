@@ -5,7 +5,7 @@ const {
   validateEmail,
   validatePassword,
 } = require("../../../shared/utils/validate");
-const { sendEmailJob } = require("../../../infrastructure/email/email");
+const EmailQueueProvider = require("../../../infrastructure/jobs/EmailQueueProvider");
 const { fireAndForgetWithRetry } = require("../../../shared/utils/asyncErrorHandler");
 
 /**
@@ -126,15 +126,15 @@ class VendorApplicationService {
 
     // Send confirmation email
     try {
-      await sendEmailJob({
-        to: normalizedEmail,
-        templateName: "vendorApplicationReceived",
-        templateData: {
+      await EmailQueueProvider.queueEmail(
+        normalizedEmail,
+        "vendorApplicationReceived",
+        {
           storeName,
           contactPerson,
           applicationId: application.id,
         },
-      });
+      );
     } catch (emailError) {
       logger.error("Failed to send application confirmation email", {
         applicationId: application.id,
@@ -327,16 +327,16 @@ class VendorApplicationService {
 
       // Send approval email
       try {
-        await sendEmailJob({
-          to: application.email,
-          templateName: "vendorApplicationApproved",
-          templateData: {
+        await EmailQueueProvider.queueEmail(
+          application.email,
+          "vendorApplicationApproved",
+          {
             storeName: application.store_name,
             contactPerson: application.contact_person,
             loginUrl: `${process.env.APP_URL || "http://localhost:5000"}/login`,
             dashboardUrl: `${process.env.APP_URL || "http://localhost:5000"}/vendor/dashboard`,
           },
-        });
+        );
       } catch (emailError) {
         logger.error("Failed to send approval email", {
           applicationId,
@@ -396,15 +396,15 @@ class VendorApplicationService {
 
     // Send rejection email
     try {
-      await sendEmailJob({
-        to: application.email,
-        templateName: "vendorApplicationRejected",
-        templateData: {
+      await EmailQueueProvider.queueEmail(
+        application.email,
+        "vendorApplicationRejected",
+        {
           storeName: application.store_name,
           reason,
           reapplyUrl: `${process.env.APP_URL || "http://localhost:5000"}/vendor/apply`,
         },
-      });
+      );
     } catch (emailError) {
       logger.error("Failed to send rejection email", {
         applicationId,
@@ -438,16 +438,16 @@ class VendorApplicationService {
 
     // Send email requesting more info
     try {
-      await sendEmailJob({
-        to: application.email,
-        templateName: "vendorApplicationIncomplete",
-        templateData: {
+      await EmailQueueProvider.queueEmail(
+        application.email,
+        "vendorApplicationIncomplete",
+        {
           storeName: application.store_name,
           contactPerson: application.contact_person,
           message,
           updateUrl: `${process.env.APP_URL || "http://localhost:5000"}/vendor/application/${applicationId}`,
         },
-      });
+      );
     } catch (emailError) {
       logger.error("Failed to send incomplete application email", {
         applicationId,
@@ -478,16 +478,16 @@ class VendorApplicationService {
 
       // Send notification emails
       for (const adminEmail of adminEmails) {
-        await sendEmailJob({
-          to: adminEmail,
-          templateName: "newVendorApplication",
-          templateData: {
+        await EmailQueueProvider.queueEmail(
+          adminEmail,
+          "newVendorApplication",
+          {
             storeName: application.store_name,
             applicantEmail: application.email,
             applicationId: application.id,
             reviewUrl: `${process.env.APP_URL || "http://localhost:5000"}/admin/vendor-applications/${application.id}`,
           },
-        });
+        );
       }
     } catch (error) {
       logger.error("Failed to notify admins of new application", {

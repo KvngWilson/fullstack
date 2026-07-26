@@ -27,5 +27,4 @@ jest.config.js
 tsconfig.json
 .eslintignore
 .prettierignore
-.*
 

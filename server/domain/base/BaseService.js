@@ -1,6 +1,7 @@
 const { pool } = require("../../config/db");
 const { AuthorizationError } = require("../../shared/utils/errors");
 const { logger } = require("../../shared/utils/logger");
+const PermissionService = require("../../shared/core/PermissionService");
 
 /**
  * Base Service class with RBAC validation built-in.
@@ -19,12 +20,11 @@ class BaseService {
    */
   async validatePermission(employeeId, permissionCode, context = {}) {
     try {
-      // Query employee permissions (should be cached in real impl)
-      const permissions = await this._getEmployeePermissions(employeeId);
+      const permissions = await PermissionService.getEmployeePermissions(employeeId);
 
       const hasPermission = permissions.some((p) => {
         if (p.code !== permissionCode) return false;
-        
+
         // Scope-based validation for context-specific permissions
         if (context.scope && p.scope) {
           return p.scope === context.scope;
@@ -105,69 +105,6 @@ class BaseService {
       logger.error("Vendor access validation failed", { error: error.message });
       throw error;
     }
-  }
-
-  /**
-   * Get cached or fresh employee permissions
-   * In production, this should be cached with TTL
-   *
-   * @private
-   */
-  async _getEmployeePermissions(employeeId) {
-    const result = await pool.query(
-      `WITH role_perms AS (
-        SELECT DISTINCT
-          COALESCE(
-            NULLIF(TRIM(p.code), ''),
-            CONCAT_WS(':', NULLIF(TRIM(p.resource), ''), NULLIF(TRIM(p.action), ''))
-          ) AS code,
-          p.id,
-          NULL::varchar AS scope,
-          'role' AS source
-        FROM employees e
-        JOIN roles r ON e.role_id = r.id
-        JOIN role_permissions rp ON r.id = rp.role_id
-        JOIN permissions p ON rp.permission_id = p.id
-        WHERE e.id = $1 AND r.is_active AND p.is_active
-      ),
-      override_perms AS (
-        SELECT DISTINCT
-          COALESCE(
-            NULLIF(TRIM(p.code), ''),
-            CONCAT_WS(':', NULLIF(TRIM(p.resource), ''), NULLIF(TRIM(p.action), ''))
-          ) AS code,
-          p.id,
-          epo.scope,
-          'override' AS source
-        FROM employee_permission_overrides epo
-        JOIN permissions p ON epo.permission_id = p.id
-        WHERE epo.employee_id = $1 
-          AND epo.grant_type = 'grant'
-          AND (epo.valid_until IS NULL OR epo.valid_until > now())
-          AND epo.valid_from <= now()
-          AND p.is_active
-      ),
-      revoked_perms AS (
-        SELECT DISTINCT
-          COALESCE(
-            NULLIF(TRIM(p.code), ''),
-            CONCAT_WS(':', NULLIF(TRIM(p.resource), ''), NULLIF(TRIM(p.action), ''))
-          ) AS code
-        FROM employee_permission_overrides epo
-        JOIN permissions p ON epo.permission_id = p.id
-        WHERE epo.employee_id = $1 
-          AND epo.grant_type = 'revoke'
-          AND (epo.valid_until IS NULL OR epo.valid_until > now())
-      )
-      SELECT code, id, scope, source
-      FROM (SELECT * FROM role_perms UNION ALL SELECT * FROM override_perms) combined
-      WHERE code IS NOT NULL
-        AND code NOT IN (SELECT code FROM revoked_perms WHERE code IS NOT NULL)
-      ORDER BY code`,
-      [employeeId]
-    );
-
-    return result.rows;
   }
 
   /**

@@ -1,29 +1,33 @@
-<tr class="table-row">
-  <td class="table-cell">
-    <input type="checkbox" class="checkbox">
+<tr class="hover:bg-gray-50">
+  <td class="px-4 py-2 whitespace-nowrap">
+    <input type="checkbox" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
   </td>
 
-  <td class="table-cell font-medium"><%= order.id %></td>
+  <td class="px-4 py-2 whitespace-nowrap font-medium"><%= order.id %></td>
 
-  <td class="table-cell">
+  <td class="px-4 py-2 whitespace-nowrap">
     <div class="flex items-center gap-3">
-      <img src="<%= order.avatar %>" class="avatar avatar-sm">
+      <img src="<%= order.avatar %>" class="w-8 h-8 rounded-full border border-gray-200" alt="Avatar">
       <span><%= order.customer %></span>
     </div>
   </td>
 
-  <td class="table-cell"><%= order.product %></td>
-  <td class="table-cell text-slate-600"><%= order.date %></td>
-  <td class="table-cell font-semibold">$<%= order.amount %></td>
+  <td class="px-4 py-2 whitespace-nowrap"><%= order.product %></td>
+  <td class="px-4 py-2 whitespace-nowrap text-slate-600"><%= order.date %></td>
+  <td class="px-4 py-2 whitespace-nowrap font-semibold">$<%= order.amount %></td>
 
-  <td class="table-cell">
+  <td class="px-4 py-2 whitespace-nowrap">
     <% const statusLabel = (order.status || 'pending').toLowerCase(); %>
-    <span class="badge badge-<%= statusLabel %>">
+    <span class="inline-block px-2 py-0.5 rounded text-xs font-semibold
+      <%= statusLabel === 'completed' ? 'bg-green-100 text-green-800' :
+          statusLabel === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+          statusLabel === 'cancelled' ? 'bg-red-100 text-red-800' :
+          'bg-gray-100 text-gray-800' %>">
       <%= statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1) %>
     </span>
   </td>
 
-  <td class="table-cell">
-    <button class="btn btn-ghost btn-compact" type="button">View</button>
+  <td class="px-4 py-2 whitespace-nowrap">
+    <button class="text-blue-600 hover:underline text-xs font-medium px-2 py-1 rounded transition" type="button">View</button>
   </td>
 </tr>

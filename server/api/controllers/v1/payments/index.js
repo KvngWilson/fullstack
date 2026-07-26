@@ -4,9 +4,9 @@
  */
 
 const payment = require("./payment");
-const paymentHelpers = require("./payment-helpers");
+const paymentSupport = require("../../../../domain/payment/services/payment.support");
 
 module.exports = {
   payment,
-  paymentHelpers,
+  paymentSupport,
 };

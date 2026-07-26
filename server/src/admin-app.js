@@ -27,6 +27,12 @@ function createAdminApp() {
   adminApp.use(express.json({ limit: "10mb" }));
   adminApp.use(express.urlencoded({ extended: true, limit: "10mb" }));
   adminApp.use(cookieParser());
+  adminApp.use(
+    express.static(path.join(__dirname, "../public"), {
+      maxAge: "1y",
+      etag: false,
+    }),
+  );
 
   applySessionMiddleware(adminApp, {
     cookieName: "admin_sid",
@@ -52,6 +58,7 @@ function createAdminApp() {
   adminApp.get("/health/detailed", detailedHealthCheck);
   adminApp.get("/health/ready", readinessCheck);
   adminApp.get("/health/live", livenessCheck);
+  adminApp.get("/favicon.ico", (_req, res) => res.status(204).end());
 
   // Expose Bull queues status for admin monitoring
   adminApp.get('/health/jobs', async (req, res) => {

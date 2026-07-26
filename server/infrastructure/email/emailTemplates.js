@@ -107,7 +107,7 @@ class EmailTemplateService {
           <div class="info-box">
             <p style="margin: 0;"><strong> Your Email:</strong> ${to}</p>
             <p style="margin: 10px 0 0 0;"><strong> Assigned Role:</strong> ${roleName}</p>
-            <p style="margin: 10px 0 0 0;"><strong>⏰ Expires In:</strong> ${expiryHours} hours</p>
+            <p style="margin: 10px 0 0 0;"><strong>Expires In:</strong> ${expiryHours} hours</p>
           </div>
 
           <p>Click the button below to accept this invitation and set up your account:</p>

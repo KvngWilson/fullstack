@@ -13,11 +13,11 @@ const {
   refreshExchangeRatesManually,
 } = require("../../../controllers/admin/jobsController");
 const { protect, permission } = require("../../../decorators");
-const adminPolicy = require("../../../../policies/adminPolicy");
+const PERMISSIONS = require("../../../../shared/constants/permissions");
 
 // All routes require authentication
 router.use(...protect());
-router.use(...permission(adminPolicy.jobs.manage));
+router.use(...permission(PERMISSIONS.ADMIN.JOBS.MANAGE));
 
 /**
  * @route   GET /api/v1/admin/jobs/status

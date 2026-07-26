@@ -6,7 +6,8 @@
  */
 
 // Authentication & Authorization
-const auth = require('./auth');
+// (JWT auth lives in /server/core/auth and /server/api/decorators/auth.js;
+// the old ./auth middleware was removed in Sprint 1)
 const authorization = require('./authorization');
 const rbac = require('./rbac');
 
@@ -15,6 +16,9 @@ const validation = require('./validation');
 
 // Error Handling
 const error = require('./error');
+
+// Idempotency (duplicate request protection)
+const idempotencyMiddleware = require('./idempotency');
 
 // Security & Rate Limiting
 const rateLimiter = require('./rateLimiter');
@@ -28,15 +32,6 @@ const metrics = require('./metrics');
 
 // Export by category
 module.exports = {
-  // Authentication - Verify user identity
-  auth: {
-    authenticate: auth.authenticate,
-    requireAuth: auth.requireAuth,
-    requireVerified: auth.requireVerified,
-    optionalAuth: auth.optionalAuth,
-    attachUserId: auth.attachUserId,
-  },
-  
   // Authorization - User-level permissions (customers, admins)
   authorization: {
     requireRole: authorization.requireRole,
@@ -70,7 +65,10 @@ module.exports = {
     errorHandler: error.errorHandler,
     notFoundHandler: error.notFoundHandler,
   },
-  
+
+  // Idempotency - Replay-safe mutating endpoints (Idempotency-Key header)
+  idempotency: idempotencyMiddleware.idempotency,
+
   // Rate Limiting
   rateLimiter: {
     authLimiter: rateLimiter.authLimiter,
@@ -101,7 +99,6 @@ module.exports = {
 };
 
 // Also export individual modules for direct access
-module.exports.authModule = auth;
 module.exports.authorizationModule = authorization;
 module.exports.rbacModule = rbac;
 module.exports.validationModule = validation;

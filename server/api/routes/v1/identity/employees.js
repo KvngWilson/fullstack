@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const { protect, permission, anyPermission } = require("../../../decorators");
 const { employees: employeesController } = require("../../../controllers/v1/identity");
-const adminPolicy = require("../../../../policies/adminPolicy");
+const PERMISSIONS = require("../../../../shared/constants/permissions");
 
 // Accept invitation and create employee account
 router.post("/accept-invitation", employeesController.acceptInvitation);
@@ -15,7 +15,7 @@ router.post("/accept-invitation", employeesController.acceptInvitation);
 router.post(
   "/invite",
   ...protect(),
-  ...permission(adminPolicy.employees.invite),
+  ...permission(PERMISSIONS.EMPLOYEE.INVITE),
   employeesController.inviteEmployee,
 );
 
@@ -27,7 +27,7 @@ router.post(
 router.get(
   "/invitations",
   ...protect(),
-  ...anyPermission([adminPolicy.employees.invite, adminPolicy.employees.manage]),
+  ...anyPermission([PERMISSIONS.EMPLOYEE.INVITE, PERMISSIONS.EMPLOYEE.MANAGE]),
   employeesController.getPendingInvitations,
 );
 
@@ -39,58 +39,58 @@ router.get(
 router.post(
   "/resend-invitation/:id",
   ...protect(),
-  ...permission(adminPolicy.employees.invite),
+  ...permission(PERMISSIONS.EMPLOYEE.INVITE),
   employeesController.resendInvitation,
 );
 
 /**
  * GET /api/v1/employees
  * List all employees
- * Required permission: user:read
+ * Required permission: admin:users:read
  */
 router.get(
   "/",
   ...protect(),
-  ...permission(adminPolicy.users.read),
+  ...permission(PERMISSIONS.ADMIN.USERS.READ),
   employeesController.listEmployees,
 );
 
 /**
  * GET /api/v1/employees/:id
  * Get employee details
- * Required permission: user:read
+ * Required permission: admin:users:read
  */
 router.get(
   "/:id",
   ...protect(),
-  ...permission(adminPolicy.users.read),
+  ...permission(PERMISSIONS.ADMIN.USERS.READ),
   employeesController.getEmployee,
 );
 
 /**
  * PATCH /api/v1/employees/:id/role
  * Change employee role
- * Required permission: user:role_assign
+ * Required permission: admin:roles:update
  */
 router.patch(
   "/:id/role",
   ...protect(),
-  ...permission(adminPolicy.users.roleAssign),
+  ...permission(PERMISSIONS.ADMIN.ROLES.UPDATE),
   employeesController.updateEmployeeRole,
 );
 
 /**
  * PATCH /api/v1/employees/:id/status
  * Update employee employment status
- * Required permission: user:suspend, user:delete, or user:update
+ * Required permission: admin:users:lock, admin:users:delete, or admin:users:update
  */
 router.patch(
   "/:id/status",
   ...protect(),
   ...anyPermission([
-    adminPolicy.users.suspend,
-    adminPolicy.users.delete,
-    adminPolicy.users.update,
+    PERMISSIONS.ADMIN.USERS.LOCK,
+    PERMISSIONS.ADMIN.USERS.DELETE,
+    PERMISSIONS.ADMIN.USERS.UPDATE,
   ]),
   employeesController.updateEmployeeStatus,
 );
@@ -103,7 +103,7 @@ router.patch(
 router.post(
   "/:id/permissions/override",
   ...protect(),
-  ...permission(adminPolicy.security.manage),
+  ...permission(PERMISSIONS.SECURITY.MANAGE),
   employeesController.setPermissionOverride,
 );
 
@@ -115,7 +115,7 @@ router.post(
 router.get(
   "/:id/audit-log",
   ...protect(),
-  ...permission(adminPolicy.audit.read),
+  ...permission(PERMISSIONS.AUDIT.READ),
   employeesController.getEmployeeAuditLog,
 );
 

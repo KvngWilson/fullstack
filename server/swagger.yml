@@ -10,7 +10,10 @@ info:
     ## API Overview
     - **Base URL**: `/api/v1`
     - **Authentication**: Bearer token (JWT)
+    - **Session Model**: Primary auth uses httpOnly cookies (`token`, `refresh_token`), with Bearer JWT accepted for API clients
+    - **Header Auth**: API clients may also send JWT in the `Authorization` header
     - **Rate Limiting**: Applied to auth and payment endpoints
+    - **CSRF**: State-changing requests require `X-CSRF-Token` except auth bootstrap endpoints
     - **Response Format**: JSON
     - **Version**: 1.0.0
 
@@ -19,19 +22,27 @@ info:
     - **Identity** (`/identity`) - User profiles, addresses, payment methods
     - **Catalog** (`/catalog`) - Products, categories, wishlist
     - **Ordering** (`/ordering`) - Cart, orders, checkout, payments, shipping
-    - **Admin** (`/admin`) - Administrative endpoints
+    - **Admin API** (`/admin`) - Administrative API endpoints under `/api/v1/admin`
     - **Vendors** (`/vendors`) - Vendor management and applications
+
+    ## Admin Control Surfaces (Runtime)
+    - **Route-based admin (CSR)**: `http://localhost:5000/admin`
+    - **Subdomain admin (SSR)**: `http://admin.localhost:5000`
+    - Both are expected to be reachable when the full compose stack is running.
 
   license:
     name: "MIT"
     url: "https://opensource.org/licenses/MIT"
 servers:
   - url: "http://localhost:5000"
-    description: "Development"
+    description: "Development gateway (API + CSR app routes)"
+  - url: "http://admin.localhost:5000"
+    description: "Development admin subdomain (SSR app host)"
   - url: "https://api.ecommerce.example"
     description: "Production"
 security:
   - bearerAuth: []
+  - cookieAuth: []
 paths:
   /health:
     get:
@@ -114,7 +125,7 @@ paths:
       security: []
       operationId: loginUser
       summary: "Authenticate a user"
-      description: "Login with email and password. Returns JWT access token and refresh token."
+      description: "Login with email and password. Sets httpOnly auth cookies and returns user payload."
       tags: ["Authentication"]
       requestBody:
         required: true
@@ -133,13 +144,26 @@ paths:
       security: []
       operationId: refreshToken
       summary: "Refresh access token"
-      description: "Get a new access token using the refresh token"
+      description: "Rotates refresh token from httpOnly cookie and sets a new access token cookie."
       tags: ["Authentication"]
       responses:
         "200":
           description: "Token refreshed successfully"
         "401":
           description: "Invalid or expired refresh token"
+
+  /api/v1/auth/csrf-token:
+    get:
+      security: []
+      operationId: getCsrfToken
+      summary: "Get CSRF token"
+      description: "Returns CSRF token for subsequent state-changing requests via `X-CSRF-Token` header."
+      tags: ["Authentication"]
+      responses:
+        "200":
+          description: "CSRF token generated"
+        "500":
+          description: "Failed to generate CSRF token"
 
   /api/v1/auth/logout:
     post:
@@ -196,7 +220,7 @@ paths:
         "400":
           description: "Invalid or expired token"
 
-  /api/v1/auth/resend-verification:
+  /api/v1/auth/advanced/resend-verification:
     post:
       operationId: resendEmailVerification
       summary: "Resend verification email"
@@ -1007,6 +1031,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
   parameters:
     Page:
       name: page

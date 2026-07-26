@@ -1,6 +1,6 @@
 const inventoryRepository = require("../repositories/InventoryRepository");
 const BaseService = require("../../base/BaseService");
-const catalogPolicy = require("../../../policies/catalogPolicy");
+const PERMISSIONS = require("../../../shared/constants/permissions");
 
 /**
  * Inventory Service.
@@ -25,7 +25,7 @@ class InventoryService extends BaseService {
     }
 
     if (employeeId) {
-      await this.validatePermission(employeeId, catalogPolicy.inventory.update);
+      await this.validatePermission(employeeId, PERMISSIONS.INVENTORY.UPDATE);
     }
 
     const updated = await inventoryRepository.updateStock(variantId, newStock);
@@ -45,7 +45,7 @@ class InventoryService extends BaseService {
     }
 
     if (employeeId) {
-      await this.validatePermission(employeeId, catalogPolicy.inventory.update);
+      await this.validatePermission(employeeId, PERMISSIONS.INVENTORY.UPDATE);
     }
 
     const result = await inventoryRepository.decrementStock(variantId, quantity);

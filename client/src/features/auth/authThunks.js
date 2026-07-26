@@ -86,7 +86,11 @@ export const fetchCurrentUserThunk = createAsyncThunk(
   "auth/fetchCurrentUser",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await authService.me();
+      const response = await authService.me({
+        skipAuthRedirect: true,
+        skipAuthRefresh: true,
+        skipErrorLogging: true,
+      });
       return { user: response.user };
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));

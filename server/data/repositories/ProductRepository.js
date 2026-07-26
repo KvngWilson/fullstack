@@ -4,7 +4,7 @@
  */
 
 const domain = require("../../domain");
-const domainProductRepo = domain.catalog.repositories.ProductRpository;
+const domainProductRepo = domain.catalog.repositories.ProductRepository;
 const domainCategoryRepo = domain.catalog.repositories.CategoryRepository;
 
 class ProductRepository {

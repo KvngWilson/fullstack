@@ -1,5 +1,5 @@
 const logger = require("../../../shared/utils/logger");
-const { sendEmailJob } = require("../../../infrastructure/email/email");
+const EmailQueueProvider = require("../../../infrastructure/jobs/EmailQueueProvider");
 
 async function getOrderDetailsForConfirmation(client, orderId) {
   const orderDetails = await client.query(
@@ -28,16 +28,16 @@ async function sendConfirmationEmailSafely(client, orderId) {
   if (!order) return;
 
   try {
-    await sendEmailJob({
-      to: order.email,
-      templateName: 'orderConfirmation',
-      templateData: {
+    await EmailQueueProvider.queueEmail(
+      order.email,
+      'orderConfirmation',
+      {
         orderId: order.id,
         items: order.items || [],
         total: order.total,
         orderUrl: `${process.env.APP_URL || 'http://localhost:5000'}/orders/${order.id}`,
       },
-    });
+    );
   } catch (emailError) {
     logger.error("Failed to send order confirmation email", {
       error: emailError.message,

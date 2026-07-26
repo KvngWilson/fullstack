@@ -1,4 +1,4 @@
-const DatabaseHelper = require('../helpers/db.helper.js');
+const { DatabaseHelper } = require('../helpers/testHelpers');
 
 class ProductFactory {
   static counter = 0;

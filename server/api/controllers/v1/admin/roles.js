@@ -1,5 +1,6 @@
 const { pool } = require("../../../../config/db");
 const AdminAuthService = require("../../../../domain/admin/AdminAuthService");
+const PermissionService = require("../../../../shared/core/PermissionService");
 
 const adminAuthService = new AdminAuthService();
 
@@ -315,6 +316,9 @@ exports.assignPermissionsToRole = async (req, res) => {
       id,
       { permissionIds },
     );
+
+    // Role permissions affect every employee holding the role
+    await PermissionService.invalidateAllPermissions();
 
     res.json({
       success: true,

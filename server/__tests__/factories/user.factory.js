@@ -1,4 +1,4 @@
-const DatabaseHelper = require('../helpers/db.helper.js');
+const { DatabaseHelper } = require('../helpers/testHelpers');
 const argon2 = require('argon2');
 
 class UserFactory {

@@ -1,11 +1,80 @@
 /**
- * Comprehensive Test Helpers - Phase 7
- * Provides utilities for creating test data, mocking, and assertions
- * Supports all four domains: identity, catalog, ordering, payment
+ * Comprehensive Test Helpers
+ * Unified test utilities for: identity, catalog, ordering, payment domains
+ * Also includes database operations and cleanup utilities
  */
 
 const { pool } = require("../../config/db");
 const jwt = require("jsonwebtoken");
+const { Pool } = require("pg");
+
+// ===== DATABASE HELPERS =====
+
+class DatabaseHelper {
+  static pool = null;
+  static currentConnection = null;
+
+  static initializePool() {
+    if (!this.pool) {
+      this.pool = new Pool({
+        host: process.env.DB_HOST_TEST || "localhost",
+        port: process.env.DB_PORT_TEST || 5432,
+        database: process.env.DB_NAME_TEST || "fullstack_test",
+        user: process.env.DB_USER_TEST || "postgres",
+        password: process.env.DB_PASSWORD_TEST || "postgres",
+        max: 1,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 2000,
+      });
+    }
+    return this.pool;
+  }
+
+  static async getConnection() {
+    if (!this.pool) {
+      this.initializePool();
+    }
+    if (!this.currentConnection) {
+      this.currentConnection = await this.pool.connect();
+    }
+    return this.currentConnection;
+  }
+
+  static async query(sql, params = []) {
+    const connection = await this.getConnection();
+    return connection.query(sql, params);
+  }
+
+  static async beginTransaction() {
+    const connection = await this.getConnection();
+    await connection.query("BEGIN");
+  }
+
+  static async rollbackTransaction() {
+    const connection = await this.getConnection();
+    try {
+      await connection.query("ROLLBACK");
+    } catch (error) {
+      // Transaction already rolled back or connection closed
+    }
+  }
+
+  static async commitTransaction() {
+    const connection = await this.getConnection();
+    await connection.query("COMMIT");
+  }
+
+  static async closePool() {
+    if (this.currentConnection) {
+      await this.currentConnection.release();
+      this.currentConnection = null;
+    }
+    if (this.pool) {
+      await this.pool.end();
+      this.pool = null;
+    }
+  }
+}
 
 // ===== USER & AUTH HELPERS (Identity Domain) =====
 
@@ -57,7 +126,31 @@ async function createTestAdmin(overrides = {}) {
 }
 
 /**
- * Generate JWT access token
+ * Generate JWT token (for testing)
+ * @param {number} userId - User ID to encode in token
+ * @param {string} role - User role (default: 'customer')
+ * @param {number} vendorId - Vendor ID (optional)
+ * @param {Array} permissions - User permissions (optional)
+ * @returns {string} JWT token
+ */
+function createToken(userId, role = "customer", vendorId = null, permissions = []) {
+  const JWT_SECRET = process.env.JWT_SECRET || "test-secret-key";
+  return jwt.sign(
+    {
+      user_id: userId,
+      role,
+      vendor_id: vendorId,
+      permissions,
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+    },
+    JWT_SECRET,
+    { algorithm: "HS256" }
+  );
+}
+
+/**
+ * Generate JWT access token (standardized format)
  * @param {number} userId - User ID to encode in token
  * @param {string} expiresIn - Token expiration (default: "24h")
  * @returns {string} JWT token
@@ -81,6 +174,36 @@ function generateRefreshToken(userId, expiresIn = "7d") {
     { id: userId, type: "refresh" },
     process.env.JWT_SECRET || "test-secret",
     { expiresIn }
+  );
+}
+
+// ===== PERMISSION HELPERS =====
+
+/**
+ * Grant a permission to a user (for override testing)
+ */
+async function grantPermissionOverride(userId, permission, validUntil = null) {
+  const expiryDate = validUntil || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  const result = await pool.query(
+    `INSERT INTO permission_overrides (user_id, permission, granted_at, valid_until)
+     VALUES ($1, $2, now(), $3)
+     RETURNING *`,
+    [userId, permission, expiryDate]
+  );
+
+  return result.rows[0];
+}
+
+/**
+ * Revoke a permission from a user
+ */
+async function revokePermissionOverride(userId, permission) {
+  await pool.query(
+    `UPDATE permission_overrides
+     SET revoked_at = now()
+     WHERE user_id = $1 AND permission = $2`,
+    [userId, permission]
   );
 }
 
@@ -281,6 +404,57 @@ async function createTestOrder(userId, addressId, overrides = {}) {
   return result.rows[0];
 }
 
+/**
+ * Create test vendor with admin user
+ */
+async function createTestVendor(vendorName, adminEmail) {
+  // Create vendor
+  const vendorResult = await pool.query(
+    `INSERT INTO vendors (name, slug, is_active, created_at)
+     VALUES ($1, $2, true, now())
+     RETURNING id, name`,
+    [vendorName, vendorName.toLowerCase().replace(/\s+/g, "-")]
+  );
+
+  const vendor = vendorResult.rows[0];
+
+  // Create vendor admin user
+  const adminUser = await createTestUser(
+    { role: "admin", email: adminEmail, vendor_id: vendor.id }
+  );
+
+  return {
+    vendor,
+    admin: adminUser,
+  };
+}
+
+/**
+ * Create test exchange rates
+ */
+async function createTestExchangeRates() {
+  const currencyPairs = [
+    { from: "USD", to: "EUR", rate: 0.92 },
+    { from: "USD", to: "GBP", rate: 0.79 },
+    { from: "USD", to: "JPY", rate: 149.5 },
+    { from: "USD", to: "CAD", rate: 1.36 },
+    { from: "EUR", to: "USD", rate: 1.09 },
+    { from: "GBP", to: "USD", rate: 1.27 },
+  ];
+
+  for (const pair of currencyPairs) {
+    await pool.query(
+      `INSERT INTO exchange_rates (
+        from_currency, to_currency, rate, provider,
+        effective_date, expires_at, created_at
+      ) VALUES ($1, $2, $3, $4, CURRENT_DATE, now() + interval '24 hours', now())
+      ON CONFLICT (from_currency, to_currency) DO UPDATE
+      SET rate = $3, updated_at = now()`,
+      [pair.from, pair.to, pair.rate, "mock"]
+    );
+  }
+}
+
 // ===== PAYMENT HELPERS (Payment Domain) =====
 
 /**
@@ -345,85 +519,62 @@ async function createTestRefund(paymentId, overrides = {}) {
   return result.rows[0];
 }
 
+// ===== AUDIT LOG HELPERS =====
+
+/**
+ * Verify audit log entry exists
+ */
+async function findAuditLog(query) {
+  const result = await pool.query(
+    `SELECT * FROM security_audit_log
+     WHERE 1=1 ${Object.keys(query)
+       .map((k, i) => `AND ${k} = $${i + 1}`)
+       .join("")}
+     ORDER BY created_at DESC LIMIT 1`,
+    Object.values(query)
+  );
+
+  return result.rows[0];
+}
+
+/**
+ * Clear audit logs (for test isolation)
+ */
+async function clearAuditLogs() {
+  const thirtySecondsAgo = new Date(Date.now() - 30 * 1000);
+  return { before: thirtySecondsAgo };
+}
+
 // ===== CLEANUP HELPERS =====
 
 /**
- * Cleanup all test data
- * Removes test users, products, orders, payments, etc.
+ * Cleanup all test data (in reverse dependency order)
  */
 async function cleanupTestData() {
-  // Clean in proper order due to foreign keys
-  // Remove refunds
-  await pool.query(
-    `DELETE FROM refunds WHERE payment_id IN (
-      SELECT id FROM payments WHERE order_id IN (
-        SELECT id FROM orders WHERE user_id IN (
-          SELECT id FROM users WHERE email LIKE 'test-%@example.com'
-        )
-      )
-    )`
-  );
+  const tables = [
+    "security_audit_log",
+    "refunds",
+    "order_items",
+    "orders",
+    "cart_items",
+    "shopping_carts",
+    "carts",
+    "permission_overrides",
+    "product_variants",
+    "products",
+    "addresses",
+    "vendors",
+    "users",
+  ];
 
-  // Remove order items
-  await pool.query(
-    `DELETE FROM order_items WHERE order_id IN (
-      SELECT id FROM orders WHERE user_id IN (
-        SELECT id FROM users WHERE email LIKE 'test-%@example.com'
-      )
-    )`
-  );
-
-  // Remove payments
-  await pool.query(
-    `DELETE FROM payments WHERE order_id IN (
-      SELECT id FROM orders WHERE user_id IN (
-        SELECT id FROM users WHERE email LIKE 'test-%@example.com'
-      )
-    )`
-  );
-
-  // Remove orders
-  await pool.query(
-    `DELETE FROM orders WHERE user_id IN (
-      SELECT id FROM users WHERE email LIKE 'test-%@example.com'
-    )`
-  );
-
-  // Remove cart items
-  await pool.query(
-    `DELETE FROM cart_items WHERE cart_id IN (
-      SELECT id FROM carts WHERE user_id IN (
-        SELECT id FROM users WHERE email LIKE 'test-%@example.com'
-      )
-    )`
-  );
-
-  // Remove carts
-  await pool.query(
-    `DELETE FROM carts WHERE user_id IN (
-      SELECT id FROM users WHERE email LIKE 'test-%@example.com'
-    )`
-  );
-
-  // Remove addresses
-  await pool.query(
-    `DELETE FROM addresses WHERE user_id IN (
-      SELECT id FROM users WHERE email LIKE 'test-%@example.com'
-    )`
-  );
-
-  // Remove test users
-  await pool.query(`DELETE FROM users WHERE email LIKE 'test-%@example.com'`);
-
-  // Remove product variants
-  await pool.query(
-    `DELETE FROM product_variants WHERE product_id IN (
-      SELECT id FROM products WHERE name LIKE 'Test Product%'
-    )`
-  );
-
-  // Remove test products
-  await pool.query(`DELETE FROM products WHERE name LIKE 'Test Product%'`);
+  for (const table of tables) {
+    try {
+      await pool.query(`TRUNCATE TABLE ${table} CASCADE`);
+    } catch (error) {
+      // Table may not exist or may have constraints
+      console.warn(`Could not truncate ${table}:`, error.message);
+    }
+  }
 }
 
 /**
@@ -471,6 +622,17 @@ async function cleanupUser(userId) {
   await pool.query(`DELETE FROM users WHERE id = $1`, [userId]);
 }
 
+/**
+ * Setup test database (create schemas if needed)
+ */
+async function setupTestDatabase() {
+  try {
+    const check = await pool.query(`SELECT 1 FROM users LIMIT 1`);
+  } catch (error) {
+    throw new Error("Test database not initialized. Run migrations first.");
+  }
+}
+
 // ===== ASSERTION HELPERS =====
 
 /**
@@ -497,7 +659,9 @@ function expectStatus(response, expected) {
  */
 function expectError(response, expectedMessage) {
   if (!response.body.error && !response.body.message) {
-    throw new Error(`Expected error in response, got: ${JSON.stringify(response.body)}`);
+    throw new Error(
+      `Expected error in response, got: ${JSON.stringify(response.body)}`
+    );
   }
 
   if (expectedMessage) {
@@ -524,19 +688,25 @@ function expectError(response, expectedMessage) {
  */
 function expectData(response, expectedKeys) {
   if (!response.body.data) {
-    throw new Error(`Expected data in response, got: ${JSON.stringify(response.body)}`);
+    throw new Error(
+      `Expected data in response, got: ${JSON.stringify(response.body)}`
+    );
   }
 
   if (expectedKeys && Array.isArray(expectedKeys)) {
     for (const key of expectedKeys) {
       if (!(key in response.body.data)) {
         throw new Error(
-          `Expected data to have key "${key}", got: ${JSON.stringify(response.body.data)}`
+          `Expected data to have key "${key}", got: ${JSON.stringify(
+            response.body.data
+          )}`
         );
       }
     }
   }
 }
+
+// ===== INFRA READINESS GUARD =====
 
 /**
  * Create a reusable infra readiness guard for DB-dependent suites.
@@ -558,7 +728,7 @@ function createDbInfraGuard() {
         if (!isReady()) return;
         return fn();
       },
-      timeout,
+      timeout
     );
 
   return {
@@ -568,12 +738,20 @@ function createDbInfraGuard() {
   };
 }
 
+// ===== MODULE EXPORTS =====
+
 module.exports = {
+  // Database operations
+  DatabaseHelper,
+
   // Identity domain
   createTestUser,
   createTestAdmin,
+  createToken,
   generateToken,
   generateRefreshToken,
+  grantPermissionOverride,
+  revokePermissionOverride,
 
   // Catalog domain
   createTestProduct,
@@ -584,14 +762,21 @@ module.exports = {
   addToCart,
   createTestAddress,
   createTestOrder,
+  createTestVendor,
+  createTestExchangeRates,
 
   // Payment domain
   createTestPayment,
   createTestRefund,
 
+  // Audit
+  findAuditLog,
+  clearAuditLogs,
+
   // Cleanup
   cleanupTestData,
   cleanupUser,
+  setupTestDatabase,
   createDbInfraGuard,
 
   // Assertions

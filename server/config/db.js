@@ -1,6 +1,14 @@
 const { Pool } = require("pg");
 const logger = require("../shared/utils/logger");
 
+const shouldUseSsl =
+  process.env.DB_SSL_ENABLED === "true" ||
+  (!!process.env.DB_SSL_CA || !!process.env.DB_SSL_CERT || !!process.env.DB_SSL_KEY);
+
+// Default to false for self-signed certs (e.g. local Docker). Set DB_SSL_REJECT_UNAUTHORIZED=true
+// in production when using a CA-signed certificate.
+const rejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED === "true";
+
 const poolConfig = {
   host: process.env.DB_HOST || "localhost",
   port: parseInt(process.env.DB_PORT) || 5432,
@@ -20,9 +28,14 @@ const poolConfig = {
   // Application name for monitoring
   application_name: process.env.APP_NAME || 'fullstack-backend',
   
-  // SSL configuration for production
-  ssl: process.env.NODE_ENV === 'production' 
-    ? { rejectUnauthorized: false }
+  // SSL configuration (explicitly opt-in via DB_SSL_ENABLED=true or SSL cert vars)
+  ssl: shouldUseSsl
+    ? {
+        rejectUnauthorized,
+        ca: process.env.DB_SSL_CA ? [process.env.DB_SSL_CA] : undefined,
+        cert: process.env.DB_SSL_CERT || undefined,
+        key: process.env.DB_SSL_KEY || undefined,
+      }
     : false,
   
   // Allow duplicate of replication client config

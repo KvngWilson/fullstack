@@ -62,9 +62,10 @@ export const errorInterceptor = {
   error: (error) => {
     // Normalize and enhance error
     const normalizedError = normalizeError(error);
+    const shouldSkipLogging = error.config?.skipErrorLogging;
 
     // Log for debugging
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV && !shouldSkipLogging) {
       console.error("API Error:", {
         status: normalizedError.status,
         message: normalizedError.message,

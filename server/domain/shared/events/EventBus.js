@@ -1,99 +1,123 @@
 /**
  * EventBus - Mediates publish/subscribe of domain events
- * 
+ *
  * Pattern: Event-driven architecture
  * - Publishers don't know subscribers
  * - Subscribers register as handlers
  * - Decouples domains
- * 
- * This is a simple in-memory implementation.
- * Can be replaced with message broker (RabbitMQ, Kafka) later.
+ *
+ * In-memory implementation backed by Node's EventEmitter.
+ * All events are dispatched synchronously within the same process.
+ * Can be replaced with a message broker (Kafka, RabbitMQ) by swapping
+ * this module without touching callers.
  */
+
+const { EventEmitter } = require("events");
+const { logger } = require("../../../shared/utils/logger");
+
 class EventBus {
-	constructor() {
-		this._subscribers = new Map(); // eventType -> [handlers]
-		this._deadLetterQueue = [];
-	}
+  constructor() {
+    this._emitter = new EventEmitter();
+    this._emitter.setMaxListeners(50); // allow many subscribers per event type
+    this._deadLetterQueue = [];
+    this._subscribers = new Map(); // eventType → Set of handlers (for clear/inspection)
+  }
 
-	/**
-	 * Subscribe to a domain event type
-	 * 
-	 * @param {string} eventType - Event type to subscribe to
-	 * @param {Function} handler - Handler function(event) => Promise
-	 */
-	subscribe(eventType, handler) {
-		if (!eventType || typeof handler !== 'function') {
-			throw new Error('Invalid subscription parameters');
-		}
+  /**
+   * Subscribe a handler to an event type.
+   * @param {string} eventType
+   * @param {Function} handler  async (event) => void
+   */
+  subscribe(eventType, handler) {
+    if (typeof eventType !== "string" || !eventType) {
+      throw new Error("eventType must be a non-empty string");
+    }
+    if (typeof handler !== "function") {
+      throw new Error("handler must be a function");
+    }
 
-		if (!this._subscribers.has(eventType)) {
-			this._subscribers.set(eventType, []);
-		}
+    this._emitter.on(eventType, handler);
 
-		this._subscribers.get(eventType).push(handler);
-	}
+    if (!this._subscribers.has(eventType)) {
+      this._subscribers.set(eventType, new Set());
+    }
+    this._subscribers.get(eventType).add(handler);
+  }
 
-	/**
-	 * Publish a domain event
-	 * 
-	 * @param {DomainEvent} event - Event to publish
-	 */
-	async publish(event) {
-		const eventType = event?.eventType || event?.type;
+  /**
+   * Publish a single domain event.
+   * All registered handlers are called in registration order.
+   * Handler errors are caught, logged, and pushed to the dead-letter queue
+   * so one failing handler cannot block others.
+   * @param {object} event  Must have eventType or type property
+   */
+  async publish(event) {
+    if (!event || typeof event !== "object") {
+      throw new Error("event must be a non-null object");
+    }
 
-		if (!event || !eventType) {
-			throw new Error('Invalid event');
-		}
+    const eventType = event.eventType || event.type;
+    if (!eventType) {
+      throw new Error("event must have an eventType or type property");
+    }
 
-		const handlers = this._subscribers.get(eventType) || [];
+    const handlers = this._emitter.listeners(eventType);
+    if (handlers.length === 0) {
+      logger.debug("EventBus: no subscribers for event", { eventType });
+      return;
+    }
 
-		const results = await Promise.allSettled(
-			handlers.map(handler => handler(event))
-		);
+    for (const handler of handlers) {
+      try {
+        await handler(event);
+      } catch (error) {
+        logger.error("EventBus: handler error", {
+          eventType,
+          error: error.message,
+          stack: error.stack,
+        });
+        this._deadLetterQueue.push({ event, error: error.message, failedAt: new Date() });
+      }
+    }
+  }
 
-		// Track failures for deadletter handling
-		results.forEach((result, index) => {
-			if (result.status === 'rejected') {
-				this._deadLetterQueue.push({
-					event,
-					handler: handlers[index],
-					error: result.reason,
-					timestamp: new Date(),
-				});
-			}
-		});
+  /**
+   * Publish multiple domain events in order.
+   * @param {object[]} events
+   */
+  async publishAll(events = []) {
+    for (const event of events) {
+      await this.publish(event);
+    }
+  }
 
-		return results;
-	}
+  /**
+   * Return events that could not be delivered due to handler errors.
+   * @returns {Array<{event, error, failedAt}>}
+   */
+  getDeadLetterQueue() {
+    return this._deadLetterQueue;
+  }
 
-	/**
-	 * Publish multiple events
-	 */
-	async publishAll(events) {
-		return Promise.all(events.map(event => this.publish(event)));
-	}
+  /**
+   * Return subscribers for a given event type.
+   * Used by tests to verify idempotent subscriber registration.
+   * @param {string} eventType
+   * @returns {Function[]}
+   */
+  getSubscribers(eventType) {
+    return Array.from(this._subscribers.get(eventType) || []);
+  }
 
-	/**
-	 * Get subscribers for event type
-	 */
-	getSubscribers(eventType) {
-		return this._subscribers.get(eventType) || [];
-	}
-
-	/**
-	 * Get dead letter queue (failed event deliveries)
-	 */
-	getDeadLetterQueue() {
-		return this._deadLetterQueue;
-	}
-
-	/**
-	 * Clear event bus (for testing)
-	 */
-	clear() {
-		this._subscribers.clear();
-		this._deadLetterQueue = [];
-	}
+  /**
+   * Remove all subscribers and clear the dead-letter queue.
+   * Primarily used in tests.
+   */
+  clear() {
+    this._emitter.removeAllListeners();
+    this._subscribers.clear();
+    this._deadLetterQueue = [];
+  }
 }
 
 module.exports = EventBus;

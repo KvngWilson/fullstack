@@ -35,7 +35,31 @@ export const authApi = {
   },
 
   register: async (data) => {
-    const response = await apiClient.post("/identity/users/register", data);
+    const fullName = `${data?.first_name || data?.firstName || ""} ${data?.last_name || data?.lastName || ""}`.trim();
+    const [derivedFirstName, ...derivedLastName] = fullName.split(" ");
+
+    const first_name =
+      data?.first_name || data?.firstName || derivedFirstName || "User";
+    const last_name =
+      data?.last_name ||
+      data?.lastName ||
+      derivedLastName.join(" ") ||
+      "User";
+    const password = data?.password || "";
+    const confirm_password =
+      data?.confirm_password || data?.confirmPassword || password;
+
+    const payload = {
+      email: data?.email,
+      password,
+      confirm_password,
+      first_name,
+      last_name,
+      accept_terms: data?.accept_terms ?? true,
+      subscribe_newsletter: data?.subscribe_newsletter ?? false,
+    };
+
+    const response = await apiClient.post("/identity/users/register", payload);
     return normalizeAuthPayload(response);
   },
 
@@ -68,8 +92,8 @@ export const authApi = {
     });
   },
 
-  me: async () => {
-    return apiClient.get("/identity/profile");
+  me: async (config = {}) => {
+    return apiClient.get("/identity/profile", config);
   },
 
   logout: async () => {

@@ -5,7 +5,8 @@
  * Wraps middleware for cleaner route definitions
  */
 
-const { requireAuth, requireVerified, authenticate } = require('../middleware/auth');
+const { authMiddleware: authenticate } = require('../../core/auth');
+const { errorResponse } = require('../../shared/utils/response');
 const { 
   requireAdmin, 
   requireCustomer, 
@@ -16,13 +17,24 @@ const {
   requireOwnership,
 } = require('../middleware/authorization');
 
+function requireVerified(req, res, next) {
+  const isVerified = Boolean(req.user?.email_verified ?? req.user?.emailVerified);
+  if (!isVerified) {
+    return errorResponse(res, {
+      message: 'Email verification required',
+      status: 403,
+    });
+  }
+  return next();
+}
+
 /**
  * Require authenticated user
  * @returns {Function[]} Middleware array
  * @example router.get('/profile', ...protect(), controller.profile)
  */
 function protect() {
-  return [authenticate, requireAuth];
+  return [authenticate];
 }
 
 /**
@@ -31,7 +43,7 @@ function protect() {
  * @example router.post('/orders', ...verified(), controller.create)
  */
 function verified() {
-  return [authenticate, requireAuth, requireVerified];
+  return [authenticate, requireVerified];
 }
 
 /**
@@ -40,7 +52,7 @@ function verified() {
  * @example router.delete('/users/:id', ...admin(), controller.delete)
  */
 function admin() {
-  return [authenticate, requireAuth, requireAdmin];
+  return [authenticate, requireAdmin];
 }
 
 /**
@@ -49,7 +61,7 @@ function admin() {
  * @example router.post('/orders', ...customer(), controller.create)
  */
 function customer() {
-  return [authenticate, requireAuth, requireCustomer];
+  return [authenticate, requireCustomer];
 }
 
 /**
@@ -59,7 +71,7 @@ function customer() {
  * @example router.get('/dashboard', ...role('admin', 'staff'), controller.dashboard)
  */
 function role(...roles) {
-  return [authenticate, requireAuth, requireRole(...roles)];
+  return [authenticate, requireRole(...roles)];
 }
 
 /**
@@ -69,7 +81,7 @@ function role(...roles) {
  * @example router.post('/products', ...permission('products:create'), controller.create)
  */
 function permission(permissionCode) {
-  return [authenticate, requireAuth, requirePermission(permissionCode)];
+  return [authenticate, requirePermission(permissionCode)];
 }
 
 /**
@@ -79,7 +91,7 @@ function permission(permissionCode) {
  * @example router.get('/orders', ...anyPermission(['orders:view', 'orders:manage']), controller.list)
  */
 function anyPermission(permissions) {
-  return [authenticate, requireAuth, requireAnyPermission(permissions)];
+  return [authenticate, requireAnyPermission(permissions)];
 }
 
 /**
@@ -89,7 +101,7 @@ function anyPermission(permissions) {
  * @example router.post('/refund', ...allPermissions(['orders:manage', 'payments:refund']), controller.refund)
  */
 function allPermissions(permissions) {
-  return [authenticate, requireAuth, requireAllPermissions(permissions)];
+  return [authenticate, requireAllPermissions(permissions)];
 }
 
 /**
@@ -104,7 +116,7 @@ function allPermissions(permissions) {
  * )
  */
 function ownership(options) {
-  return [authenticate, requireAuth, requireOwnership(options)];
+  return [authenticate, requireOwnership(options)];
 }
 
 /**

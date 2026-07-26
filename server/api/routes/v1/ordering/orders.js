@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { customer, admin, protect, body } = require("../../../decorators");
 const { privateData } = require("../../../middleware/cache-headers");
+const { idempotency } = require("../../../middleware/idempotency");
 const {
   validateCreateOrder,
   validateUpdateOrder,
@@ -20,6 +21,7 @@ router.post(
   "/",
   ...customer(),
   privateData,
+  idempotency(),
   ...body(validateCreateOrder),
   createOrder,
 );

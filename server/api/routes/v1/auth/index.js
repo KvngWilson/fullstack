@@ -6,12 +6,8 @@
 const express = require("express");
 const router = express.Router();
 
-const traditionalAuth = require("./traditional");
 const platformAuth = require("./platform");
 const enhancedAuth = require("./enhanced");
-
-// Traditional session-based auth
-router.use("/session", traditionalAuth);
 
 // Platform-wide unified auth (core endpoints)
 router.use("/", platformAuth);
