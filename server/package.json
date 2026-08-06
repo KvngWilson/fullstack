@@ -27,6 +27,7 @@
   "dependencies": {
     "@api/easyship": "file:.api/apis/easyship",
     "@paystack/paystack-sdk": "^1.0.1",
+    "@socket.io/redis-adapter": "^8.3.0",
     "amqplib": "^0.10.9",
     "argon2": "^0.44.0",
     "bull": "^4.16.5",
@@ -50,6 +51,8 @@
     "passport-local": "^1.0.0",
     "pg": "^8.18.0",
     "redis": "^5.10.0",
+    "socket.io": "^4.8.3",
+    "socket.io-redis": "^5.4.0",
     "stripe": "^20.1.0",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^8.3.2",
