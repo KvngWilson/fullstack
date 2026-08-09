@@ -32,6 +32,8 @@ const SUPPORTED_CURRENCIES = [
   "ZAR",
   "NGN",
 ];
+const { logger } = require('../../../shared/utils/logger');
+
 const CACHE_TTL = 3600; // 1 hour in seconds
 const CACHE_PREFIX = "exchange_rate:";
 const LOCK_PREFIX = "exchange_rate_lock:";
@@ -130,7 +132,7 @@ class ExchangeRateService {
         throw error;
       }
       // Log database/Redis errors but propagate
-      console.error(`Exchange rate service error: ${error.message}`);
+      logger.error('Exchange rate service error', { error: error.message });
       throw error;
     }
   }
@@ -277,7 +279,7 @@ class ExchangeRateService {
 
       return lockData;
     } catch (error) {
-      console.error(`Error retrieving locked rate: ${error.message}`);
+      logger.error('Error retrieving locked rate', { error: error.message });
       return null;
     }
   }
@@ -329,7 +331,7 @@ class ExchangeRateService {
 
       return rate;
     } catch (error) {
-      console.error(`Error getting historical rate: ${error.message}`);
+      logger.error('Error getting historical rate', { error: error.message });
       return null;
     }
   }
@@ -360,15 +362,16 @@ class ExchangeRateService {
           );
           refreshed++;
         } catch (error) {
-          console.warn(
-            `Failed to refresh ${row.from_currency}/${row.to_currency}: ${error.message}`,
-          );
+          logger.warn('Failed to refresh rate', {
+            pair: `${row.from_currency}/${row.to_currency}`,
+            error: error.message,
+          });
         }
       }
 
       return refreshed;
     } catch (error) {
-      console.error(`Failed to refresh cached rates: ${error.message}`);
+      logger.error('Failed to refresh cached rates', { error: error.message });
       return 0;
     }
   }
