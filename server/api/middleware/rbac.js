@@ -121,7 +121,7 @@ async function getEmployeeIdFromUser(userId) {
 
   const result = await pool.query(
     "SELECT id FROM employees WHERE user_id = $1 AND employment_status = 'active'",
-    [userId]
+    [userId],
   );
 
   if (result.rowCount === 0) {
@@ -179,7 +179,7 @@ function requirePermission(permissionCode, scope = null) {
       const hasPermission = await PermissionChecker.hasPermission(
         employeeId,
         permissionCode,
-        scope
+        scope,
       );
 
       if (!hasPermission) {
@@ -229,7 +229,7 @@ function requireAnyPermission(permissionCodes) {
 
       const hasPermission = await PermissionChecker.hasAnyPermission(
         employeeId,
-        permissionCodes
+        permissionCodes,
       );
 
       if (!hasPermission) {
@@ -272,7 +272,7 @@ function requireAllPermissions(permissionCodes) {
 
       const hasPermission = await PermissionChecker.hasAllPermissions(
         employeeId,
-        permissionCodes
+        permissionCodes,
       );
 
       if (!hasPermission) {

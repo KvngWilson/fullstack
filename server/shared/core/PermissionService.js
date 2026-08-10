@@ -12,7 +12,9 @@ const PERMISSION_CACHE_TTL_SECONDS = parseInt(
 async function readPermissionCache(employeeId) {
   if (!redisClient.isReady) return null;
   try {
-    const cached = await redisClient.get(`${PERMISSION_CACHE_PREFIX}${employeeId}`);
+    const cached = await redisClient.get(
+      `${PERMISSION_CACHE_PREFIX}${employeeId}`,
+    );
     return cached ? JSON.parse(cached) : null;
   } catch (error) {
     logger.warn("Permission cache read failed, falling back to database", {
@@ -111,7 +113,7 @@ class PermissionService {
         WHERE code IS NOT NULL
           AND code NOT IN (SELECT code FROM revoked_perms WHERE code IS NOT NULL)
         ORDER BY code`,
-        [employeeId]
+        [employeeId],
       );
 
       await writePermissionCache(employeeId, result.rows);
@@ -181,7 +183,8 @@ class PermissionService {
    */
   static async hasPermission(employeeId, permissionCode, scope = null) {
     try {
-      const permissions = await PermissionService.getEmployeePermissions(employeeId);
+      const permissions =
+        await PermissionService.getEmployeePermissions(employeeId);
 
       const hasPermission = permissions.some((p) => {
         if (p.code !== permissionCode) return false;
@@ -208,7 +211,8 @@ class PermissionService {
    */
   static async hasAnyPermission(employeeId, permissionCodes) {
     try {
-      const permissions = await PermissionService.getEmployeePermissions(employeeId);
+      const permissions =
+        await PermissionService.getEmployeePermissions(employeeId);
       return permissions.some((p) => permissionCodes.includes(p.code));
     } catch (error) {
       logger.error("Multi-permission check failed", {
@@ -227,7 +231,8 @@ class PermissionService {
    */
   static async hasAllPermissions(employeeId, permissionCodes) {
     try {
-      const permissions = await PermissionService.getEmployeePermissions(employeeId);
+      const permissions =
+        await PermissionService.getEmployeePermissions(employeeId);
       const permissionSet = new Set(permissions.map((p) => p.code));
       return permissionCodes.every((code) => permissionSet.has(code));
     } catch (error) {
