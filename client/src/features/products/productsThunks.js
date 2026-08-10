@@ -1,58 +1,58 @@
-import { createAsyncThunk } from '@reduxjs/toolkit';
-import { productsApi } from '@/api/endpoints/products';
-import { getErrorMessage } from '@/utils/getErrorMessage';
+import { createAsyncThunk } from "@reduxjs/toolkit";
+import { productsService } from "@/services/productService";
+import { getErrorMessage } from "@/utils/getErrorMessage";
 
 export const fetchProductsThunk = createAsyncThunk(
-  'products/fetchProducts',
+  "products/fetchProducts",
   async (filters = {}, { rejectWithValue }) => {
     try {
-      return await productsApi.getProducts(filters);
+      return await productsService.getProducts(filters);
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
-  }
+  },
 );
 
 export const fetchProductByIdThunk = createAsyncThunk(
-  'products/fetchProductById',
+  "products/fetchProductById",
   async (productId, { rejectWithValue }) => {
     try {
-      return await productsApi.getProductById(productId);
+      return await productsService.getProductById(productId);
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
-  }
+  },
 );
 
 export const fetchCategoriesThunk = createAsyncThunk(
-  'products/fetchCategories',
+  "products/fetchCategories",
   async (_, { rejectWithValue }) => {
     try {
-      return await productsApi.getCategories();
+      return await productsService.getCategories();
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
-  }
+  },
 );
 
 export const fetchFeaturedProductsThunk = createAsyncThunk(
-  'products/fetchFeaturedProducts',
+  "products/fetchFeaturedProducts",
   async (limit = 8, { rejectWithValue }) => {
     try {
-      return await productsApi.getFeaturedProducts(limit);
+      return await productsService.getFeaturedProducts(limit);
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
-  }
+  },
 );
 
 export const searchProductsThunk = createAsyncThunk(
-  'products/searchProducts',
+  "products/searchProducts",
   async ({ query, filters = {} }, { rejectWithValue }) => {
     try {
-      return await productsApi.searchProducts(query, filters);
+      return await productsService.searchProducts(query, filters);
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
-  }
+  },
 );

@@ -1,3 +1,8 @@
+/**
+ * Rate Limiter Configuration.
+ * Provides tiered rate limiters for auth, password reset, API, and general endpoints.
+ * Uses Redis store when available for distributed rate limiting.
+ */
 const rateLimit = require("express-rate-limit");
 const { redisClient } = require("../../config/redis");
 

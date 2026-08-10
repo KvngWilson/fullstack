@@ -1,7 +1,14 @@
 -- ====================
 -- TEST QUERIES FOR SCHEMA VALIDATION
 -- ====================
--- Comprehensive queries for the actual schema in queries.sql
+-- Comprehensive queries for the e-commerce platform
+-- Supports current schema (queries.sql) and future migrations (009-011)
+--
+-- MIGRATION STATUS:
+--   - Queries 1-28:   Current schema (always available)
+--   - Queries 29-35:  Migration 009+ (shipment fields in orders)
+--   - Queries 36-39:  Migration 010+ (webhook_events table)
+--   - Queries 40-44:  Migration 011+ (vendor applications, auth enhancements)
 
 -- ==================== DATABASE HEALTH & PERFORMANCE ====================
 
@@ -43,7 +50,7 @@ SELECT
     u.is_active,
     COUNT(DISTINCT a.id) as address_count,
     COUNT(DISTINCT o.id) as total_orders,
-    COALESCE(SUM(o.total), 0) as lifetime_value,
+    COALESCE(SUM(o.total_cents), 0) / 100.0 as lifetime_value,
     u.last_login,
     u.created_at,
     CASE WHEN u.deleted_at IS NULL THEN 'ACTIVE' ELSE 'DELETED' END as status
@@ -86,8 +93,8 @@ SELECT
     c.path as category_path,
     COUNT(DISTINCT pv.id) as variant_count,
     SUM(pv.stock) as total_stock,
-    MIN(pv.price) as min_price,
-    MAX(pv.price) as max_price,
+    MIN(pv.price_cents) / 100.0 as min_price,
+    MAX(pv.price_cents) / 100.0 as max_price,
     AVG(r.rating) as avg_rating,
     COUNT(DISTINCT r.id) as review_count,
     p.created_at,
@@ -105,7 +112,7 @@ ORDER BY p.created_at DESC;
 SELECT 
     p.name as product_name,
     pv.sku,
-    pv.price,
+    pv.price_cents / 100.0 as price,
     pv.stock,
     pv.attributes,
     pv.attributes->>'size' as size,
@@ -121,7 +128,7 @@ FROM product_variants pv
 JOIN products p ON pv.product_id = p.id
 LEFT JOIN order_items oi ON pv.id = oi.product_variant_id
 WHERE pv.deleted_at IS NULL AND p.deleted_at IS NULL
-GROUP BY p.name, pv.sku, pv.price, pv.stock, pv.attributes, pv.created_at
+GROUP BY p.name, pv.sku, pv.price_cents, pv.stock, pv.attributes, pv.created_at
 ORDER BY p.name, pv.sku;
 
 -- 7. CATEGORY HIERARCHY (using ltree)
@@ -144,7 +151,7 @@ SELECT
     u.email,
     o.created_at,
     o.status,
-    o.total,
+    o.total_cents / 100.0 as total,
     COUNT(DISTINCT oi.id) as item_count,
     SUM(oi.quantity) as total_items,
     p.status as payment_status,
@@ -154,7 +161,7 @@ LEFT JOIN users u ON o.user_id = u.id
 LEFT JOIN order_items oi ON o.id = oi.order_id
 LEFT JOIN payments p ON o.id = p.order_id
 WHERE o.deleted_at IS NULL
-GROUP BY o.id, u.email, o.created_at, o.status, o.total, p.status, p.stripe_payment_id
+GROUP BY o.id, u.email, o.created_at, o.status, o.total_cents, p.status, p.stripe_payment_id
 ORDER BY o.created_at DESC;
 
 -- 9. ORDER ITEMS DETAIL
@@ -166,8 +173,8 @@ SELECT
     pv.attributes->>'size' as size,
     pv.attributes->>'color' as color,
     oi.quantity,
-    oi.price_at_time,
-    (oi.quantity * oi.price_at_time) as item_total
+    oi.unit_price_cents / 100.0 as price_at_time,
+    (oi.quantity * oi.unit_price_cents) / 100.0 as item_total
 FROM order_items oi
 JOIN orders o ON oi.order_id = o.id
 JOIN product_variants pv ON oi.product_variant_id = pv.id
@@ -200,9 +207,9 @@ SELECT
     u.email,
     p.stripe_payment_id,
     p.status,
-    p.amount,
-    o.total as order_total,
-    (o.total - p.amount) as difference,
+    p.amount_cents / 100.0 as amount,
+    o.total_cents / 100.0 as order_total,
+    (o.total_cents - p.amount_cents) / 100.0 as difference,
     p.created_at,
     CASE 
         WHEN p.status = 'succeeded' THEN 'PAID'
@@ -235,7 +242,7 @@ SELECT
     u.email,
     COUNT(ci.id) as item_count,
     SUM(ci.quantity) as total_quantity,
-    SUM(ci.quantity * pv.price) as estimated_total,
+    SUM(ci.quantity * pv.price_cents) / 100.0 as estimated_total,
     c.created_at
 FROM carts c
 JOIN users u ON c.user_id = u.id
@@ -250,9 +257,9 @@ SELECT
     u.email,
     p.name as product_name,
     pv.sku,
-    pv.price,
+    pv.price_cents / 100.0 as price,
     ci.quantity,
-    (ci.quantity * pv.price) as subtotal,
+    (ci.quantity * pv.price_cents) / 100.0 as subtotal,
     pv.stock
 FROM cart_items ci
 JOIN carts c ON ci.cart_id = c.id
@@ -286,8 +293,8 @@ SELECT
     COUNT(DISTINCT o.id) as order_count,
     COUNT(DISTINCT o.user_id) as customer_count,
     SUM(oi.quantity) as items_sold,
-    SUM(o.total) as total_revenue,
-    AVG(o.total) as avg_order_value
+    SUM(o.total_cents) / 100.0 as total_revenue,
+    AVG(o.total_cents) / 100.0 as avg_order_value
 FROM orders o
 LEFT JOIN order_items oi ON o.id = oi.order_id
 WHERE o.deleted_at IS NULL
@@ -300,8 +307,8 @@ SELECT
     v.slug,
     COUNT(DISTINCT o.id) as order_count,
     SUM(oi.quantity) as items_sold,
-    SUM(oi.quantity * oi.price_at_time) as total_revenue,
-    AVG(oi.price_at_time) as avg_item_price
+    SUM(oi.quantity * oi.unit_price_cents) / 100.0 as total_revenue,
+    AVG(oi.unit_price_cents) / 100.0 as avg_item_price
 FROM vendors v
 JOIN products p ON v.id = p.vendor_id
 JOIN product_variants pv ON p.id = pv.product_id
@@ -319,7 +326,7 @@ SELECT
     v.store_name as vendor,
     pv.sku,
     pv.stock,
-    pv.price,
+    pv.price_cents / 100.0 as price,
     pv.attributes,
     CASE 
         WHEN pv.stock = 0 THEN 'OUT OF STOCK - URGENT'
@@ -341,8 +348,8 @@ SELECT
     u.role,
     COUNT(DISTINCT o.id) as total_orders,
     SUM(oi.quantity) as items_purchased,
-    SUM(o.total) as total_spent,
-    AVG(o.total) as avg_order_value,
+    SUM(o.total_cents) / 100.0 as total_spent,
+    AVG(o.total_cents) / 100.0 as avg_order_value,
     MAX(o.created_at) as last_order_date,
     u.created_at as customer_since
 FROM users u
@@ -360,8 +367,8 @@ SELECT
     c.name as category,
     COUNT(DISTINCT oi.id) as times_ordered,
     SUM(oi.quantity) as total_quantity_sold,
-    SUM(oi.quantity * oi.price_at_time) as total_revenue,
-    AVG(oi.price_at_time) as avg_price_sold,
+    SUM(oi.quantity * oi.unit_price_cents) / 100.0 as total_revenue,
+    AVG(oi.unit_price_cents) / 100.0 as avg_price_sold,
     AVG(r.rating) as avg_rating,
     COUNT(DISTINCT r.id) as review_count
 FROM products p
@@ -378,8 +385,8 @@ ORDER BY total_quantity_sold DESC NULLS LAST;
 SELECT 
     status,
     COUNT(*) as order_count,
-    SUM(total) as total_revenue,
-    AVG(total) as avg_order_value,
+    SUM(total_cents) / 100.0 as total_revenue,
+    AVG(total_cents) / 100.0 as avg_order_value,
     ROUND((COUNT(*) * 100.0 / SUM(COUNT(*)) OVER()), 2) as percentage
 FROM orders
 WHERE deleted_at IS NULL
@@ -612,7 +619,7 @@ UNION ALL
 SELECT 
     'Activity',
     'Revenue This Month',
-    ROUND(SUM(total), 2)::text
+    ROUND(SUM(total_cents) / 100.0, 2)::text
 FROM orders WHERE deleted_at IS NULL AND created_at > DATE_TRUNC('month', NOW())
 
 ORDER BY metric_category, metric;

@@ -1,4 +1,4 @@
-import apiClient from '../client';
+import apiClient from "../client";
 
 const normalizeProductsListResponse = (response) => {
   if (!response) {
@@ -15,9 +15,7 @@ const normalizeProductsListResponse = (response) => {
 };
 
 export const productsApi = {
-  /**
-   * Get all products with filters
-   */
+  // Get all products with filters
   getProducts: async (filters = {}) => {
     const params = new URLSearchParams();
 
@@ -28,43 +26,37 @@ export const productsApi = {
     });
 
     const query = params.toString();
-    const response = await apiClient.get(`/products${query ? `?${query}` : ''}`);
+    const response = await apiClient.get(
+      `/catalog/products${query ? `?${query}` : ""}`,
+    );
     return normalizeProductsListResponse(response);
   },
 
-  /**
-   * Get product by ID
-   */
+  // Get product by ID
   getProductById: async (id) => {
-    return apiClient.get(`/products/${id}`);
+    return apiClient.get(`/catalog/products/${id}`);
   },
 
-  /**
-   * Get categories
-   */
+  // Get categories
   getCategories: async () => {
-    const response = await apiClient.get('/products/categories');
+    const response = await apiClient.get("/catalog/products/categories");
     return response?.data || response || [];
   },
 
-  /**
-   * Search products
-   */
+  // Search products
   searchProducts: async (query, filters) => {
     return productsApi.getProducts({ ...filters, search: query });
   },
 
-  /**
-   * Get featured products
-   */
+  // Get featured products
   getFeaturedProducts: async (limit = 8) => {
-    const response = await apiClient.get(`/products/featured?limit=${limit}`);
+    const response = await apiClient.get(
+      `/catalog/products/featured?limit=${limit}`,
+    );
     return response?.data || response || [];
   },
 
-  /**
-   * Get products by category
-   */
+  // Get products by category
   getProductsByCategory: async (categoryId, filters) => {
     return productsApi.getProducts({ ...filters, category: categoryId });
   },

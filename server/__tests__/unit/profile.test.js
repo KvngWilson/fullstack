@@ -3,26 +3,31 @@
  * Tests profile controller functions with mocked dependencies
  */
 
+const { profile } = require('../../api/controllers/v1/identity');
 const {
   getProfile,
   updateProfile,
   changePassword,
   getAddresses,
   addAddress,
-  updateAddress,
   deleteAddress,
   getSavedCards,
   addSavedCard,
-  setPrimaryCard,
   deleteSavedCard,
-} = require('../../api/controllers/profile');
+} = profile;
 
 // Mock dependencies
 jest.mock('../../config/db', () => ({
   pool: {
     query: jest.fn(),
+    connect: jest.fn(),
   },
 }));
+
+jest.mock('../../shared/utils/hateoas', () => ({
+  addUserLinks: jest.fn((user) => user), // Return user as-is for testing
+}));
+
 jest.mock('argon2');
 
 const { pool } = require('../../config/db');

@@ -1,7 +1,9 @@
 const crypto = require("crypto");
 const { pool } = require("../config/db");
-const { logger } = require("../utils/logger");
-const { sendEmployeeInvitation } = require("../infrastructure/email/email");
+const { logger } = require("../shared/utils/logger");
+const { sendEmailJob } = require("../infrastructure/email/email");
+
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
 /**
  * Employee Invitation Service
@@ -15,10 +17,7 @@ class InvitationService {
    */
   static generateInvitationToken() {
     const token = crypto.randomBytes(32).toString("hex");
-    const tokenHash = crypto
-      .createHash("sha256")
-      .update(token)
-      .digest("hex");
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     return { token, tokenHash };
   }
 
@@ -30,12 +29,7 @@ class InvitationService {
    * @param {number} expiryHours - Token expiry (default 24h)
    * @returns {Object} invitation record with token
    */
-  static async createInvitation(
-    email,
-    roleId,
-    invitedById,
-    expiryHours = 24,
-  ) {
+  static async createInvitation(email, roleId, invitedById, expiryHours = 24) {
     try {
       // Validate role exists
       const roleCheck = await pool.query(
@@ -98,15 +92,19 @@ class InvitationService {
         : "Administrator";
 
       // Send invitation email
-      const invitationUrl = `${process.env.APP_URL || "http://localhost:5000"}/api/v1/employees/accept-invitation?token=${token}`;
-      
+      const invitationUrl = `${FRONTEND_URL}/accept-invitation?token=${token}`;
+
       try {
-        await sendEmployeeInvitation({
+        await sendEmailJob({
           to: email,
-          inviterName,
-          roleName,
-          invitationUrl,
-          expiryHours,
+          templateName: "employeeInvitation",
+          templateData: {
+            to: email,
+            inviterName,
+            roleName,
+            invitationUrl,
+            expiryHours,
+          },
         });
         logger.info("Invitation email sent successfully", {
           invitationId: result.rows[0].id,
@@ -138,15 +136,14 @@ class InvitationService {
    */
   static async validateInvitation(token) {
     try {
-      const tokenHash = crypto
-        .createHash("sha256")
-        .update(token)
-        .digest("hex");
+      const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
       const result = await pool.query(
-        `SELECT id, email, role_id, status, expires_at 
+        `SELECT i.id, i.email, i.role_id, i.status, i.expires_at, r.code AS role_code, r.name AS role_name
          FROM employee_invitations 
-         WHERE token_hash = $1 AND status = 'pending'`,
+         i
+         JOIN roles r ON r.id = i.role_id
+         WHERE i.token_hash = $1 AND i.status = 'pending'`,
         [tokenHash],
       );
 
@@ -194,13 +191,14 @@ class InvitationService {
       // Create user
       const userResult = await client.query(
         `INSERT INTO users (email, first_name, last_name, password_hash, role, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, 'employee', now(), now())
+         VALUES ($1, $2, $3, $4, $5, now(), now())
          RETURNING id, email, first_name, last_name`,
         [
           invitation.email,
           credentials.firstName,
           credentials.lastName,
           passwordHash,
+          invitation.role_code || "employee",
         ],
       );
 
@@ -247,6 +245,8 @@ class InvitationService {
         email: userResult.rows[0].email,
         name: `${userResult.rows[0].first_name} ${userResult.rows[0].last_name}`,
         roleId: invitation.role_id,
+        roleCode: invitation.role_code || "employee",
+        roleName: invitation.role_name || "Employee",
       };
     } catch (error) {
       await client.query("ROLLBACK");
@@ -265,7 +265,7 @@ class InvitationService {
   static async resendInvitation(invitationId, userId) {
     try {
       const invitation = await pool.query(
-        "SELECT id, email, role_id FROM employee_invitations WHERE id = $1",
+        "SELECT id, email, role_id, status FROM employee_invitations WHERE id = $1",
         [invitationId],
       );
 
@@ -275,7 +275,16 @@ class InvitationService {
 
       const inv = invitation.rows[0];
 
-      // Create new invitation (old one remains for audit)
+      if (inv.status === "accepted") {
+        throw new Error("Cannot resend an already accepted invitation");
+      }
+
+      // Cancel the existing invitation so createInvitation's duplicate check passes
+      await pool.query(
+        "UPDATE employee_invitations SET status = 'cancelled' WHERE id = $1",
+        [invitationId],
+      );
+
       return await InvitationService.createInvitation(
         inv.email,
         inv.role_id,
@@ -295,7 +304,7 @@ class InvitationService {
   static async cancelInvitation(invitationId) {
     try {
       await pool.query(
-        "UPDATE employee_invitations SET status = 'rejected' WHERE id = $1",
+        "UPDATE employee_invitations SET status = 'cancelled' WHERE id = $1",
         [invitationId],
       );
 
@@ -312,10 +321,20 @@ class InvitationService {
   static async getPendingInvitations(limit = 50, offset = 0) {
     try {
       const result = await pool.query(
-        `SELECT id, email, role_id, status, expires_at, created_at, invited_by_id
-         FROM employee_invitations
-         WHERE status = 'pending' AND expires_at > now()
-         ORDER BY created_at DESC
+        `SELECT
+           i.id,
+           i.email,
+           i.role_id,
+           i.status,
+           i.expires_at,
+           i.created_at,
+           i.invited_by_id,
+           r.code AS role_code,
+           r.name AS role_name
+         FROM employee_invitations i
+         JOIN roles r ON r.id = i.role_id
+         WHERE i.status = 'pending' AND i.expires_at > now()
+         ORDER BY i.created_at DESC
          LIMIT $1 OFFSET $2`,
         [limit, offset],
       );
@@ -327,6 +346,20 @@ class InvitationService {
       });
       throw error;
     }
+  }
+
+  static async getInvitationPreview(token) {
+    const invitation = await InvitationService.validateInvitation(token);
+
+    return {
+      id: invitation.id,
+      email: invitation.email,
+      roleId: invitation.role_id,
+      roleCode: invitation.role_code,
+      roleName: invitation.role_name,
+      expiresAt: invitation.expires_at,
+      status: invitation.status,
+    };
   }
 }
 

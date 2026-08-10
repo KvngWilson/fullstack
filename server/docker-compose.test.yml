@@ -1,0 +1,55 @@
+services:
+  test-db:
+    image: postgres:15-alpine
+    container_name: fullstack_test_db
+    environment:
+      POSTGRES_DB: fullstack_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5445:5432"
+    volumes:
+      - test-db-data:/var/lib/postgresql/data
+      - ./data/test-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./data/test-migrations.sql:/docker-entrypoint-initdb.d/02-migrations.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-network
+
+  email-test:
+    image: tophfr/mailhog:latest
+    container_name: fullstack_test_email
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8025/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-network
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: fullstack_test_redis
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-network
+
+volumes:
+  test-db-data:
+
+networks:
+  test-network:
+    driver: bridge

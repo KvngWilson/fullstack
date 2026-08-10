@@ -2,7 +2,7 @@ const {
   successResponse,
   errorResponse,
   paginatedResponse,
-} = require('../../utils/response');
+} = require('../../shared/utils/response');
 
 describe('Response Utils - Unit Tests', () => {
   let mockRes;
@@ -17,7 +17,7 @@ describe('Response Utils - Unit Tests', () => {
   describe('successResponse', () => {
     it('should send success response with default status 200', () => {
       const data = { id: 1, name: 'Test' };
-      successResponse(mockRes, data);
+      successResponse(mockRes, { data });
 
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -28,7 +28,7 @@ describe('Response Utils - Unit Tests', () => {
 
     it('should send success response with custom status', () => {
       const data = { id: 1 };
-      successResponse(mockRes, data, 201);
+      successResponse(mockRes, { data, status: 201 });
 
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -40,7 +40,7 @@ describe('Response Utils - Unit Tests', () => {
     it('should send success response with message', () => {
       const data = { id: 1 };
       const message = 'Created successfully';
-      successResponse(mockRes, data, 201, message);
+      successResponse(mockRes, { data, message, status: 201 });
 
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
@@ -50,7 +50,7 @@ describe('Response Utils - Unit Tests', () => {
     });
 
     it('should handle null data', () => {
-      successResponse(mockRes, null);
+      successResponse(mockRes, { data: null });
 
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
@@ -62,7 +62,7 @@ describe('Response Utils - Unit Tests', () => {
   describe('errorResponse', () => {
     it('should send error response with default status 500', () => {
       const message = 'Internal server error';
-      errorResponse(mockRes, message);
+      errorResponse(mockRes, { message });
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -74,7 +74,7 @@ describe('Response Utils - Unit Tests', () => {
 
     it('should send error response with custom status', () => {
       const message = 'Not found';
-      errorResponse(mockRes, message, 404);
+      errorResponse(mockRes, { message, status: 404 });
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -87,7 +87,7 @@ describe('Response Utils - Unit Tests', () => {
     it('should include details if provided', () => {
       const message = 'Validation error';
       const details = ['Email is required', 'Password too short'];
-      errorResponse(mockRes, message, 400, details);
+      errorResponse(mockRes, { message, status: 400, details });
 
       expect(mockRes.json).toHaveBeenCalledWith({
         success: false,
@@ -99,7 +99,7 @@ describe('Response Utils - Unit Tests', () => {
 
     it('should handle error object as message', () => {
       const error = new Error('Test error');
-      errorResponse(mockRes, error);
+      errorResponse(mockRes, { message: error });
 
       expect(mockRes.json).toHaveBeenCalledWith({
         success: false,
@@ -112,18 +112,18 @@ describe('Response Utils - Unit Tests', () => {
   describe('paginatedResponse', () => {
     it('should send paginated response with all pagination info', () => {
       const data = [{ id: 1 }, { id: 2 }];
-      const pagination = {
+
+      paginatedResponse(mockRes, {
+        data,
         page: 1,
         pageSize: 20,
         total: 100,
-      };
-
-      paginatedResponse(mockRes, data, pagination);
+      });
 
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
         data,
-        pagination: {
+        meta: {
           page: 1,
           pageSize: 20,
           total: 100,
@@ -136,47 +136,47 @@ describe('Response Utils - Unit Tests', () => {
 
     it('should calculate hasNext correctly on last page', () => {
       const data = [{ id: 1 }];
-      const pagination = {
+
+      paginatedResponse(mockRes, {
+        data,
         page: 5,
         pageSize: 20,
         total: 100,
-      };
-
-      paginatedResponse(mockRes, data, pagination);
+      });
 
       const response = mockRes.json.mock.calls[0][0];
-      expect(response.pagination.hasNext).toBe(false);
-      expect(response.pagination.hasPrev).toBe(true);
+      expect(response.meta.hasNext).toBe(false);
+      expect(response.meta.hasPrev).toBe(true);
     });
 
     it('should handle empty data array', () => {
       const data = [];
-      const pagination = {
+
+      paginatedResponse(mockRes, {
+        data,
         page: 1,
         pageSize: 20,
         total: 0,
-      };
-
-      paginatedResponse(mockRes, data, pagination);
+      });
 
       const response = mockRes.json.mock.calls[0][0];
       expect(response.data).toEqual([]);
-      expect(response.pagination.totalPages).toBe(0);
-      expect(response.pagination.hasNext).toBe(false);
+      expect(response.meta.totalPages).toBe(0);
+      expect(response.meta.hasNext).toBe(false);
     });
 
     it('should calculate totalPages correctly', () => {
       const data = [{ id: 1 }];
-      const pagination = {
+
+      paginatedResponse(mockRes, {
+        data,
         page: 1,
         pageSize: 10,
         total: 25,
-      };
-
-      paginatedResponse(mockRes, data, pagination);
+      });
 
       const response = mockRes.json.mock.calls[0][0];
-      expect(response.pagination.totalPages).toBe(3);
+      expect(response.meta.totalPages).toBe(3);
     });
   });
 });

@@ -1,8 +1,27 @@
-<a href="<%= item.href %>"
-   class="nav-link <%= currentRoute === item.href ? 'nav-link-active' : 'nav-link-inactive' %> <%= item.variant || '' %>">
-   <span class="nav-icon"><%- item.icon %></span>
-   <span class="nav-label"><%= item.label %></span>
-   <% if (item.badge) { %>
-     <span class="nav-badge"><%= item.badge %></span>
-   <% } %>
-</a>
+<%
+  const itemClasses = `flex w-full items-center gap-3 px-4 py-2 rounded-md font-medium transition-colors duration-150 ${
+    currentRoute === item.href
+      ? "bg-blue-100 text-blue-700 shadow-sm"
+      : "text-gray-700 hover:bg-gray-100 hover:text-blue-700"
+  } ${item.variant || ""}`;
+%>
+
+<% if (item.method && item.method.toLowerCase() === "post") { %>
+  <form method="POST" action="<%= item.href %>">
+    <button type="submit" class="<%= itemClasses %>">
+      <span class="flex items-center justify-center w-5 h-5 text-lg"><%- item.icon %></span>
+      <span class="truncate"><%= item.label %></span>
+      <% if (item.badge) { %>
+        <span class="ml-auto bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full"><%= item.badge %></span>
+      <% } %>
+    </button>
+  </form>
+<% } else { %>
+  <a href="<%= item.href %>" class="<%= itemClasses %>">
+    <span class="flex items-center justify-center w-5 h-5 text-lg"><%- item.icon %></span>
+    <span class="truncate"><%= item.label %></span>
+    <% if (item.badge) { %>
+      <span class="ml-auto bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full"><%= item.badge %></span>
+    <% } %>
+  </a>
+<% } %>

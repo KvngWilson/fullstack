@@ -1,0 +1,6 @@
+# Cypress artifacts
+../test-results/cypress/screenshots/
+../test-results/cypress/videos/
+
+# Cypress cache
+../.cache/Cypress/

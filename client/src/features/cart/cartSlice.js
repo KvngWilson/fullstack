@@ -1,11 +1,11 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from "@reduxjs/toolkit";
 import {
   fetchCartThunk,
   addToCartThunk,
   updateCartItemThunk,
   removeFromCartThunk,
   clearCartThunk,
-} from './cartThunks';
+} from "./cartThunks";
 
 const initialState = {
   cart: null,
@@ -15,7 +15,7 @@ const initialState = {
 };
 
 const cartSlice = createSlice({
-  name: 'cart',
+  name: "cart",
   initialState,
   reducers: {
     openCartDrawer: (state) => {
@@ -44,7 +44,7 @@ const cartSlice = createSlice({
       })
       .addCase(fetchCartThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Failed to fetch cart';
+        state.error = action.payload || "Failed to fetch cart";
       });
 
     // Add to cart
@@ -60,7 +60,7 @@ const cartSlice = createSlice({
       })
       .addCase(addToCartThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Failed to add item to cart';
+        state.error = action.payload || "Failed to add item to cart";
       });
 
     // Update cart item
@@ -69,7 +69,7 @@ const cartSlice = createSlice({
         state.cart = action.payload;
       })
       .addCase(updateCartItemThunk.rejected, (state, action) => {
-        state.error = action.payload || 'Failed to update cart item';
+        state.error = action.payload || "Failed to update cart item";
       });
 
     // Remove from cart
@@ -78,7 +78,7 @@ const cartSlice = createSlice({
         state.cart = action.payload;
       })
       .addCase(removeFromCartThunk.rejected, (state, action) => {
-        state.error = action.payload || 'Failed to remove cart item';
+        state.error = action.payload || "Failed to remove cart item";
       });
 
     // Clear cart
@@ -87,12 +87,16 @@ const cartSlice = createSlice({
         state.cart = action.payload;
       })
       .addCase(clearCartThunk.rejected, (state, action) => {
-        state.error = action.payload || 'Failed to clear cart';
+        state.error = action.payload || "Failed to clear cart";
       });
   },
 });
 
-export const { openCartDrawer, closeCartDrawer, toggleCartDrawer, clearCartError } =
-  cartSlice.actions;
+export const {
+  openCartDrawer,
+  closeCartDrawer,
+  toggleCartDrawer,
+  clearCartError,
+} = cartSlice.actions;
 
 export default cartSlice.reducer;

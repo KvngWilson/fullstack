@@ -1,0 +1,281 @@
+const logger = require("../../../../shared/utils/logger");
+const domain = require("../../../../domain");
+const PaymentService = domain.payment.services.PaymentService;
+const RefundService = domain.payment.services.RefundService;
+const PaystackService = domain.payment.services.PaystackService;
+const StripeService = domain.payment.services.StripeService;
+const { successResponse, errorResponse } = require("../../../../shared/utils/response");
+const {
+  APP_URL,
+  parseCreatePaymentPayload,
+  getPagination,
+} = require("../../../../domain/payment/services/payment.support");
+const { getJobQueuesRuntime } = require("../../../../infrastructure/jobs/runtime");
+
+// Format error response with message, status, and optional details
+function toErrorOptions(message, status = 500, details) {
+  return { message, status, details };
+}
+
+/**
+ * Enqueue a webhook job via Bull instead of processing it synchronously.
+ * Falls back to immediate processing if the job queue is not available.
+ */
+async function enqueueWebhookJob(provider, event, data) {
+  const runtime = getJobQueuesRuntime();
+  if (runtime?.webhookJobQueue) {
+    await runtime.webhookJobQueue.addWebhookJob(provider, event, data);
+    return true;
+  }
+  // Queue not available — process synchronously as fallback
+  logger.warn("Webhook queue unavailable; processing synchronously", { provider, event });
+  const paymentService = new PaymentService();
+  await paymentService.handleWebhook(event, data, provider);
+  return false;
+}
+
+exports.createPayment = async (req, res) => {
+  try {
+    const parsedPayload = parseCreatePaymentPayload(req.body);
+    if (parsedPayload.error) {
+      return errorResponse(res, toErrorOptions(parsedPayload.error, parsedPayload.status));
+    }
+
+    const { orderId, amount, currency, requestedProcessor } = parsedPayload.data;
+    const userId = req.user.id;
+
+    const paymentService = new PaymentService();
+    const paymentData = await paymentService.createPayment(
+      userId,
+      orderId,
+      amount,
+      currency,
+      requestedProcessor
+    );
+
+    return successResponse(res, {
+      status: 201,
+      message: "Payment initialized successfully",
+      data: paymentData,
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    const message = error.message || "Failed to initialize payment";
+    logger.error("Create payment error", { error, userId: req.user?.id });
+    return errorResponse(res, toErrorOptions(message, status));
+  }
+};
+
+
+exports.verifyPaymentStatus = async (req, res) => {
+  try {
+    const { reference } = req.params;
+    const userId = req.user.id;
+
+    const paymentService = new PaymentService();
+    const result = await paymentService.verifyPaymentStatus(reference, userId);
+
+    return successResponse(res, {
+      message: "Payment verified successfully",
+      data: result,
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    const message = error.message || "Payment verification failed";
+    logger.error("Verify payment error", { error });
+    return errorResponse(res, toErrorOptions(message, status));
+  }
+};
+
+
+exports.getPaymentById = async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+    const userId = req.user.id;
+
+    const paymentService = new PaymentService();
+    const payment = await paymentService.getPaymentById(paymentId, userId);
+
+    return successResponse(res, { data: payment });
+  } catch (error) {
+    const status = error.status || 500;
+    const message = error.message || "Failed to retrieve payment";
+    logger.error("Get payment error", { error });
+    return errorResponse(res, toErrorOptions(message, status));
+  }
+};
+
+
+exports.listUserPayments = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { page, pageSize } = getPagination(req.query);
+
+    const paymentService = new PaymentService();
+    const result = await paymentService.getUserPayments(userId, page, pageSize);
+
+    return successResponse(res, {
+      data: { payments: result.payments },
+      meta: result.meta,
+    });
+  } catch (error) {
+    logger.error("List payments error", { error });
+    return errorResponse(res, toErrorOptions("Failed to list payments", 500));
+  }
+};
+
+exports.createRefund = async (req, res) => {
+  try {
+    const { payment_id: paymentId, amount, reason } = req.body;
+    const userId = req.user.id;
+
+    const refundService = new RefundService();
+    const refund = await refundService.createRefund(paymentId, userId, amount, reason);
+
+    return successResponse(res, {
+      status: 201,
+      message: "Refund created successfully",
+      data: refund,
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    const message = error.message || "Failed to create refund";
+    logger.error("Create refund error", { error, userId: req.user?.id });
+    return errorResponse(res, toErrorOptions(message, status));
+  }
+};
+
+exports.getRefundById = async (req, res) => {
+  try {
+    const { refundId } = req.params;
+    const userId = req.user.id;
+
+    const refundService = new RefundService();
+    const refund = await refundService.getRefundById(refundId, userId);
+
+    return successResponse(res, { data: refund });
+  } catch (error) {
+    const status = error.status || 500;
+    const message = error.message || "Failed to retrieve refund";
+    logger.error("Get refund error", { error, userId: req.user?.id });
+    return errorResponse(res, toErrorOptions(message, status));
+  }
+};
+
+exports.processRefund = async (req, res) => {
+  try {
+    const { refundId } = req.params;
+    const userId = req.user.id;
+
+    const refundService = new RefundService();
+    const result = await refundService.processRefund(refundId, userId, true);
+
+    return successResponse(res, {
+      message: "Refund processed successfully",
+      data: result,
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    const message = error.message || "Failed to process refund";
+    logger.error("Process refund error", { error, userId: req.user?.id });
+    return errorResponse(res, toErrorOptions(message, status));
+  }
+};
+
+exports.rejectRefund = async (req, res) => {
+  try {
+    const { refundId } = req.params;
+    const { reason = "" } = req.body || {};
+    const userId = req.user.id;
+
+    const refundService = new RefundService();
+    const result = await refundService.rejectRefund(refundId, userId, reason, true);
+
+    return successResponse(res, {
+      message: "Refund rejected successfully",
+      data: result,
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    const message = error.message || "Failed to reject refund";
+    logger.error("Reject refund error", { error, userId: req.user?.id });
+    return errorResponse(res, toErrorOptions(message, status));
+  }
+};
+
+
+exports.handlePaymentCallback = async (req, res) => {
+  try {
+    const reference = req.query.reference || req.query.session_id;
+    const processor = (
+      req.query.processor ||
+      (req.query.session_id ? "stripe" : "paystack")
+    ).toLowerCase();
+
+    if (!reference) {
+      return res.redirect(`${APP_URL}/checkout?status=error`);
+    }
+
+    const paymentService = new PaymentService();
+    const result = await paymentService.handlePaymentCallback(reference, processor);
+
+    return res.redirect(
+      `${APP_URL}/order-confirmation?order_id=${result.orderId}&status=success&processor=${processor}`
+    );
+  } catch (error) {
+    logger.error("Payment callback error", { error });
+    return res.redirect(`${APP_URL}/checkout?status=error`);
+  }
+};
+
+
+exports.handleWebhook = async (req, res) => {
+  try {
+    const signature = req.headers["x-paystack-signature"];
+    const payload = req.body || {};
+    const rawPayload = req.rawBody || payload;
+
+    if (!signature) {
+      logger.warn("Paystack webhook missing signature header");
+      return errorResponse(res, toErrorOptions("Invalid signature", 401));
+    }
+
+    if (!PaystackService.validateWebhookSignature(signature, rawPayload)) {
+      logger.warn("Paystack webhook signature verification failed");
+      return errorResponse(res, toErrorOptions("Invalid signature", 401));
+    }
+
+    const { event, data = {} } = payload;
+
+    // Enqueue for async processing — ack immediately so Paystack doesn't retry
+    await enqueueWebhookJob("paystack", event, data);
+
+    return res.status(200).json({ success: true, status: "accepted" });
+  } catch (error) {
+    logger.error("Paystack webhook error", { error });
+    return res.status(500).json({ status: "error" });
+  }
+};
+
+
+exports.handleStripeWebhook = async (req, res) => {
+  try {
+    const signature = req.headers["stripe-signature"];
+
+    if (!signature) {
+      logger.warn("Stripe webhook missing signature header");
+      return res.status(400).send("Webhook Error: Missing stripe-signature header");
+    }
+
+    // Validate signature first — reject bad payloads before enqueuing
+    const event = StripeService.validateStripeWebhook(req.body, signature);
+
+    // Enqueue for async processing — ack immediately so Stripe doesn't retry
+    await enqueueWebhookJob("stripe", event.type, event.data);
+
+    return res.status(200).json({ received: true });
+  } catch (error) {
+    logger.error("Stripe webhook error", { error });
+    return res.status(400).send(`Webhook Error: ${error.message}`);
+  }
+};

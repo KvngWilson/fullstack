@@ -1,0 +1,69 @@
+sequenceDiagram
+    participant Client as Client (Browser)
+    participant API as API Server
+    participant Auth as Auth Guard
+    participant Validation as Validator
+    participant Inventory as Inventory Service
+    participant Payment as Payment Service
+    participant DB as PostgreSQL
+    participant EventBus as Event Bus
+    participant Email as Email Queue
+
+    Client->>API: POST /api/v1/ordering/orders<br/>(cart items, addresses)
+
+    API->>Auth: Check JWT Token
+    Auth-->>API: ✓ User authenticated<br/>(claims cached)
+
+    API->>Validation: Validate addresses exist<br/>Validate items in cart
+    Validation->>DB: Query addresses, cart
+    Validation-->>API: ✓ Valid
+
+    API->>Inventory: Reserve inventory<br/>(optimistic locking)
+    Inventory->>DB: UPDATE inventory SET quantity = quantity - qty<br/>WHERE id = ? AND version = ?
+    alt Version Conflict (concurrent purchase)
+        DB-->>Inventory: 0 rows updated
+        Inventory-->>API: ❌ Stock unavailable
+        API-->>Client: 409 Conflict<br/>"Only X available"
+    else Success
+        DB-->>Inventory: ✓ Stock reserved
+        Inventory-->>API: ✓ Reserved
+    end
+
+    par Create Order Record & Items
+        API->>DB: BEGIN TRANSACTION
+        API->>DB: INSERT INTO orders (user_id, status=pending, total)
+        API->>DB: INSERT INTO order_items (order_id, variant_id, qty, price)
+        API->>DB: COMMIT
+        DB-->>API: ✓ Order created
+    end
+
+    par Payment Processing
+        API->>Payment: Create payment intent<br/>(Idempotency-Key header)
+        Payment->>DB: Check idempotency cache
+        alt Duplicate request
+            DB-->>Payment: Return cached payment
+        else New request
+            Payment->>DB: INSERT INTO payments (idempotency_key, amount, status=pending)
+            Payment->>API: ✓ Payment intent created<br/>(client token)
+        end
+        Payment-->>API: Payment intent
+    end
+
+    API->>EventBus: Dispatch OrderCreated event
+    EventBus->>Email: Enqueue email job<br/>("Order confirmation")
+    Email-->>EventBus: ✓ Enqueued
+
+    API-->>Client: 201 Created<br/>{orderId, paymentIntent}
+
+    Client->>API: POST /api/v1/payments/confirm<br/>(payment_intent_id)
+    API->>Payment: Verify payment
+    Payment->>DB: UPDATE payments SET status=captured
+    DB-->>Payment: ✓ Updated
+    API->>DB: UPDATE orders SET status=paid
+    DB-->>API: ✓ Updated
+
+    API->>EventBus: Dispatch PaymentSucceeded event
+    EventBus->>Email: Enqueue email job<br/>("Payment confirmed, preparing shipment")
+    Email-->>EventBus: ✓ Enqueued
+
+    API-->>Client: 200 OK {success: true}

@@ -1,16 +1,94 @@
-# Full-Stack E-Commerce Application
-# Docker Compose Configuration for Development and Production
-#
-# Services:
-#  - postgres: PostgreSQL database (v16)
-#  - redis: Redis cache/session store (v7)
-#  - server: Node.js Express API server
-#  - client: React frontend served via Nginx
-#
-# Usage:
-#   docker compose up          # Start all services
-#   docker compose down        # Stop all services
-#   docker compose logs -f     # View logs
+x-server-env: &server-env
+  NODE_ENV: ${NODE_ENV:-development}
+  PORT: 5000
+
+  # Database Configuration
+  DB_HOST: postgres
+  DB_PORT: 5432
+  DB_NAME: ${DB_NAME:-ecommerce_db}
+  DB_USER: ${DB_USER:-postgres}
+  DB_PASSWORD: ${DB_PASSWORD:-postgres}
+  DB_SSL_CERT: ${DB_SSL_CERT:-}
+  DB_SSL_KEY: ${DB_SSL_KEY:-}
+
+  # Redis Configuration
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  REDIS_DB: 0
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_1234567890abcdef}
+  RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672}
+
+  # Security
+  JWT_SECRET: ${JWT_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+  JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+  SESSION_SECRET: ${SESSION_SECRET:-abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789}
+
+  # Application
+  APP_URL: ${APP_URL:-http://localhost:5000}
+  FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+  ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5000,http://admin.localhost:5000}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+
+  # Email Configuration (MailHog for development)
+  EMAIL_HOST: ${EMAIL_HOST:-mailhog}
+  EMAIL_PORT: ${EMAIL_PORT:-1025}
+  EMAIL_SECURE: ${EMAIL_SECURE:-false}
+  EMAIL_SERVICE: ${EMAIL_SERVICE:-mailhog}
+  EMAIL_USER: ${EMAIL_USER:-dev@example.com}
+  EMAIL_PASS: ${EMAIL_PASS:-}
+  EMAIL_FROM: ${EMAIL_FROM:-E-Commerce Team <noreply@localhost>}
+
+  # Payment Processors
+  STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_dev_mode}
+  STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-pk_test_dev_mode}
+  STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-whsec_dev_mode}
+  PAYSTACK_SECRET_KEY: ${PAYSTACK_SECRET_KEY:-sk_test_dev_mode}
+  PAYSTACK_PUBLIC_KEY: ${PAYSTACK_PUBLIC_KEY:-pk_test_dev_mode}
+
+  # Shipping & Logistics
+  EASYSHIP_API_KEY: ${EASYSHIP_API_KEY:-dev_mode_key}
+
+x-server-healthcheck: &server-healthcheck
+  test:
+    [
+      "CMD",
+      "wget",
+      "--quiet",
+      "--tries=1",
+      "--spider",
+      "http://localhost:5000/health/live",
+    ]
+  interval: 30s
+  timeout: 5s
+  retries: 3
+  start_period: 40s
+
+x-server-common: &server-common
+  build:
+    context: ./server
+    dockerfile: Dockerfile
+    args:
+      NODE_ENV: ${NODE_ENV:-production}
+  environment: *server-env
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    rabbitmq:
+      condition: service_healthy
+  expose:
+    - "5000"
+  volumes:
+    - ./server/logs:/app/logs
+    - ./server/uploads:/app/uploads
+    - ./server/core:/app/core
+    - ./server/policies:/app/policies
+  restart: unless-stopped
+  networks:
+    - fullstack-network
+  healthcheck: *server-healthcheck
+
 services:
   # PostgreSQL Database
   postgres:
@@ -24,12 +102,17 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
     ports:
-      - "5432:5432"
+      - "54322:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./data/queries.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./data/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
-      - ./server/data/migrations:/docker-entrypoint-initdb.d/migrations:ro
+      - ./server/infrastructure/database/migrations:/docker-entrypoint-initdb.d/migrations:ro
+      - ./nginx/ssl/db_ssl.pem:/var/lib/postgresql/server.crt:ro
+      - ./nginx/ssl/db_ssl-key.pem:/var/lib/postgresql/server.key:ro
+    command: >
+      -c ssl=on
+      -c ssl_cert_file=/var/lib/postgresql/server.crt
+      -c ssl_key_file=/var/lib/postgresql/server.key
     healthcheck:
       test:
         [
@@ -43,6 +126,25 @@ services:
     restart: unless-stopped
     networks:
       - fullstack-network
+  
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: fullstack-rabbitmq
+    labels:
+      description: "RabbitMQ message broker for background jobs and messaging"
+    ports:
+      - "15672:15672" # Management UI
+      - "5672:5672"   # AMQP
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - fullstack-network
 
   # Redis Cache & Session Store
   redis:
@@ -52,9 +154,9 @@ services:
       description: "Redis cache and session store"
     command: sh -c 'redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"'
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_1234567890}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_1234567890abcdef}
     ports:
-      - "6379:6379"
+      - "63799:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -68,52 +170,88 @@ services:
     networks:
       - fullstack-network
 
-  # Node.js API Server
+  # SMTP Email Service
+  mailhog:
+    image: tophfr/mailhog:latest
+    container_name: fullstack-mailhog
+    labels:
+      description: "MailHog SMTP server for email testing"
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+    restart: unless-stopped
+    networks:
+      - fullstack-network
+
+  # Node.js API Server (primary)
   server:
+    <<: *server-common
+    container_name: fullstack-server-1
+    labels:
+      description: "Node.js Express API server"
+      version: "1.0.0"
+
+  # Node.js API Server (replica)
+  server-replica:
+    <<: *server-common
+    container_name: fullstack-server-2
+    labels:
+      description: "Node.js Express API server replica"
+      version: "1.0.0"
+
+  # Bull Queue Worker (processes background jobs)
+  worker:
     build:
       context: ./server
       dockerfile: Dockerfile
       args:
         NODE_ENV: ${NODE_ENV:-production}
-    container_name: fullstack-server
+    container_name: fullstack-worker
     labels:
-      description: "Node.js Express API server"
+      description: "Node.js Bull queue worker for background jobs"
       version: "1.0.0"
-    environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: 5000
-
-      # Database Configuration
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-ecommerce_db}
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-
-      # Redis Configuration
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_DB: 0
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_1234567890}
-
-      # Security
-      JWT_SECRET: ${JWT_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      SESSION_SECRET: ${SESSION_SECRET:-abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789}
-
-      # Application
-      APP_URL: ${APP_URL:-http://localhost:5000}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+    environment: *server-env
+    command: node src/worker.js
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    ports:
-      - "5000:5000"
+      rabbitmq:
+        condition: service_healthy
     volumes:
       - ./server/logs:/app/logs
       - ./server/uploads:/app/uploads
+      - ./server/core:/app/core
+      - ./server/policies:/app/policies
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - fullstack-network
+
+  # NGINX reverse proxy and load balancer for backend APIs
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fullstack-gateway
+    labels:
+      description: "NGINX reverse proxy and load balancer"
+    depends_on:
+      server:
+        condition: service_healthy
+      server-replica:
+        condition: service_healthy
+      client:
+        condition: service_healthy
+    ports:
+      - "5000:80"
+      - "5443:443"
     restart: unless-stopped
     networks:
       - fullstack-network
@@ -125,12 +263,14 @@ services:
           "--quiet",
           "--tries=1",
           "--spider",
-          "http://localhost:5000/api/v1/health",
+          "http://127.0.0.1/health/live",
         ]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 40s
+      start_period: 20s
+    volumes:
+      - ./nginx/ssl:/etc/nginx/ssl:ro
 
   # React Frontend
   client:
@@ -144,17 +284,14 @@ services:
     labels:
       description: "React frontend application via Nginx"
       version: "1.0.0"
-    depends_on:
-      server:
-        condition: service_healthy
     ports:
-      - "3000:80"
+      - "5173:80"
     restart: unless-stopped
     networks:
       - fullstack-network
     healthcheck:
       test:
-        ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+        ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/"]
       interval: 30s
       timeout: 5s
       retries: 3

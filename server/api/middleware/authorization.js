@@ -1,7 +1,11 @@
-const { ROLE_PERMISSIONS } = require("../../config/permissions");
-const { errorResponse } = require("../../utils/response");
+/**
+ * Authorization Middleware.
+ * Enforces authentication, role-based access, and permission-based access control.
+ */
+const { errorResponse } = require("../..//shared/utils/response");
+const domain = require("../../domain");
+const permissionService = domain.identity.services.PermissionService;
 
-// Helper to assert authentication and send error if not authenticated
 function assertAuthenticated(req, res) {
   if (!req.user) {
     errorResponse(res, { message: "Unauthorized", status: 401 });
@@ -10,7 +14,6 @@ function assertAuthenticated(req, res) {
   return true;
 }
 
-// Role-based access control middleware
 function requireRole(...roles) {
   return (req, res, next) => {
     if (!assertAuthenticated(req, res)) return;
@@ -26,24 +29,65 @@ function requireRole(...roles) {
   };
 }
 
-// Admin-only access
 const requireAdmin = requireRole("admin");
-
-// Customer-only access (admin can still access if needed, but this is for routes that should primarily be for customers)
 const requireCustomer = requireRole("customer", "admin");
 
-// Permission-based access control middleware
+function authorize(permission) {
+  return async (req, res, next) => {
+    if (!assertAuthenticated(req, res)) return;
+
+    if (!permission) {
+      return errorResponse(res, {
+        message: "Access denied",
+        status: 403,
+      });
+    }
+
+    const allowed = await permissionService.hasPermission(req.user, permission);
+    if (!allowed) {
+      return errorResponse(res, {
+        message: "Forbidden",
+        status: 403,
+      });
+    }
+
+    return next();
+  };
+}
+
 function requirePermission(permission) {
-  return (req, res, next) => {
-    if (!req.user) {
-      return errorResponse(res, { message: "Unauthorized", status: 401 });
+  return authorize(permission);
+}
+
+function requireAnyPermission(permissions = []) {
+  return async (req, res, next) => {
+    if (!assertAuthenticated(req, res)) return;
+
+    const allowed = await permissionService.hasAnyPermission(req.user, permissions);
+    if (!allowed) {
+      return errorResponse(res, {
+        message: "Forbidden",
+        status: 403,
+      });
     }
 
-    if (!req.user.permissions.includes(permission)) {
-      return errorResponse(res, { message: "Forbidden", status: 403 });
+    return next();
+  };
+}
+
+function requireAllPermissions(permissions = []) {
+  return async (req, res, next) => {
+    if (!assertAuthenticated(req, res)) return;
+
+    const allowed = await permissionService.hasAllPermissions(req.user, permissions);
+    if (!allowed) {
+      return errorResponse(res, {
+        message: "Forbidden",
+        status: 403,
+      });
     }
 
-    next();
+    return next();
   };
 }
 
@@ -115,10 +159,13 @@ function requireOwnership({ getResource }) {
 }
 
 module.exports = {
+  authorize,
   requireRole,
   requireAdmin,
   requireCustomer,
   requireOwnership,
   requireTenantAccess,
   requirePermission,
+  requireAnyPermission,
+  requireAllPermissions,
 };

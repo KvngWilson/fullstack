@@ -1,36 +1,37 @@
 <%- include('../partials/header', { title: title, user: user, cartCount: cartCount }) %>
 
-<section class="auth-wrap">
-  <div class="auth-shell">
-    <aside class="auth-panel" aria-label="Admin onboarding information">
-      <span class="auth-badge">Admin Provisioning</span>
-      <h1 class="auth-heading">Create Administrator Access</h1>
-      <p class="auth-subheading">
+
+<section class="min-h-screen flex items-center justify-center bg-gray-50 py-8">
+  <div class="w-full max-w-4xl flex flex-col md:flex-row gap-8 bg-white shadow-lg rounded-lg p-8">
+    <aside class="w-full md:w-1/2 flex flex-col gap-4 border-r border-gray-200 pr-8">
+      <span class="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full">Admin Provisioning</span>
+      <h1 class="text-2xl font-bold text-gray-900">Create Administrator Access</h1>
+      <p class="text-gray-600 text-sm">
         Use this page only for authorized admin onboarding and internal operations access.
       </p>
-      <ul class="auth-list">
+      <ul class="list-disc list-inside text-gray-500 text-sm space-y-1">
         <li>Account creation is restricted to internal team workflows.</li>
         <li>Choose a strong password with at least 6 characters.</li>
         <li>All new accounts are subject to role and permission review.</li>
       </ul>
     </aside>
 
-    <div class="auth-card">
-      <h2 class="auth-title">Register Admin Account</h2>
-      <p class="auth-note">Complete the form to create a new admin-capable account.</p>
+    <div class="w-full md:w-1/2 flex flex-col gap-6">
+      <h2 class="text-xl font-semibold text-gray-800">Register Admin Account</h2>
+      <p class="text-gray-500 text-sm">Complete the form to create a new admin-capable account.</p>
 
       <%- include('../partials/alert', { error_msg, success_msg }) %>
 
-      <form method="POST" action="/register" novalidate>
+      <form method="POST" action="/register" novalidate class="flex flex-col gap-4">
         <input type="hidden" name="returnTo" value="<%= form?.returnTo || '/dashboard' %>">
 
-        <div class="form-group">
-          <label for="email" class="form-label">Admin Email</label>
+        <div class="flex flex-col gap-1">
+          <label for="email" class="block text-sm font-medium text-gray-700">Admin Email</label>
           <input
             id="email"
             name="email"
             type="email"
-            class="form-input"
+            class="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             value="<%= form?.email || '' %>"
             required
             autocomplete="email"
@@ -38,13 +39,13 @@
           >
         </div>
 
-        <div class="form-group">
-          <label for="password" class="form-label">Password</label>
+        <div class="flex flex-col gap-1">
+          <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
           <input
             id="password"
             name="password"
             type="password"
-            class="form-input"
+            class="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             required
             minlength="6"
             autocomplete="new-password"
@@ -52,13 +53,13 @@
           >
         </div>
 
-        <div class="form-group">
-          <label for="confirmPassword" class="form-label">Confirm Password</label>
+        <div class="flex flex-col gap-1">
+          <label for="confirmPassword" class="block text-sm font-medium text-gray-700">Confirm Password</label>
           <input
             id="confirmPassword"
             name="confirmPassword"
             type="password"
-            class="form-input"
+            class="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             required
             minlength="6"
             autocomplete="new-password"
@@ -66,12 +67,12 @@
           >
         </div>
 
-        <button type="submit" class="btn btn-primary w-full">Create Admin Account</button>
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md shadow focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition">Create Admin Account</button>
       </form>
 
-      <p class="auth-help">
+      <p class="text-xs text-gray-500 mt-2">
         Already provisioned?
-        <a class="auth-link" href="/login?returnTo=<%= encodeURIComponent(form?.returnTo || '/dashboard') %>">Sign in to admin panel</a>.
+        <a class="text-blue-600 hover:underline" href="/auth/login?returnTo=<%= encodeURIComponent(form?.returnTo || '/dashboard') %>">Sign in to admin panel</a>.
       </p>
     </div>
   </div>

@@ -1,10 +1,10 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from "@reduxjs/toolkit";
 import {
   fetchWishlistThunk,
   addToWishlistThunk,
   removeFromWishlistThunk,
   clearWishlistThunk,
-} from './wishlistThunks';
+} from "./wishlistThunks";
 
 const initialState = {
   items: [],
@@ -13,7 +13,7 @@ const initialState = {
 };
 
 const wishlistSlice = createSlice({
-  name: 'wishlist',
+  name: "wishlist",
   initialState,
   reducers: {},
   extraReducers: (builder) => {
@@ -29,7 +29,7 @@ const wishlistSlice = createSlice({
       })
       .addCase(fetchWishlistThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Failed to fetch wishlist';
+        state.error = action.payload || "Failed to fetch wishlist";
       });
 
     // Add to wishlist
@@ -45,7 +45,7 @@ const wishlistSlice = createSlice({
       })
       .addCase(addToWishlistThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Failed to add to wishlist';
+        state.error = action.payload || "Failed to add to wishlist";
       });
 
     // Remove from wishlist
@@ -57,11 +57,13 @@ const wishlistSlice = createSlice({
       .addCase(removeFromWishlistThunk.fulfilled, (state, action) => {
         state.isLoading = false;
         const productId = action.payload;
-        state.items = state.items.filter((item) => item.product_id !== productId);
+        state.items = state.items.filter(
+          (item) => item.product_id !== productId,
+        );
       })
       .addCase(removeFromWishlistThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Failed to remove from wishlist';
+        state.error = action.payload || "Failed to remove from wishlist";
       });
 
     // Clear wishlist
@@ -76,7 +78,7 @@ const wishlistSlice = createSlice({
       })
       .addCase(clearWishlistThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Failed to clear wishlist';
+        state.error = action.payload || "Failed to clear wishlist";
       });
   },
 });

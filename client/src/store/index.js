@@ -1,6 +1,6 @@
-import { configureStore } from '@reduxjs/toolkit';
-import { useDispatch, useSelector } from 'react-redux';
-import rootReducer from './rootReducer';
+import { configureStore } from "@reduxjs/toolkit";
+import { useDispatch, useSelector } from "react-redux";
+import rootReducer from "./rootReducer";
 
 export const store = configureStore({
   reducer: rootReducer,
@@ -8,7 +8,7 @@ export const store = configureStore({
     getDefaultMiddleware({
       serializableCheck: {
         // Ignore these action types
-        ignoredActions: ['auth/setToken'],
+        ignoredActions: ["auth/setToken"],
       },
     }),
   devTools: import.meta.env.DEV, // Enable Redux DevTools in development

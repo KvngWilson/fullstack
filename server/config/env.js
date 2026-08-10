@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const { logger } = require("../utils/logger");
+const { logger } = require("../shared/utils/logger");
 
 const SECRET_MIN_LENGTH = 32;
 
@@ -7,6 +7,22 @@ class EnvValidationError extends Error {
   constructor(message) {
     super(message);
     this.name = "EnvValidationError";
+  }
+}
+
+function requireSecret(name) {
+  const value = process.env[name];
+  if (!value) throw new EnvValidationError(`${name} is required`);
+  if (value.length < SECRET_MIN_LENGTH) {
+    throw new EnvValidationError(`${name} must be at least ${SECRET_MIN_LENGTH} characters`);
+  }
+}
+
+function validateProductionSecrets() {
+  if (process.env.NODE_ENV === 'production') {
+    requireSecret('JWT_SECRET');
+    requireSecret('SESSION_SECRET');
+    requireSecret('REDIS_PASSWORD');
   }
 }
 
@@ -36,6 +52,8 @@ function validateEnv() {
     }
   }
 
+  validateProductionSecrets();
+
   // Production-specific checks
   if (process.env.NODE_ENV === "production") {
     if (process.env.DB_HOST === "localhost") {
@@ -53,7 +71,7 @@ function validateEnv() {
 }
 
 function generateSecrets() {
-  console.log("\n🔐 Generate secure secrets for .env file:\n");
+  console.log("\n[SECURE] Generate secure secrets for .env file:\n");
   console.log(`JWT_SECRET=${crypto.randomBytes(32).toString("hex")}`);
   console.log(`SESSION_SECRET=${crypto.randomBytes(32).toString("hex")}`);
   console.log(`REDIS_PASSWORD=${crypto.randomBytes(16).toString("hex")}`);
@@ -64,4 +82,6 @@ module.exports = {
   validateEnv,
   generateSecrets,
   EnvValidationError,
+  requireSecret,
+  validateProductionSecrets,
 };

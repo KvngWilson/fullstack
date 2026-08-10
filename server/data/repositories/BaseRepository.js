@@ -1,3 +1,7 @@
+/**
+ * Base Repository.
+ * Generic data access for CRUD operations with soft-delete semantics.
+ */
 class BaseRepository {
   constructor(pool, tableName) {
     this.pool = pool;
