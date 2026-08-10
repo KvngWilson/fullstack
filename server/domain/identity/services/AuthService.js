@@ -1,2 +1,1 @@
-module.exports = require('./AuthenticationService');
-
+module.exports = require("./AuthenticationService");

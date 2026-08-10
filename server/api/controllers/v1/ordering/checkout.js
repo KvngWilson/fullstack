@@ -1,16 +1,16 @@
 /**
  * CheckoutController - Handle order finalization and payment processing
- * 
+ *
  * Uses checkoutValidationMiddleware to ensure:
  * - selectedRateId is valid
  * - Shipping cost hasn't changed
  * - Cart is intact
  * - Address is valid
- * 
+ *
  * Then processes payment with validated order
  */
 
-const logger = require('../../../../shared/utils/logger');
+const logger = require("../../../../shared/utils/logger");
 
 /**
  * Factory function to create checkout controller
@@ -22,7 +22,7 @@ function createCheckoutController(paymentService) {
     /**
      * POST /api/v1/checkout
      * Finalize order and process payment
-     * 
+     *
      * Expected request body:
      * {
      *   orderId: number,
@@ -30,7 +30,7 @@ function createCheckoutController(paymentService) {
      *   paymentIntentId?: string,
      *   paymentMethod?: object
      * }
-     * 
+     *
      * Response:
      * {
      *   success: true,
@@ -47,15 +47,13 @@ function createCheckoutController(paymentService) {
         // Validation middleware should have already validated everything
         if (!req.checkout?.validation?.isValid) {
           return res.status(400).json({
-            error:
-              req.checkout?.validation?.error ||
-              'Validation failed',
+            error: req.checkout?.validation?.error || "Validation failed",
           });
         }
 
         const quotedRate = req.checkout.validation.rate;
 
-        logger.info('Finalizing checkout', {
+        logger.info("Finalizing checkout", {
           orderId,
           vendorId,
           selectedRateId,
@@ -73,17 +71,17 @@ function createCheckoutController(paymentService) {
         });
 
         if (!paymentResult.success) {
-          logger.warn('Checkout payment processing failed', {
+          logger.warn("Checkout payment processing failed", {
             orderId,
             error: paymentResult.error,
           });
 
           return res.status(400).json({
-            error: paymentResult.error || 'Payment processing failed',
+            error: paymentResult.error || "Payment processing failed",
           });
         }
 
-        logger.info('Checkout finalized successfully', {
+        logger.info("Checkout finalized successfully", {
           orderId,
           paymentId: paymentResult.paymentId,
           shipmentId: paymentResult.shipmentId,
@@ -94,16 +92,16 @@ function createCheckoutController(paymentService) {
           orderId,
           paymentId: paymentResult.paymentId,
           shipmentId: paymentResult.shipmentId,
-          message: 'Order finalized and payment processed',
+          message: "Order finalized and payment processed",
         });
       } catch (error) {
-        logger.error('Checkout finalization error', {
+        logger.error("Checkout finalization error", {
           orderId: req.body?.orderId,
           error: error.message,
         });
 
         return res.status(500).json({
-          error: 'Checkout finalization failed',
+          error: "Checkout finalization failed",
         });
       }
     },
@@ -111,13 +109,13 @@ function createCheckoutController(paymentService) {
     /**
      * POST /api/v1/checkout/validate
      * Validate checkout without finalizing (used for UI feedback)
-     * 
+     *
      * Expected request body:
      * {
      *   orderId: number,
      *   selectedRateId: string
      * }
-     * 
+     *
      * Response:
      * {
      *   isValid: boolean,
@@ -132,7 +130,7 @@ function createCheckoutController(paymentService) {
 
         if (!validation) {
           return res.status(500).json({
-            error: 'Validation not performed',
+            error: "Validation not performed",
           });
         }
 
@@ -148,12 +146,12 @@ function createCheckoutController(paymentService) {
             : null,
         });
       } catch (error) {
-        logger.error('Checkout validation error', {
+        logger.error("Checkout validation error", {
           error: error.message,
         });
 
         return res.status(500).json({
-          error: 'Validation failed',
+          error: "Validation failed",
         });
       }
     },

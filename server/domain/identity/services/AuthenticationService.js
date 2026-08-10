@@ -1,17 +1,26 @@
-const crypto = require('crypto');
-const argon2 = require('argon2');
-const jwt = require('jsonwebtoken');
-const { pool } = require('../../../config/db');
-const { logger } = require('../../../shared/utils/logger');
-const { redisClient } = require('../../../config/redis');
-const { validateEmail, validatePassword } = require('../../../shared/utils/validate');
-const EmailQueueProvider = require('../../../infrastructure/jobs/EmailQueueProvider');
-const userRepository = require('../repositories/UserRepository');
+const crypto = require("crypto");
+const argon2 = require("argon2");
+const jwt = require("jsonwebtoken");
+const { pool } = require("../../../config/db");
+const { logger } = require("../../../shared/utils/logger");
+const { redisClient } = require("../../../config/redis");
+const {
+  validateEmail,
+  validatePassword,
+} = require("../../../shared/utils/validate");
+const EmailQueueProvider = require("../../../infrastructure/jobs/EmailQueueProvider");
+const userRepository = require("../repositories/UserRepository");
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
-const LOGIN_LOCK_THRESHOLD = Number.parseInt(process.env.LOGIN_LOCK_THRESHOLD || '5', 10);
-const LOGIN_LOCK_WINDOW_SECONDS = Number.parseInt(process.env.LOGIN_LOCK_WINDOW_SECONDS || '900', 10);
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "24h";
+const LOGIN_LOCK_THRESHOLD = Number.parseInt(
+  process.env.LOGIN_LOCK_THRESHOLD || "5",
+  10,
+);
+const LOGIN_LOCK_WINDOW_SECONDS = Number.parseInt(
+  process.env.LOGIN_LOCK_WINDOW_SECONDS || "900",
+  10,
+);
 
 /**
  * Authentication error with status code
@@ -19,7 +28,7 @@ const LOGIN_LOCK_WINDOW_SECONDS = Number.parseInt(process.env.LOGIN_LOCK_WINDOW_
 class AuthenticationError extends Error {
   constructor(message, status = 400) {
     super(message);
-    this.name = 'AuthenticationError';
+    this.name = "AuthenticationError";
     this.status = status;
   }
 }
@@ -47,7 +56,7 @@ class AuthenticationService {
     try {
       return jwt.verify(token, JWT_SECRET);
     } catch (error) {
-      logger.warn('JWT verification failed', { error: error.message });
+      logger.warn("JWT verification failed", { error: error.message });
       return null;
     }
   }
@@ -67,14 +76,14 @@ class AuthenticationService {
    * Generate random token for email verification or password reset
    */
   static generateToken() {
-    return crypto.randomBytes(32).toString('hex');
+    return crypto.randomBytes(32).toString("hex");
   }
 
   /**
    * Generate refresh token
    */
   static generateRefreshToken() {
-    return crypto.randomBytes(40).toString('hex');
+    return crypto.randomBytes(40).toString("hex");
   }
 
   // =====================================================
@@ -88,11 +97,11 @@ class AuthenticationService {
     const normalizedEmail = this._normalizeEmail(email);
 
     if (!normalizedEmail || !password) {
-      throw new AuthenticationError('Email and password are required', 400);
+      throw new AuthenticationError("Email and password are required", 400);
     }
 
     if (!validateEmail(normalizedEmail)) {
-      throw new AuthenticationError('Invalid email format', 400);
+      throw new AuthenticationError("Invalid email format", 400);
     }
 
     const passwordCheck = validatePassword(password);
@@ -116,7 +125,7 @@ class AuthenticationService {
 
     const user = this._sanitizeUser(created);
 
-    logger.info('User registered', { userId: user.id, email: normalizedEmail });
+    logger.info("User registered", { userId: user.id, email: normalizedEmail });
 
     return {
       user,
@@ -132,37 +141,43 @@ class AuthenticationService {
     const normalizedEmail = this._normalizeEmail(email);
 
     if (!normalizedEmail || !password) {
-      throw new AuthenticationError('Email and password are required', 400);
+      throw new AuthenticationError("Email and password are required", 400);
     }
 
     // Check account lock
     if (await this._isAccountLocked(normalizedEmail)) {
-      logger.warn('Login attempt on locked account', { email: normalizedEmail });
+      logger.warn("Login attempt on locked account", {
+        email: normalizedEmail,
+      });
       throw new AuthenticationError(
-        'Account temporarily locked due to failed login attempts. Please try again later.',
-        429
+        "Account temporarily locked due to failed login attempts. Please try again later.",
+        429,
       );
     }
 
     const user = await userRepository.findByEmail(normalizedEmail);
     if (!user || user.deleted_at) {
       await this._recordFailedAttempt(normalizedEmail);
-      throw new AuthenticationError('Invalid email or password', 401);
+      throw new AuthenticationError("Invalid email or password", 401);
     }
 
     const passwordValid = await argon2.verify(user.password_hash, password);
     if (!passwordValid) {
       await this._recordFailedAttempt(normalizedEmail);
-      throw new AuthenticationError('Invalid email or password', 401);
+      throw new AuthenticationError("Invalid email or password", 401);
     }
 
     // Clear failed attempts
     await this._clearFailedAttempts(normalizedEmail);
 
     const sanitized = this._sanitizeUser(user);
-    const token = this.generateJWT({ id: user.id, email: normalizedEmail, role: user.role });
+    const token = this.generateJWT({
+      id: user.id,
+      email: normalizedEmail,
+      role: user.role,
+    });
 
-    logger.info('User logged in', { userId: user.id, email: normalizedEmail });
+    logger.info("User logged in", { userId: user.id, email: normalizedEmail });
 
     return {
       user: sanitized,
@@ -179,35 +194,31 @@ class AuthenticationService {
    */
   static async sendEmailVerification(userId, email) {
     const token = this.generateToken();
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
     await pool.query(
       `INSERT INTO email_verifications (user_id, token_hash, expires_at)
        VALUES ($1, $2, $3)`,
-      [userId, tokenHash, expiresAt]
+      [userId, tokenHash, expiresAt],
     );
 
-    const verificationUrl = `${process.env.APP_URL || 'http://localhost:5000'}/auth/verify-email?token=${token}`;
+    const verificationUrl = `${process.env.APP_URL || "http://localhost:5000"}/auth/verify-email?token=${token}`;
 
     try {
-      await EmailQueueProvider.queueEmail(
-        email,
-        'emailVerification',
-        {
-          verificationUrl,
-          expiryHours: 24,
-        },
-      );
+      await EmailQueueProvider.queueEmail(email, "emailVerification", {
+        verificationUrl,
+        expiryHours: 24,
+      });
 
-      logger.info('Email verification sent', { userId, email });
+      logger.info("Email verification sent", { userId, email });
     } catch (error) {
-      logger.error('Failed to send verification email', {
+      logger.error("Failed to send verification email", {
         userId,
         email,
         error: error.message,
       });
-      throw new AuthenticationError('Failed to send verification email', 500);
+      throw new AuthenticationError("Failed to send verification email", 500);
     }
 
     return { userId, email, expiresAt };
@@ -217,11 +228,11 @@ class AuthenticationService {
    * Verify email token
    */
   static async verifyEmailToken(token) {
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
     const client = await pool.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
       const verificationResult = await client.query(
         `SELECT ev.*, u.email, u.email_verified
@@ -229,43 +240,46 @@ class AuthenticationService {
          JOIN users u ON u.id = ev.user_id
          WHERE ev.token_hash = $1 AND ev.verified_at IS NULL AND ev.expires_at > NOW()
          FOR UPDATE`,
-        [tokenHash]
+        [tokenHash],
       );
 
       if (verificationResult.rowCount === 0) {
-        throw new AuthenticationError('Invalid or expired verification token', 400);
+        throw new AuthenticationError(
+          "Invalid or expired verification token",
+          400,
+        );
       }
 
       const verification = verificationResult.rows[0];
 
       if (verification.email_verified) {
-        throw new AuthenticationError('Email already verified', 400);
+        throw new AuthenticationError("Email already verified", 400);
       }
 
       // Mark as verified
       await client.query(
         `UPDATE email_verifications SET verified_at = NOW() WHERE token_hash = $1`,
-        [tokenHash]
+        [tokenHash],
       );
 
       await client.query(
         `UPDATE users SET email_verified = true, verified_at = NOW() WHERE id = $1`,
-        [verification.user_id]
+        [verification.user_id],
       );
 
-      await client.query('COMMIT');
+      await client.query("COMMIT");
 
-      logger.info('Email verified', { userId: verification.user_id });
+      logger.info("Email verified", { userId: verification.user_id });
 
       return {
         userId: verification.user_id,
         email: verification.email,
       };
     } catch (error) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       if (error instanceof AuthenticationError) throw error;
-      logger.error('Email verification failed', { error: error.message });
-      throw new AuthenticationError('Email verification failed', 500);
+      logger.error("Email verification failed", { error: error.message });
+      throw new AuthenticationError("Email verification failed", 500);
     } finally {
       client.release();
     }
@@ -284,40 +298,42 @@ class AuthenticationService {
     const user = await userRepository.findByEmail(normalizedEmail);
     if (!user || user.deleted_at) {
       // Don't reveal if email exists
-      logger.info('Password reset requested for non-existent email', { email: normalizedEmail });
+      logger.info("Password reset requested for non-existent email", {
+        email: normalizedEmail,
+      });
       return { sent: true };
     }
 
     const token = this.generateToken();
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
     await pool.query(
       `INSERT INTO password_resets (user_id, token_hash, expires_at)
        VALUES ($1, $2, $3)
        ON CONFLICT (user_id) DO UPDATE SET token_hash = $2, expires_at = $3`,
-      [user.id, tokenHash, expiresAt]
+      [user.id, tokenHash, expiresAt],
     );
 
-    const resetUrl = `${process.env.APP_URL || 'http://localhost:5000'}/auth/reset-password?token=${token}`;
+    const resetBaseUrl =
+      process.env.FRONTEND_URL ||
+      process.env.APP_URL ||
+      "http://localhost:5000";
+    const resetUrl = `${resetBaseUrl.replace(/\/+$/, "")}/reset-password/${token}`;
 
     try {
-      await EmailQueueProvider.queueEmail(
-        normalizedEmail,
-        'passwordReset',
-        {
-          resetUrl,
-          expiryHours: 1,
-        },
-      );
+      await EmailQueueProvider.queueEmail(normalizedEmail, "passwordReset", {
+        resetUrl,
+        expiryHours: 1,
+      });
 
-      logger.info('Password reset email sent', { userId: user.id });
+      logger.info("Password reset email sent", { userId: user.id });
     } catch (error) {
-      logger.error('Failed to send password reset email', {
+      logger.error("Failed to send password reset email", {
         userId: user.id,
         error: error.message,
       });
-      throw new AuthenticationError('Failed to send password reset email', 500);
+      throw new AuthenticationError("Failed to send password reset email", 500);
     }
 
     return { sent: true };
@@ -327,10 +343,10 @@ class AuthenticationService {
    * Reset password with token
    */
   static async resetPassword(token, newPassword) {
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
     if (!newPassword) {
-      throw new AuthenticationError('New password is required', 400);
+      throw new AuthenticationError("New password is required", 400);
     }
 
     const passwordCheck = validatePassword(newPassword);
@@ -341,29 +357,32 @@ class AuthenticationService {
     const result = await pool.query(
       `SELECT user_id FROM password_resets
        WHERE token_hash = $1 AND expires_at > NOW() AND used_at IS NULL`,
-      [tokenHash]
+      [tokenHash],
     );
 
     if (result.rowCount === 0) {
-      throw new AuthenticationError('Invalid or expired password reset token', 400);
+      throw new AuthenticationError(
+        "Invalid or expired password reset token",
+        400,
+      );
     }
 
     const userId = result.rows[0].user_id;
 
     // Update password
     const passwordHash = await argon2.hash(newPassword);
-    await pool.query(
-      `UPDATE users SET password_hash = $1 WHERE id = $2`,
-      [passwordHash, userId]
-    );
+    await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [
+      passwordHash,
+      userId,
+    ]);
 
     // Mark token as used
     await pool.query(
       `UPDATE password_resets SET used_at = NOW() WHERE token_hash = $1`,
-      [tokenHash]
+      [tokenHash],
     );
 
-    logger.info('Password reset completed', { userId });
+    logger.info("Password reset completed", { userId });
 
     return { success: true };
   }
@@ -382,7 +401,7 @@ class AuthenticationService {
     await pool.query(
       `INSERT INTO refresh_tokens (user_id, token, expires_at)
        VALUES ($1, $2, $3)`,
-      [userId, token, expiresAt]
+      [userId, token, expiresAt],
     );
 
     return token;
@@ -395,11 +414,11 @@ class AuthenticationService {
     const result = await pool.query(
       `SELECT user_id FROM refresh_tokens
        WHERE token = $1 AND expires_at > NOW() AND revoked = false`,
-      [token]
+      [token],
     );
 
     if (result.rowCount === 0) {
-      throw new AuthenticationError('Invalid or expired refresh token', 401);
+      throw new AuthenticationError("Invalid or expired refresh token", 401);
     }
 
     return result.rows[0].user_id;
@@ -411,7 +430,7 @@ class AuthenticationService {
   static async revokeRefreshToken(token) {
     await pool.query(
       `UPDATE refresh_tokens SET revoked = true WHERE token = $1`,
-      [token]
+      [token],
     );
   }
 
@@ -421,7 +440,7 @@ class AuthenticationService {
   static async revokeAllUserTokens(userId) {
     await pool.query(
       `UPDATE refresh_tokens SET revoked = true WHERE user_id = $1 AND revoked = false`,
-      [userId]
+      [userId],
     );
   }
 
@@ -430,14 +449,14 @@ class AuthenticationService {
   // =====================================================
 
   static _normalizeEmail(email) {
-    return typeof email === 'string' ? email.trim().toLowerCase() : '';
+    return typeof email === "string" ? email.trim().toLowerCase() : "";
   }
 
   static _sanitizeUser(row) {
     return {
       id: row.id,
       email: row.email,
-      role: row.role || 'customer',
+      role: row.role || "customer",
     };
   }
 
@@ -451,10 +470,17 @@ class AuthenticationService {
     if (!redisClient?.isReady) return;
 
     const attempts = await redisClient.incr(`login_attempts:${email}`);
-    await redisClient.expire(`login_attempts:${email}`, LOGIN_LOCK_WINDOW_SECONDS);
+    await redisClient.expire(
+      `login_attempts:${email}`,
+      LOGIN_LOCK_WINDOW_SECONDS,
+    );
 
     if (attempts >= LOGIN_LOCK_THRESHOLD) {
-      await redisClient.setEx(`login_lock:${email}`, LOGIN_LOCK_WINDOW_SECONDS, 'locked');
+      await redisClient.setEx(
+        `login_lock:${email}`,
+        LOGIN_LOCK_WINDOW_SECONDS,
+        "locked",
+      );
     }
   }
 
