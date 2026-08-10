@@ -76,7 +76,11 @@ class EventBus {
           error: error.message,
           stack: error.stack,
         });
-        this._deadLetterQueue.push({ event, error: error.message, failedAt: new Date() });
+        this._deadLetterQueue.push({
+          event,
+          error: error.message,
+          failedAt: new Date(),
+        });
       }
     }
   }

@@ -7,13 +7,15 @@
  * 3. Updates order audit log
  * 4. Triggers downstream processes (fulfillment, refunds, etc)
  */
-const logger = require("../../config/logger");
+const logger = require("../../shared/utils/logger");
+const EmailQueueProvider = require("../../infrastructure/jobs/EmailQueueProvider");
+const { orderRepository } = require("../ordering/repositories");
 
 class OrderStatusChangedSubscriber {
-  constructor(websocketManager, emailService, orderRepository) {
+  constructor(websocketManager, emailService = EmailQueueProvider, repository = orderRepository) {
     this.websocketManager = websocketManager;
     this.emailService = emailService;
-    this.orderRepository = orderRepository;
+    this.orderRepository = repository;
   }
 
   /**
@@ -28,7 +30,9 @@ class OrderStatusChangedSubscriber {
       });
 
       // Emit real-time update via WebSocket
-      this.websocketManager.emitOrderStatusUpdate(event.orderId, event);
+      if (this.websocketManager) {
+        this.websocketManager.emitOrderStatusUpdate(event.orderId, event);
+      }
 
       // Send notification email if customer should be notified
       if (event.shouldNotifyCustomer()) {
@@ -62,6 +66,8 @@ class OrderStatusChangedSubscriber {
       // Get order and user details
       const order = await this.orderRepository.findById(event.orderId);
       if (!order) return;
+      const user = await this.orderRepository.getUserById(order.user_id);
+      if (!user?.email) return;
 
       const emailTemplates = {
         pending: "order-received",
@@ -76,18 +82,17 @@ class OrderStatusChangedSubscriber {
       if (!template) return;
 
       // Queue email job (via Bull job queue)
-      await this.emailService.queue("send-order-notification", {
-        userId: event.userId,
-        orderId: event.orderId,
+      await this.emailService.queueEmail(
+        user.email,
         template,
-        data: {
+        {
           orderNumber: order.id,
           status: event.newStatus,
           message: event.getStatusMessage(),
           reason: event.reason,
           ...order,
         },
-      });
+      );
 
       logger.debug("Customer notification queued", {
         orderId: event.orderId,

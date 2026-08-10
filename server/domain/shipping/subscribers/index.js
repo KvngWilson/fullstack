@@ -1,5 +1,7 @@
 const logger = require("../../../shared/utils/logger");
-const { fireAndForgetWithErrorLog } = require("../../../shared/utils/asyncErrorHandler");
+const {
+  fireAndForgetWithErrorLog,
+} = require("../../../shared/utils/asyncErrorHandler");
 
 let subscribersRegistered = false;
 
@@ -22,8 +24,8 @@ function registerShippingSubscribers(eventDispatcher) {
         service: "ShippingSubscriber",
         operation: "handlePaymentSucceeded",
         context: { paymentId: event.paymentId, orderId: event.orderId },
-        severity: "warn"
-      }
+        severity: "warn",
+      },
     );
   });
 

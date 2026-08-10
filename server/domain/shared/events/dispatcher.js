@@ -9,8 +9,8 @@
  * is active — the dispatcher selects the right one at startup.
  */
 
-const EventBus = require('./EventBus');
-const { logger } = require('../../../shared/utils/logger');
+const EventBus = require("./EventBus");
+const { logger } = require("../../../shared/utils/logger");
 
 let _bus = new EventBus(); // default: in-memory
 
@@ -23,16 +23,18 @@ let _bus = new EventBus(); // default: in-memory
  * @param {object} transport - Any object with publish/publishAll/subscribe/getDeadLetterQueue/clear
  */
 function init(transport) {
-  if (!transport || typeof transport.publish !== 'function') {
-    throw new Error('transport must implement publish()');
+  if (!transport || typeof transport.publish !== "function") {
+    throw new Error("transport must implement publish()");
   }
   _bus = transport;
-  logger.info('EventBus transport initialized', { transport: transport.constructor?.name ?? 'unknown' });
+  logger.info("EventBus transport initialized", {
+    transport: transport.constructor?.name ?? "unknown",
+  });
 }
 
 async function publish(event) {
   if (!event) {
-    throw new Error('Invalid event');
+    throw new Error("Invalid event");
   }
   if (!event.eventType && event.type) {
     event.eventType = event.type;
@@ -58,11 +60,12 @@ function clear() {
 
 module.exports = {
   init,
-  get eventBus() { return _bus; },
+  get eventBus() {
+    return _bus;
+  },
   publish,
   subscribe,
   publishAll,
   getDeadLetterQueue,
   clear,
 };
-

@@ -1,5 +1,7 @@
 const logger = require("../../../shared/utils/logger");
-const { fireAndForgetWithErrorLog } = require("../../../shared/utils/asyncErrorHandler");
+const {
+  fireAndForgetWithErrorLog,
+} = require("../../../shared/utils/asyncErrorHandler");
 
 let subscribersRegistered = false;
 
@@ -20,9 +22,12 @@ function registerCatalogSubscribers(eventDispatcher) {
       {
         service: "CatalogSubscriber",
         operation: "handleProductCreated",
-        context: { eventType: event.eventType || event.type, productId: event.productId },
-        severity: "warn"
-      }
+        context: {
+          eventType: event.eventType || event.type,
+          productId: event.productId,
+        },
+        severity: "warn",
+      },
     );
   });
 

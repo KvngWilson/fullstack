@@ -48,4 +48,19 @@ describe("Domain subscribers bootstrap", () => {
     expect(shippingSubscribers).toHaveLength(1);
     expect(catalogSubscribers).toHaveLength(1);
   });
+
+  test("registers websocket order subscriber when websocket manager is available", () => {
+    const dispatcher = require("../../../domain/shared/events/dispatcher");
+    dispatcher.clear();
+
+    const { registerDomainSubscribers } = require("../../../domain/subscribers");
+
+    registerDomainSubscribers({ websocketManager: {} });
+
+    const orderSubscribers = dispatcher.eventBus.getSubscribers(
+      "ordering.order.status.changed",
+    );
+
+    expect(orderSubscribers).toHaveLength(1);
+  });
 });
