@@ -3,11 +3,12 @@ const { pool } = require("../../../config/db");
 const { redisClient } = require("../../../config/redis");
 const GuestCartService = require("../../../domain/ordering/services/GuestCartService");
 const { createApp } = require("../../../src/app");
+const {
+  createTestProduct,
+  createTestVariant,
+} = require("../../helpers/testHelpers");
 
-const shouldRun = process.env.RUN_E2E_GUEST_CART_VALIDATE_TESTS === "true";
-const describeE2E = shouldRun ? describe : describe.skip;
-
-describeE2E("Guest Cart Validate (E2E)", () => {
+describe("Guest Cart Validate (E2E)", () => {
   const app = createApp();
   const service = new GuestCartService();
   const runId = Date.now();
@@ -31,8 +32,7 @@ describeE2E("Guest Cart Validate (E2E)", () => {
     for (const key of keys) {
       try {
         await redisClient.del(key);
-      } catch (error) {
-      }
+      } catch (error) {}
     }
   };
 
@@ -43,26 +43,36 @@ describeE2E("Guest Cart Validate (E2E)", () => {
     }
 
     try {
-      await redisClient.setEx(`guest_session:probe-${runId}`, 10, JSON.stringify({ ok: true }));
+      await redisClient.setEx(
+        `guest_session:probe-${runId}`,
+        10,
+        JSON.stringify({ ok: true }),
+      );
       await redisClient.del(`guest_session:probe-${runId}`);
 
-      const productResult = await pool.query(
-        "INSERT INTO products (name, description, base_price, category) VALUES ($1, $2, $3, $4) RETURNING id",
-        ["Guest E2E Product", "Guest validation product", 99.99, "electronics"],
-      );
-      productId = productResult.rows[0].id;
+      const product = await createTestProduct({
+        name: "Guest E2E Product",
+        description: "Guest validation product",
+        base_price: 99.99,
+        category: "electronics",
+      });
+      productId = product.id;
 
-      const variantPriceResult = await pool.query(
-        "INSERT INTO product_variants (product_id, sku, price, stock, attributes) VALUES ($1, $2, $3, $4, $5) RETURNING id",
-        [productId, `GUEST-PRICE-${runId}`, 99.99, 20, JSON.stringify({ size: "M" })],
-      );
-      variantPriceChangeId = variantPriceResult.rows[0].id;
+      const variantPrice = await createTestVariant(productId, {
+        sku: `GUEST-PRICE-${runId}`,
+        price: 99.99,
+        stock: 20,
+        size: "M",
+      });
+      variantPriceChangeId = variantPrice.id;
 
-      const variantStockResult = await pool.query(
-        "INSERT INTO product_variants (product_id, sku, price, stock, attributes) VALUES ($1, $2, $3, $4, $5) RETURNING id",
-        [productId, `GUEST-STOCK-${runId}`, 49.99, 1, JSON.stringify({ size: "L" })],
-      );
-      variantStockId = variantStockResult.rows[0].id;
+      const variantStock = await createTestVariant(productId, {
+        sku: `GUEST-STOCK-${runId}`,
+        price: 49.99,
+        stock: 1,
+        size: "L",
+      });
+      variantStockId = variantStock.id;
 
       await service.createGuestCart(tokenPrice);
       await service.createGuestCart(tokenStock);
@@ -77,10 +87,14 @@ describeE2E("Guest Cart Validate (E2E)", () => {
     await cleanupRedis();
 
     if (variantPriceChangeId) {
-      await pool.query("DELETE FROM product_variants WHERE id = $1", [variantPriceChangeId]);
+      await pool.query("DELETE FROM product_variants WHERE id = $1", [
+        variantPriceChangeId,
+      ]);
     }
     if (variantStockId) {
-      await pool.query("DELETE FROM product_variants WHERE id = $1", [variantStockId]);
+      await pool.query("DELETE FROM product_variants WHERE id = $1", [
+        variantStockId,
+      ]);
     }
     if (productId) {
       await pool.query("DELETE FROM products WHERE id = $1", [productId]);
