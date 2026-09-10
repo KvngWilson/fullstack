@@ -3,13 +3,14 @@ import { Toaster } from "react-hot-toast";
 import ErrorBoundary from "@/components/common/ErrorBoundary";
 import { AppPreferencesProvider } from "@/contexts/AppPreferencesContext";
 import { store } from "@/store";
+import { WebSocketProvider } from "./WebSocketProvider";
 
 export default function AppProviders({ children }) {
   return (
     <ErrorBoundary>
       <Provider store={store}>
         <AppPreferencesProvider>
-          {children}
+          <WebSocketProvider>{children}</WebSocketProvider>
           <Toaster
             position="top-right"
             toastOptions={{

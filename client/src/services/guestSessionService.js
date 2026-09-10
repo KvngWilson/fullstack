@@ -1,10 +1,10 @@
 import apiClient from "@/api/client";
 
-const GUEST_TOKEN_STORAGE_KEY = "guest.checkout.token";
+const GUEST_CHECKOUT_STORAGE_KEY = "guest.checkout.token";
 
 const readStoredGuestToken = () => {
   try {
-    return localStorage.getItem(GUEST_TOKEN_STORAGE_KEY) || "";
+    return localStorage.getItem(GUEST_CHECKOUT_STORAGE_KEY) || "";
   } catch {
     return "";
   }
@@ -13,7 +13,7 @@ const readStoredGuestToken = () => {
 const storeGuestToken = (token) => {
   if (!token) return;
   try {
-    localStorage.setItem(GUEST_TOKEN_STORAGE_KEY, token);
+    localStorage.setItem(GUEST_CHECKOUT_STORAGE_KEY, token);
   } catch {
     // Ignore storage failures.
   }
@@ -21,7 +21,7 @@ const storeGuestToken = (token) => {
 
 const clearGuestToken = () => {
   try {
-    localStorage.removeItem(GUEST_TOKEN_STORAGE_KEY);
+    localStorage.removeItem(GUEST_CHECKOUT_STORAGE_KEY);
   } catch {
     // Ignore storage failures.
   }

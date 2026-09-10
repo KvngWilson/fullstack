@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/store";
 import {
@@ -19,6 +19,8 @@ import { paymentsService } from "@/services/paymentService";
 import { getStoredCurrency } from "@/preferences";
 import { formatPrice } from "@/utils/format";
 import { useAppPreferences } from "@/contexts/AppPreferencesContext";
+import useOrderRealtime from "@/features/orders/hooks/useOrderRealtime";
+import { notifyInfo } from "@/utils/toast";
 
 export default function OrderDetail() {
   const dispatch = useAppDispatch();
@@ -31,12 +33,28 @@ export default function OrderDetail() {
   const { t } = useAppPreferences();
 
   const currency = getStoredCurrency();
+  const orderId = id ? Number(id) : null;
 
   useEffect(() => {
     if (!id) return;
     dispatch(fetchOrderByIdThunk(Number(id)));
     dispatch(trackOrderThunk(Number(id)));
   }, [dispatch, id]);
+
+  const handleRealtimeUpdate = useCallback(
+    (event) => {
+      if (!orderId) {
+        return;
+      }
+
+      dispatch(fetchOrderByIdThunk(orderId));
+      dispatch(trackOrderThunk(orderId));
+      notifyInfo(`Order #${orderId} updated to ${event?.newStatus || "new status"}`);
+    },
+    [dispatch, orderId],
+  );
+
+  useOrderRealtime(orderId, handleRealtimeUpdate);
 
   useEffect(() => {
     let isActive = true;
@@ -48,7 +66,9 @@ export default function OrderDetail() {
       }
 
       try {
-        const latestPayment = await paymentsService.getLatestPaymentForOrder(Number(id));
+        const latestPayment = await paymentsService.getLatestPaymentForOrder(
+          Number(id),
+        );
         if (!isActive) return;
         setPaymentStatus(latestPayment?.status || "");
       } catch {
@@ -65,7 +85,9 @@ export default function OrderDetail() {
     };
   }, [id]);
 
-  const tracking = id ? trackingByOrderId[id] || trackingByOrderId[Number(id)] : null;
+  const tracking = id
+    ? trackingByOrderId[id] || trackingByOrderId[Number(id)]
+    : null;
 
   return (
     <div className="landing-container section-wrap">
@@ -106,7 +128,10 @@ export default function OrderDetail() {
               </Badge>
               <Badge variant="secondary">
                 {t("orderDetail.payment", {
-                  payment: paymentStatus || order.payment_status || t("common.pending"),
+                  payment:
+                    paymentStatus ||
+                    order.payment_status ||
+                    t("common.pending"),
                 })}
               </Badge>
               <Badge variant="secondary">
@@ -118,14 +143,18 @@ export default function OrderDetail() {
 
             <p className="mt-5 font-heading text-3xl font-semibold tracking-tight text-slate-950">
               {formatPrice(
-                Number(order.total_amount ?? order.net_amount ?? order.total ?? 0),
+                Number(
+                  order.total_amount ?? order.net_amount ?? order.total ?? 0,
+                ),
                 currency,
               )}
             </p>
             <p className="mt-2 text-sm text-slate-500">
               {t("orderDetail.total", {
                 total: formatPrice(
-                  Number(order.total_amount ?? order.net_amount ?? order.total ?? 0),
+                  Number(
+                    order.total_amount ?? order.net_amount ?? order.total ?? 0,
+                  ),
                   currency,
                 ),
               })}
@@ -154,7 +183,10 @@ export default function OrderDetail() {
                   </a>
                 ) : null}
                 {id ? (
-                  <Link to={`/account/orders/${id}/tracking`} className="btn-ghost">
+                  <Link
+                    to={`/account/orders/${id}/tracking`}
+                    className="btn-ghost"
+                  >
                     {t("orderDetail.openFullTrackingPage")}
                   </Link>
                 ) : null}

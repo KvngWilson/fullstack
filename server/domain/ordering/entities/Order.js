@@ -39,8 +39,10 @@ class Order {
     const transitions = {
       pending: ["processing", "cancelled"],
       processing: ["paid", "cancelled"],
-      paid: ["fulfilled", "refunded"],
+      paid: ["shipped", "refunded"],
+      shipped: ["delivered", "refunded"],
       fulfilled: ["refunded"],
+      delivered: ["refunded"],
       cancelled: [],
       refunded: [],
     };

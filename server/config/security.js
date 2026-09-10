@@ -1,5 +1,19 @@
 const helmet = require('helmet');
 
+function getDefaultAllowedOrigins() {
+  const configuredOrigins = [
+    process.env.API_URL,
+    process.env.FRONTEND_URL,
+    process.env.ADMIN_URL,
+  ].filter(Boolean);
+
+  if (configuredOrigins.length > 0) {
+    return [...new Set(configuredOrigins)];
+  }
+
+  return ['http://localhost:5000', 'http://localhost:5173'];
+}
+
 function getSecurityMiddleware() {
   const isProduction = process.env.NODE_ENV === 'production';
   
@@ -56,8 +70,8 @@ function getCorsOptions() {
       // Allow requests with no origin (mobile apps, Postman, etc.)
       if (!origin) return callback(null, true);
       const allowedOrigins = process.env.ALLOWED_ORIGINS
-        ? process.env.ALLOWED_ORIGINS.split(',')
-        : ['http://localhost:5000', 'http://localhost:5173'];
+        ? process.env.ALLOWED_ORIGINS.split(',').map((value) => value.trim()).filter(Boolean)
+        : getDefaultAllowedOrigins();
       if (allowedOrigins.includes(origin) || !isProduction) {
         callback(null, true);
       } else {

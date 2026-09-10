@@ -24,19 +24,30 @@ class OrderStatusChanged {
     this.occurredAt = occurredAt;
   }
 
+  getNormalizedStatus() {
+    if (this.newStatus === "fulfilled") {
+      return "shipped";
+    }
+
+    return this.newStatus;
+  }
+
   /**
    * Returns human-readable status message
    */
   getStatusMessage() {
+    const normalizedStatus = this.getNormalizedStatus();
     const messages = {
       pending: "Order received. Processing...",
       processing: "Processing your order",
       paid: "Payment confirmed",
+      shipped: "Order shipped",
+      delivered: "Order delivered",
       fulfilled: "Order shipped",
       refunded: "Order refunded",
       cancelled: "Order cancelled",
     };
-    return messages[this.newStatus] || `Status updated to ${this.newStatus}`;
+    return messages[normalizedStatus] || `Status updated to ${normalizedStatus}`;
   }
 
   /**
@@ -54,26 +65,31 @@ class OrderStatusChanged {
     // Admin notified on certain transitions
     const adminNotifiableTransitions = [
       "paid",
+      "shipped",
+      "delivered",
       "refunded",
       "cancelled",
       "fulfilled",
     ];
-    return adminNotifiableTransitions.includes(this.newStatus);
+    return adminNotifiableTransitions.includes(this.getNormalizedStatus());
   }
 
   /**
    * Priority for notification (high/medium/low)
    */
   getNotificationPriority() {
+    const normalizedStatus = this.getNormalizedStatus();
     const priorities = {
       pending: "low",
       processing: "low",
       paid: "high",
+      shipped: "medium",
+      delivered: "medium",
       fulfilled: "medium",
       refunded: "high",
       cancelled: "high",
     };
-    return priorities[this.newStatus] || "medium";
+    return priorities[normalizedStatus] || "medium";
   }
 }
 

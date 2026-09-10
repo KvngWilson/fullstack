@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  labels:
+    app: worker
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: worker
+          image: gcr.io/fullstack-ecom/fullstack-server:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - node
+            - src/worker.js
+          envFrom:
+            - configMapRef:
+                name: fullstack-config
+            - secretRef:
+                name: fullstack-secrets
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+          securityContext:
+            allowPrivilegeEscalation: false
+          resources:
+            requests:
+              cpu: 150m
+              memory: 256Mi
+              ephemeral-storage: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+              ephemeral-storage: 1Gi
+      volumes:
+        - name: uploads
+          emptyDir:
+            sizeLimit: 1Gi

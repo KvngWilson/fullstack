@@ -35,7 +35,7 @@ async function sendConfirmationEmailSafely(client, orderId) {
         orderId: order.id,
         items: order.items || [],
         total: order.total,
-        orderUrl: `${process.env.APP_URL || 'http://localhost:5000'}/orders/${order.id}`,
+        orderUrl: `${process.env.API_URL || 'http://localhost:5000'}/orders/${order.id}`,
       },
     );
   } catch (emailError) {

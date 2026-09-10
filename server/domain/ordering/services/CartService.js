@@ -31,13 +31,13 @@ class CartService {
         ci.product_variant_id,
         ci.quantity,
         pv.sku,
-        pv.price,
+        (COALESCE(ci.unit_price_cents, pv.price_cents) / 100.0)::numeric(12,2) AS price,
         pv.stock,
         pv.attributes,
         p.id AS product_id,
         p.name,
         p.description,
-        (pv.price * ci.quantity) AS subtotal
+        ((COALESCE(ci.unit_price_cents, pv.price_cents) * ci.quantity) / 100.0)::numeric(12,2) AS subtotal
        FROM cart_items ci
        JOIN product_variants pv ON ci.product_variant_id = pv.id
        JOIN products p ON pv.product_id = p.id

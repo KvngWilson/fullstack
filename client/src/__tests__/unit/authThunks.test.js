@@ -128,8 +128,12 @@ describe("authThunks", () => {
     expect(failResult.payload).toBe("Refresh failed");
   });
 
-  it("returns user payload from fetchCurrentUserThunk and reject payload on failure", async () => {
-    mockAuthApi.me.mockResolvedValueOnce({ user: { id: 11, role: "admin" } });
+  it("returns user payload from fetchCurrentUserThunk when the API wraps the profile in a success envelope and reject payload on failure", async () => {
+    mockAuthApi.me.mockResolvedValueOnce({
+      success: true,
+      data: { id: 11, role: "admin" },
+      message: "ok",
+    });
 
     const okThunk = fetchCurrentUserThunk();
     const okResult = await okThunk(jest.fn(), jest.fn(), undefined);

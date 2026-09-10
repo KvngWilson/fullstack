@@ -53,7 +53,9 @@ export default function SearchResults() {
       </div>
 
       {!query.trim() && (
-        <p className="mt-8 text-sm text-slate-500">Provide a search term using ?q=...</p>
+        <p className="mt-8 text-sm text-slate-500">
+          Provide a search term using ?q=...
+        </p>
       )}
 
       {query.trim() && isLoading && (
@@ -75,12 +77,18 @@ export default function SearchResults() {
         <>
           <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {products.map((product) => (
-              <Link key={product.id} to={`/products/${product.id}`} className="block">
+              <Link
+                key={product.id}
+                to={`/products/${product.id}`}
+                className="block"
+              >
                 <Card className="h-full hover:-translate-y-1">
                   <p className="font-heading text-2xl font-semibold tracking-tight text-slate-950">
                     {product.name}
                   </p>
-                  <p className="mt-3 text-sm text-slate-500">{product.brand || "No brand"}</p>
+                  <p className="mt-3 text-sm text-slate-500">
+                    {product.brand || "No brand"}
+                  </p>
                   <p className="mt-3 text-sm font-semibold text-slate-950">
                     {formatPrice(product.base_price ?? product.price ?? 0)}
                   </p>
@@ -99,7 +107,8 @@ export default function SearchResults() {
 
           {pagination && (
             <p className="mt-6 text-sm text-slate-500">
-              Page {pagination.page} of {pagination.totalPages} · {pagination.totalCount} total
+              Page {pagination.page} of {pagination.totalPages} ·{" "}
+              {pagination.totalCount} total
             </p>
           )}
         </>

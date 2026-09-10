@@ -6,7 +6,7 @@ const PaystackService = domain.payment.services.PaystackService;
 const StripeService = domain.payment.services.StripeService;
 const { successResponse, errorResponse } = require("../../../../shared/utils/response");
 const {
-  APP_URL,
+  API_URL,
   parseCreatePaymentPayload,
   getPagination,
 } = require("../../../../domain/payment/services/payment.support");
@@ -213,18 +213,18 @@ exports.handlePaymentCallback = async (req, res) => {
     ).toLowerCase();
 
     if (!reference) {
-      return res.redirect(`${APP_URL}/checkout?status=error`);
+      return res.redirect(`${API_URL}/checkout?status=error`);
     }
 
     const paymentService = new PaymentService();
     const result = await paymentService.handlePaymentCallback(reference, processor);
 
     return res.redirect(
-      `${APP_URL}/order-confirmation?order_id=${result.orderId}&status=success&processor=${processor}`
+      `${API_URL}/order-confirmation?order_id=${result.orderId}&status=success&processor=${processor}`
     );
   } catch (error) {
     logger.error("Payment callback error", { error });
-    return res.redirect(`${APP_URL}/checkout?status=error`);
+    return res.redirect(`${API_URL}/checkout?status=error`);
   }
 };
 

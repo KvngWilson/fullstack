@@ -11,7 +11,11 @@ const adminAuthService = new AdminAuthService();
 
 exports.listRoles = async (req, res) => {
   try {
-    const { includePermissions = false, hierarchyLevel = null } = req.query;
+    const {
+      includePermissions = false,
+      includeSystem = false,
+      hierarchyLevel = null,
+    } = req.query;
 
     let query = `
       SELECT 
@@ -50,7 +54,7 @@ exports.listRoles = async (req, res) => {
       ],
     );
 
-    if (userRole.rows[0].code !== "super_admin") {
+    if (userRole.rows[0].code !== "super_admin" && includeSystem !== "true") {
       query += ` AND r.is_system = false`;
     }
 

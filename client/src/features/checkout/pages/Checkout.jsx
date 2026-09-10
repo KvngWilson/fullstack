@@ -9,8 +9,14 @@ import {
   selectCartSubtotal,
 } from "@/features/cart/cartSelectors";
 import { createOrderThunk } from "@/features/orders/ordersThunks";
-import { fetchAddressesThunk, fetchSavedCardsThunk } from "@/features/user/userThunks";
-import { selectUserAddresses, selectUserSavedCards } from "@/features/user/userSelectors";
+import {
+  fetchAddressesThunk,
+  fetchSavedCardsThunk,
+} from "@/features/user/userThunks";
+import {
+  selectUserAddresses,
+  selectUserSavedCards,
+} from "@/features/user/userSelectors";
 import { shippingService } from "@/services/shippingService";
 import { paymentsService } from "@/services/paymentService";
 import { guestCheckoutService } from "@/services/guestCheckoutService";
@@ -118,7 +124,9 @@ export default function Checkout() {
 
   const selectedShippingRate = useMemo(
     () =>
-      shippingRates.find((rate) => String(rate.id) === String(selectedShippingRateId)) || null,
+      shippingRates.find(
+        (rate) => String(rate.id) === String(selectedShippingRateId),
+      ) || null,
     [shippingRates, selectedShippingRateId],
   );
 
@@ -178,7 +186,9 @@ export default function Checkout() {
 
       const shippingItems = items.map((item) => {
         const quantity = Number(item.quantity || 1);
-        const unitPrice = Number(item.unit_price ?? item.price ?? item.base_price ?? 0);
+        const unitPrice = Number(
+          item.unit_price ?? item.price ?? item.base_price ?? 0,
+        );
         const weight = Number(item.weight || item.variant?.weight || 0.5);
 
         return {
@@ -303,7 +313,10 @@ export default function Checkout() {
               const paymentInit = await paymentsService.createPayment({
                 order_id: Number(createdOrder.id),
                 amount: Number(
-                  createdOrder?.total_amount ?? createdOrder?.net_amount ?? orderTotal ?? 0,
+                  createdOrder?.total_amount ??
+                    createdOrder?.net_amount ??
+                    orderTotal ??
+                    0,
                 ),
                 currency,
                 processor: selectedProcessor,
@@ -313,7 +326,9 @@ export default function Checkout() {
                 paymentInit?.reference || paymentInit?.data?.reference || "";
 
               const authorizationUrl =
-                paymentInit?.authorization_url || paymentInit?.data?.authorization_url || "";
+                paymentInit?.authorization_url ||
+                paymentInit?.data?.authorization_url ||
+                "";
 
               if (selectedProcessor === "stripe" && authorizationUrl) {
                 window.location.href = authorizationUrl;
@@ -324,11 +339,14 @@ export default function Checkout() {
                 setPaymentReference(confirmationPaymentReference);
 
                 try {
-                  const verification = await paymentsService.verifyPaymentStatus(
-                    confirmationPaymentReference,
-                  );
+                  const verification =
+                    await paymentsService.verifyPaymentStatus(
+                      confirmationPaymentReference,
+                    );
                   confirmationPaymentStatus =
-                    verification?.status || verification?.data?.status || t("common.pending");
+                    verification?.status ||
+                    verification?.data?.status ||
+                    t("common.pending");
                   setPaymentStatus(confirmationPaymentStatus);
                 } catch {
                   confirmationPaymentStatus = t("common.pending");
@@ -363,7 +381,9 @@ export default function Checkout() {
 
       setSubmitError("Please select shipping and billing addresses.");
     } catch (error) {
-      setSubmitError(error?.message || "Failed to place order. Please try again.");
+      setSubmitError(
+        error?.message || "Failed to place order. Please try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -386,8 +406,12 @@ export default function Checkout() {
           </div>
 
           <div className="flex gap-2">
-            <Badge variant={step === "shipping" ? "primary" : "secondary"}>Shipping</Badge>
-            <Badge variant={step === "payment" ? "primary" : "secondary"}>Payment</Badge>
+            <Badge variant={step === "shipping" ? "primary" : "secondary"}>
+              Shipping
+            </Badge>
+            <Badge variant={step === "payment" ? "primary" : "secondary"}>
+              Payment
+            </Badge>
             <Badge variant={step === "confirmation" ? "primary" : "secondary"}>
               Confirmation
             </Badge>
@@ -396,10 +420,15 @@ export default function Checkout() {
       </div>
 
       {cartLoading && (
-        <p className="mt-6 text-sm text-slate-500">{t("checkout.loadingData")}</p>
+        <p className="mt-6 text-sm text-slate-500">
+          {t("checkout.loadingData")}
+        </p>
       )}
 
-      <form onSubmit={handlePlaceOrder} className="mt-8 grid gap-6 lg:grid-cols-[1.08fr_0.92fr]">
+      <form
+        onSubmit={handlePlaceOrder}
+        className="mt-8 grid gap-6 lg:grid-cols-[1.08fr_0.92fr]"
+      >
         <div className="space-y-6">
           {step === "shipping" && (
             <Card>
@@ -501,7 +530,9 @@ export default function Checkout() {
               <h2 className="font-heading text-2xl font-semibold tracking-tight text-slate-950">
                 {t("checkout.payment")}
               </h2>
-              <p className="mt-3 text-sm text-slate-500">{t("checkout.methodStepReady")}</p>
+              <p className="mt-3 text-sm text-slate-500">
+                {t("checkout.methodStepReady")}
+              </p>
 
               <div className="mt-6 space-y-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
@@ -524,7 +555,9 @@ export default function Checkout() {
                       name="paymentProcessor"
                       value={option.value}
                       checked={selectedProcessor === option.value}
-                      onChange={(event) => setSelectedProcessor(event.target.value)}
+                      onChange={(event) =>
+                        setSelectedProcessor(event.target.value)
+                      }
                     />
                     <span>{option.label}</span>
                   </label>
@@ -534,7 +567,8 @@ export default function Checkout() {
               {selectedShippingRate && (
                 <p className="mt-4 text-sm text-slate-500">
                   {t("checkout.selectedShipping", {
-                    name: selectedShippingRate.name || selectedShippingRate.service,
+                    name:
+                      selectedShippingRate.name || selectedShippingRate.service,
                     cost: formatPrice(
                       Number(selectedShippingRate.cost || 0),
                       selectedShippingRate.currency || currency,
@@ -580,7 +614,9 @@ export default function Checkout() {
                 size="lg"
                 state={isSubmitting ? "loading" : "default"}
               >
-                {isSubmitting ? t("checkout.placingOrder") : t("checkout.placeOrder")}
+                {isSubmitting
+                  ? t("checkout.placingOrder")
+                  : t("checkout.placeOrder")}
               </Button>
             </Card>
           )}
@@ -590,7 +626,8 @@ export default function Checkout() {
               <div className="flex flex-col gap-3">
                 <Badge variant="success">Order confirmed</Badge>
                 <span className="font-heading text-2xl font-semibold tracking-tight text-slate-950">
-                  {confirmationMessage || t("checkout.orderConfirmationSuccess")}
+                  {confirmationMessage ||
+                    t("checkout.orderConfirmationSuccess")}
                 </span>
                 {paymentReference && (
                   <Badge variant="secondary">
@@ -599,7 +636,9 @@ export default function Checkout() {
                 )}
                 {paymentStatus && (
                   <Badge variant="secondary">
-                    {t("checkout.paymentStatusLabel", { status: paymentStatus })}
+                    {t("checkout.paymentStatusLabel", {
+                      status: paymentStatus,
+                    })}
                   </Badge>
                 )}
               </div>
@@ -607,7 +646,10 @@ export default function Checkout() {
           )}
 
           {submitError && (
-            <Card className="border border-red-100 bg-red-50/90 text-red-700" role="alert">
+            <Card
+              className="border border-red-100 bg-red-50/90 text-red-700"
+              role="alert"
+            >
               <span className="text-sm">{submitError}</span>
             </Card>
           )}
@@ -634,7 +676,9 @@ export default function Checkout() {
             </div>
 
             {shippingRatesLoading && (
-              <p className="mt-4 text-xs text-slate-500">{t("checkout.loadingShippingOptions")}</p>
+              <p className="mt-4 text-xs text-slate-500">
+                {t("checkout.loadingShippingOptions")}
+              </p>
             )}
 
             {shippingRateError && (
@@ -665,14 +709,21 @@ export default function Checkout() {
                           name="shippingRate"
                           value={rateId}
                           checked={isSelected}
-                          onChange={(e) => setSelectedShippingRateId(e.target.value)}
+                          onChange={(e) =>
+                            setSelectedShippingRateId(e.target.value)
+                          }
                         />
                         <span>
-                          {rate.name || rate.service || t("checkout.standardShipping")}
+                          {rate.name ||
+                            rate.service ||
+                            t("checkout.standardShipping")}
                         </span>
                       </span>
                       <span>
-                        {formatPrice(Number(rate.cost || 0), rate.currency || currency)}
+                        {formatPrice(
+                          Number(rate.cost || 0),
+                          rate.currency || currency,
+                        )}
                       </span>
                     </label>
                   );
@@ -687,14 +738,20 @@ export default function Checkout() {
                 Saved addresses
               </p>
               <div className="mt-4 grid gap-4">
-                <Select value={shippingAddressId} onChange={(e) => setShippingAddressId(e.target.value)}>
+                <Select
+                  value={shippingAddressId}
+                  onChange={(e) => setShippingAddressId(e.target.value)}
+                >
                   {addresses.map((addr) => (
                     <option key={addr.id} value={addr.id}>
                       {addr.id}
                     </option>
                   ))}
                 </Select>
-                <Select value={billingAddressId} onChange={(e) => setBillingAddressId(e.target.value)}>
+                <Select
+                  value={billingAddressId}
+                  onChange={(e) => setBillingAddressId(e.target.value)}
+                >
                   {addresses.map((addr) => (
                     <option key={addr.id} value={addr.id}>
                       {addr.id}

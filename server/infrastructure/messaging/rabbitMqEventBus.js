@@ -15,11 +15,11 @@
  *   (multiple API replicas each process the event independently)
  */
 
-const amqp = require('amqplib');
-const { logger } = require('../../shared/utils/logger');
+const amqp = require("amqplib");
+const { logger } = require("../../shared/utils/logger");
 
-const EXCHANGE = 'events';
-const DLX_EXCHANGE = 'events.dlx';
+const EXCHANGE = "events";
+const DLX_EXCHANGE = "events.dlx";
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const INITIAL_RECONNECT_DELAY_MS = 1_000;
 
@@ -34,7 +34,7 @@ class RabbitMQEventBus {
     this.prefetch = config.prefetch ?? 10;
     this.connection = null;
     this.channel = null;
-    this._subscribers = [];    // { eventType, queueName, handler }
+    this._subscribers = []; // { eventType, queueName, handler }
     this._deadLetterQueue = []; // in-memory mirror of DLX arrivals for inspection
     this._closing = false;
     this._reconnectDelay = INITIAL_RECONNECT_DELAY_MS;
@@ -50,16 +50,18 @@ class RabbitMQEventBus {
       await this.channel.prefetch(this.prefetch);
 
       // Main topic exchange — routes events by routing key (eventType)
-      await this.channel.assertExchange(EXCHANGE, 'topic', { durable: true });
+      await this.channel.assertExchange(EXCHANGE, "topic", { durable: true });
 
       // Dead-letter exchange — receives messages that exceed retry limit
-      await this.channel.assertExchange(DLX_EXCHANGE, 'fanout', { durable: true });
-
-      // DLQ — binds to DLX so dead letters land somewhere inspectable
-      const dlq = await this.channel.assertQueue('events.dead-letter', {
+      await this.channel.assertExchange(DLX_EXCHANGE, "fanout", {
         durable: true,
       });
-      await this.channel.bindQueue(dlq.queue, DLX_EXCHANGE, '#');
+
+      // DLQ — binds to DLX so dead letters land somewhere inspectable
+      const dlq = await this.channel.assertQueue("events.dead-letter", {
+        durable: true,
+      });
+      await this.channel.bindQueue(dlq.queue, DLX_EXCHANGE, "#");
 
       // Re-register any subscribers that were added before/after reconnect
       for (const sub of this._subscribers) {
@@ -67,29 +69,40 @@ class RabbitMQEventBus {
       }
 
       this._reconnectDelay = INITIAL_RECONNECT_DELAY_MS;
-      logger.info('RabbitMQ connected', { url: this._safeUrl() });
+      logger.info("RabbitMQ connected", { url: this._safeUrl() });
 
-      this.connection.on('close', () => this._scheduleReconnect('connection closed'));
-      this.connection.on('error', (err) => {
-        logger.error('RabbitMQ connection error', { error: err.message });
-        this._scheduleReconnect('connection error');
+      this.connection.on("close", () =>
+        this._scheduleReconnect("connection closed"),
+      );
+      this.connection.on("error", (err) => {
+        logger.error("RabbitMQ connection error", { error: err.message });
+        this._scheduleReconnect("connection error");
       });
-      this.channel.on('error', (err) => {
-        logger.error('RabbitMQ channel error', { error: err.message });
-        this._scheduleReconnect('channel error');
+      this.channel.on("error", (err) => {
+        logger.error("RabbitMQ channel error", { error: err.message });
+        this._scheduleReconnect("channel error");
       });
     } catch (err) {
-      logger.error('RabbitMQ connect failed', { error: err.message });
-      this._scheduleReconnect('initial connect failed');
+      logger.error("RabbitMQ connect failed", { error: err.message });
+      this._scheduleReconnect("initial connect failed");
     }
   }
 
   _scheduleReconnect(reason) {
     if (this._closing) return;
     const jitter = Math.random() * 1000;
-    const delay = Math.min(this._reconnectDelay + jitter, MAX_RECONNECT_DELAY_MS);
-    this._reconnectDelay = Math.min(this._reconnectDelay * 2, MAX_RECONNECT_DELAY_MS);
-    logger.warn('RabbitMQ reconnecting', { reason, delayMs: Math.round(delay) });
+    const delay = Math.min(
+      this._reconnectDelay + jitter,
+      MAX_RECONNECT_DELAY_MS,
+    );
+    this._reconnectDelay = Math.min(
+      this._reconnectDelay * 2,
+      MAX_RECONNECT_DELAY_MS,
+    );
+    logger.warn("RabbitMQ reconnecting", {
+      reason,
+      delayMs: Math.round(delay),
+    });
     setTimeout(() => this.connect(), delay);
   }
 
@@ -106,14 +119,14 @@ class RabbitMQEventBus {
    * @param {string}   [queueName] - Override queue name (defaults to eventType-derived)
    */
   async subscribe(eventType, handler, queueName) {
-    if (typeof eventType !== 'string' || !eventType) {
-      throw new Error('eventType must be a non-empty string');
+    if (typeof eventType !== "string" || !eventType) {
+      throw new Error("eventType must be a non-empty string");
     }
-    if (typeof handler !== 'function') {
-      throw new Error('handler must be a function');
+    if (typeof handler !== "function") {
+      throw new Error("handler must be a function");
     }
 
-    const resolvedQueue = queueName || `sub.${eventType.replace(/\./g, '-')}`;
+    const resolvedQueue = queueName || `sub.${eventType.replace(/\./g, "-")}`;
     const sub = { eventType, queueName: resolvedQueue, handler };
     this._subscribers.push(sub);
 
@@ -127,8 +140,8 @@ class RabbitMQEventBus {
     const q = await this.channel.assertQueue(queueName, {
       durable: true,
       arguments: {
-        'x-dead-letter-exchange': DLX_EXCHANGE,
-        'x-message-ttl': 7 * 24 * 60 * 60 * 1000, // auto-expire after 7 days
+        "x-dead-letter-exchange": DLX_EXCHANGE,
+        "x-message-ttl": 7 * 24 * 60 * 60 * 1000, // auto-expire after 7 days
       },
     });
     await this.channel.bindQueue(q.queue, EXCHANGE, eventType);
@@ -142,14 +155,18 @@ class RabbitMQEventBus {
           await handler(event);
           this.channel.ack(msg);
         } catch (error) {
-          logger.error('RabbitMQ handler error', {
+          logger.error("RabbitMQ handler error", {
             eventType,
             error: error.message,
             queue: queueName,
           });
           // nack without requeue → routed to DLX
           this.channel.nack(msg, false, false);
-          this._deadLetterQueue.push({ event, error: error.message, failedAt: new Date() });
+          this._deadLetterQueue.push({
+            event,
+            error: error.message,
+            failedAt: new Date(),
+          });
         }
       },
       { noAck: false },
@@ -163,15 +180,15 @@ class RabbitMQEventBus {
    * @param {object} event - Must have eventType or type property
    */
   async publish(event) {
-    if (!event || typeof event !== 'object') {
-      throw new Error('event must be a non-null object');
+    if (!event || typeof event !== "object") {
+      throw new Error("event must be a non-null object");
     }
     const eventType = event.eventType || event.type;
     if (!eventType) {
-      throw new Error('event must have an eventType or type property');
+      throw new Error("event must have an eventType or type property");
     }
     if (!this.channel) {
-      logger.warn('RabbitMQ publish skipped: not connected', { eventType });
+      logger.warn("RabbitMQ publish skipped: not connected", { eventType });
       return;
     }
     const content = Buffer.from(JSON.stringify(event));
@@ -224,9 +241,9 @@ class RabbitMQEventBus {
         await this.connection.close();
         this.connection = null;
       }
-      logger.info('RabbitMQ connection closed gracefully');
+      logger.info("RabbitMQ connection closed gracefully");
     } catch (err) {
-      logger.warn('RabbitMQ close error (ignored)', { error: err.message });
+      logger.warn("RabbitMQ close error (ignored)", { error: err.message });
     }
   }
 
@@ -235,10 +252,10 @@ class RabbitMQEventBus {
   _safeUrl() {
     try {
       const u = new URL(this.config.url);
-      u.password = '***';
+      u.password = "***";
       return u.toString();
     } catch {
-      return '<unparseable url>';
+      return "<unparseable url>";
     }
   }
 }

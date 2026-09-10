@@ -69,14 +69,25 @@ export default function CategoryPage() {
       {!isLoading && !error && (
         <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {displayProducts.map((product) => (
-            <Link key={product.id} to={`/products/${product.id}`} className="block">
+            <Link
+              key={product.id}
+              to={`/products/${product.id}`}
+              className="block"
+            >
               <Card className="h-full hover:-translate-y-1">
                 <p className="font-heading text-2xl font-semibold tracking-tight text-slate-950">
                   {product.name}
                 </p>
-                <p className="mt-3 text-sm text-slate-500">{product.brand || "No brand"}</p>
+                <p className="mt-3 text-sm text-slate-500">
+                  {product.brand || "No brand"}
+                </p>
                 <p className="mt-3 text-sm font-semibold text-slate-950">
-                  {formatPrice(product.min_price ?? product.base_price ?? product.price ?? 0)}
+                  {formatPrice(
+                    product.min_price ??
+                      product.base_price ??
+                      product.price ??
+                      0,
+                  )}
                 </p>
               </Card>
             </Link>

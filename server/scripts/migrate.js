@@ -38,7 +38,7 @@ async function main() {
 
     if (mode === "initial") {
       await runInitialBaselineMigration();
-      process.exit(0);
+      process.exit(process.exitCode || 0);
     }
 
     if (mode === "rollback") {

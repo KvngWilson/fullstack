@@ -333,8 +333,8 @@ class VendorApplicationService {
           {
             storeName: application.store_name,
             contactPerson: application.contact_person,
-            loginUrl: `${process.env.APP_URL || "http://localhost:5000"}/login`,
-            dashboardUrl: `${process.env.APP_URL || "http://localhost:5000"}/vendor/dashboard`,
+            loginUrl: `${process.env.API_URL || "http://localhost:5000"}/login`,
+            dashboardUrl: `${process.env.API_URL || "http://localhost:5000"}/vendor/dashboard`,
           },
         );
       } catch (emailError) {
@@ -402,7 +402,7 @@ class VendorApplicationService {
         {
           storeName: application.store_name,
           reason,
-          reapplyUrl: `${process.env.APP_URL || "http://localhost:5000"}/vendor/apply`,
+          reapplyUrl: `${process.env.API_URL || "http://localhost:5000"}/vendor/apply`,
         },
       );
     } catch (emailError) {
@@ -445,7 +445,7 @@ class VendorApplicationService {
           storeName: application.store_name,
           contactPerson: application.contact_person,
           message,
-          updateUrl: `${process.env.APP_URL || "http://localhost:5000"}/vendor/application/${applicationId}`,
+          updateUrl: `${process.env.API_URL || "http://localhost:5000"}/vendor/application/${applicationId}`,
         },
       );
     } catch (emailError) {
@@ -485,7 +485,7 @@ class VendorApplicationService {
             storeName: application.store_name,
             applicantEmail: application.email,
             applicationId: application.id,
-            reviewUrl: `${process.env.APP_URL || "http://localhost:5000"}/admin/vendor-applications/${application.id}`,
+            reviewUrl: `${process.env.API_URL || "http://localhost:5000"}/admin/vendor-applications/${application.id}`,
           },
         );
       }

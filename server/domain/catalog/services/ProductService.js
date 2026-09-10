@@ -126,14 +126,16 @@ class ProductService extends BaseService {
       await this.validatePermission(employeeId, PERMISSIONS.PRODUCT.DELETE);
     }
 
-    await productRepository.delete(id, employeeId);
+    const deleted = await productRepository.delete(id, employeeId);
 
     // Audit log
-    if (employeeId) {
+    if (employeeId && deleted) {
       await this.auditLog(employeeId, "product:delete", "product", id, {
         deleted: true,
       });
     }
+
+    return deleted;
   }
 
   async count(filters = {}) {

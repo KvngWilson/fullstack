@@ -1,53 +1,116 @@
-Update All Route/Controller Middleware Usage (if needed):
+# API Endpoints
 
-Double-check that all routes and controllers use the new unified auth middleware from server/core/auth (most direct imports are already updated, but review for any custom or legacy usage).
+This is the current endpoint surface exposed by the backend.
 
-Test and Validate:
+## Public / browser-facing
 
-Run backend E2E, integration, and unit tests from the server directory to ensure all authentication and security changes work as expected.
-Run frontend E2E and unit tests to confirm no regressions in auth flows.
+### Auth
+- `GET /api/v1/auth/csrf-token`
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh-token`
+- `GET /api/v1/auth/verify-email`
+- `POST /api/v1/auth/forgot-password`
+- `POST /api/v1/auth/reset-password`
+- `POST /api/v1/auth/change-password`
+- `GET /api/v1/auth/sessions`
+- `POST /api/v1/auth/logout`
+- `POST /api/v1/auth/logout-all`
 
-Update Documentation:
+### Catalog
+- `GET /api/v1/catalog/products`
+- `GET /api/v1/catalog/products/:productId`
+- `GET /api/v1/catalog/categories`
+- `GET /api/v1/catalog/products/featured`
 
-Document the new single-source auth module and security requirements (secrets, CSP) in your project README or developer docs.
+### Ordering
+- `GET /api/v1/ordering/cart`
+- `POST /api/v1/ordering/cart`
+- `PATCH /api/v1/ordering/cart/items/:itemId`
+- `DELETE /api/v1/ordering/cart/items/:itemId`
+- `GET /api/v1/ordering/orders/my-orders`
+- `GET /api/v1/ordering/orders/:orderId`
+- `DELETE /api/v1/ordering/orders/:orderId`
+- `POST /api/v1/checkout/guest/init`
+- `GET /api/v1/checkout/guest/session`
+- `POST /api/v1/checkout/guest/session`
+- `POST /api/v1/checkout/guest/finalize`
+- `POST /api/v1/checkout/guest/convert`
+- `GET /api/v1/guest/cart`
+- `POST /api/v1/guest/cart/add`
+- `PATCH /api/v1/guest/cart/:productVariantId`
+- `DELETE /api/v1/guest/cart/:productVariantId`
+- `POST /api/v1/guest/cart/validate`
 
-CI/CD Pipeline:
+### Payments
+- `GET /api/v1/payments`
+- `POST /api/v1/payments`
+- `GET /api/v1/payments/:paymentId`
+- `GET /api/v1/payments/verify/:reference`
+- `POST /api/v1/payments/refunds`
+- `GET /api/v1/payments/refunds/:refundId`
 
-Ensure CI/CD is updated to require secrets in production and to fail if any are missing.
-Add/verify a CI job that runs all tests with live Postgres/Redis (using docker-compose.test.yml).
+### Wishlist
+- `GET /api/v1/wishlist`
+- `POST /api/v1/wishlist`
+- `GET /api/v1/wishlist/check/:product_id`
+- `DELETE /api/v1/wishlist/:product_id`
+- `DELETE /api/v1/wishlist`
 
-Production Secrets:
+### Vendor
+- `POST /api/v1/vendors/applications`
+- `GET /api/v1/vendors/onboarding`
+- `POST /api/v1/vendors/verification`
+- `GET /api/v1/vendors/earnings`
+- `POST /api/v1/vendors/payouts`
+- `GET /api/v1/vendors/payouts/history`
 
-Set strong secrets in your production environment (no defaults).
-Validate that the app fails to start in production if secrets are missing.
+## Admin
 
-Manual QA:
+### Admin auth and SSR
+- `POST /api/v1/admin/auth/login`
+- `POST /api/v1/admin/auth/logout`
+- `GET /api/v1/admin/ssr/dashboard`
+- `GET /api/v1/admin/ssr/hydration`
+- `GET /api/v1/admin/ssr/ui-config`
+- `POST /api/v1/admin/ssr/validate-resource`
 
-Manually test SSR (EJS) and React auth flows, including admin and guest scenarios, to confirm compatibility.
+### Admin operations
+- `GET /api/v1/admin/jobs/status`
+- `GET /api/v1/admin/jobs/:jobName/status`
+- `POST /api/v1/admin/jobs/:jobName/trigger`
+- `POST /api/v1/admin/jobs/exchange-rates/refresh`
+- `GET /api/v1/admin/exchange-rates/current/:from/:to`
+- `GET /api/v1/admin/permissions`
+- `GET /api/v1/admin/roles`
+- `POST /api/v1/admin/roles`
+- `GET /api/v1/admin/audit-logs`
+- `GET /api/v1/admin/employees`
+- `POST /api/v1/admin/uploads`
+- `GET /api/v1/admin/translations/languages`
+- `GET /api/v1/admin/products/vendors`
 
-```mermaid
-flowchart TD
-    A[Component/Service] --> B[Endpoint Module]
-    B --> C["apiClient (Axios)"]
-    C --> D[Request Interceptors]
-    D --> E[Backend API]
-    E --> F[Response Interceptors]
-    F --> G[Normalized Data/Error]
-    G --> A
+## Health / ops
 
-    subgraph "Request Interceptors"
-      D1[s16]
-      D2[s17]
-      D3[CSRF Token]
-      D4[s18]
-      D1 --> D2 --> D3 --> D4
-    end
+- `GET /health`
+- `GET /health/detailed`
+- `GET /health/ready`
+- `GET /health/live`
+- `GET /metrics`
+- `GET /api-docs`
 
-    subgraph "Response Interceptors"
-      F1[Auth Retry]
-      F2[s19]
-      F3[CSRF Rotation]
-      F4[s20]
-      F1 --> F2 --> F3 --> F4
-    end
-```
+## WebSocket
+
+- Socket.IO path: `/socket.io/`
+- Events:
+  - `subscribe:order`
+  - `unsubscribe:order`
+  - `subscribe:admin-dashboard`
+  - `order:status-updated`
+  - `admin:order-status-changed`
+
+## Notes
+
+- Browser auth uses httpOnly cookies.
+- State-changing routes remain CSRF-protected.
+- Exact route guards vary by controller and role.

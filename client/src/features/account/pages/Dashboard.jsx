@@ -1,6 +1,7 @@
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useAppSelector } from "@/store";
 import { selectUser } from "@/features/auth/authSelectors";
+import { getPostLoginPath } from "@/features/auth/getPostLoginPath";
 import AccountHeader from "@/components/layout/AccountHeader";
 import { Card } from "@/components/ui";
 
@@ -24,6 +25,11 @@ const quickLinks = [
 
 export default function Dashboard() {
   const user = useAppSelector(selectUser);
+
+  const workspacePath = getPostLoginPath(user?.role);
+  if (workspacePath !== "/dashboard") {
+    return <Navigate to={workspacePath} replace />;
+  }
 
   return (
     <div className="landing-container section-wrap">

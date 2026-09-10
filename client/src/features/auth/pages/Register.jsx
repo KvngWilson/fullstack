@@ -9,6 +9,7 @@ import {
   selectAuthIsLoading,
   selectAuthUser,
 } from "@/features/auth/authSelectors";
+import { getPostLoginPath } from "@/features/auth/getPostLoginPath";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { ErrorState } from "@/components/common/AsyncState";
@@ -43,7 +44,7 @@ export default function Register() {
 
   useEffect(() => {
     if (user?.id) {
-      navigate("/dashboard");
+      navigate(getPostLoginPath(user.role));
     }
   }, [user, navigate]);
 
@@ -97,7 +98,7 @@ export default function Register() {
     setFormData({ localError: "" });
     const result = await dispatch(registerThunk(payload));
     if (result.meta.requestStatus === "fulfilled") {
-      navigate("/dashboard");
+      navigate(getPostLoginPath(result.payload?.user?.role));
       return;
     }
 
@@ -134,8 +135,8 @@ export default function Register() {
                 Build a smoother, more personalized shopping experience.
               </h1>
               <p className="mt-5 text-sm leading-7 text-slate-200">
-                Join Dealport to keep your dashboard, saved items, and checkout history in a
-                clean, modern workspace.
+                Join Dealport to keep your dashboard, saved items, and checkout
+                history in a clean, modern workspace.
               </p>
             </div>
 
@@ -262,7 +263,7 @@ export default function Register() {
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  {t("auth.fields.password")}
+                  {t("auth.fields.passwordLabel")}
                 </label>
                 <div className="relative">
                   <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -272,7 +273,7 @@ export default function Register() {
                     id="password"
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder={t("auth.fields.passwordPlaceholder")}
+                    placeholder={t("auth.fields.passwordPlaceholderText")}
                     required
                     className="pl-11"
                   />
@@ -296,7 +297,7 @@ export default function Register() {
                     id="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    placeholder={t("auth.fields.passwordPlaceholder")}
+                    placeholder={t("auth.fields.passwordPlaceholderText")}
                     required
                     className="pl-11"
                   />
@@ -329,15 +330,35 @@ export default function Register() {
                 </label>
               </div>
 
-              <Button type="submit" className="mt-2 w-full" size="lg" disabled={isLoading}>
-                {isLoading ? t("auth.register.loading") : t("auth.register.submit")}
+              <Button
+                type="submit"
+                className="mt-2 w-full"
+                size="lg"
+                disabled={isLoading}
+              >
+                {isLoading
+                  ? t("auth.register.loading")
+                  : t("auth.register.submit")}
               </Button>
             </form>
 
             <div className="mt-6 text-center text-sm text-slate-500">
               {t("auth.register.hasAccount")}{" "}
-              <Link to="/login" className="font-semibold text-sky-600 hover:text-sky-700">
+              <Link
+                to="/login"
+                className="font-semibold text-sky-600 hover:text-sky-700"
+              >
                 {t("auth.login.submit")}
+              </Link>
+            </div>
+
+            <div className="mt-3 text-center text-sm text-slate-500">
+              Looking to open a store?{" "}
+              <Link
+                to="/vendor/apply"
+                className="font-semibold text-sky-600 hover:text-sky-700"
+              >
+                Start a vendor application
               </Link>
             </div>
 

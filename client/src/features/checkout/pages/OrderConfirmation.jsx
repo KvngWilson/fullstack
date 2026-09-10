@@ -13,7 +13,8 @@ export default function OrderConfirmation() {
   const orderId = searchParams.get("order_id");
   const status = searchParams.get("status");
   const processor = searchParams.get("processor");
-  const reference = searchParams.get("reference") || searchParams.get("session_id");
+  const reference =
+    searchParams.get("reference") || searchParams.get("session_id");
 
   const shouldVerify = useMemo(
     () => status === "success" && Boolean(reference),
@@ -34,7 +35,8 @@ export default function OrderConfirmation() {
         const result = await paymentsService.verifyPaymentStatus(reference);
         if (!isActive) return;
 
-        const normalizedStatus = result?.status || result?.data?.status || "succeeded";
+        const normalizedStatus =
+          result?.status || result?.data?.status || "succeeded";
         setPaymentStatus(normalizedStatus);
         setVerificationStatus("success");
       } catch {
@@ -66,7 +68,9 @@ export default function OrderConfirmation() {
 
       <Card className="mt-8">
         {isCancelled ? (
-          <p className="text-sm text-red-600">{t("orderConfirmation.cancelled")}</p>
+          <p className="text-sm text-red-600">
+            {t("orderConfirmation.cancelled")}
+          </p>
         ) : (
           <>
             <p className="text-sm leading-6 text-slate-500">
@@ -77,10 +81,13 @@ export default function OrderConfirmation() {
             </p>
 
             {verificationStatus === "loading" && (
-              <p className="mt-4 text-sm text-slate-500">{t("orderConfirmation.verifying")}</p>
+              <p className="mt-4 text-sm text-slate-500">
+                {t("orderConfirmation.verifying")}
+              </p>
             )}
 
-            {(verificationStatus === "success" || verificationStatus === "error") && (
+            {(verificationStatus === "success" ||
+              verificationStatus === "error") && (
               <p className="mt-4 text-sm text-slate-500">
                 {t("orderConfirmation.paymentStatus", {
                   status: paymentStatus || t("common.pending"),

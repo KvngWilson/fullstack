@@ -1,6 +1,6 @@
 /**
  * WebSocket Manager
- * 
+ *
  * Centralized manager for all WebSocket operations using Socket.IO
  * Handles real-time communication for order tracking, notifications, and live updates.
  * Uses Redis adapter for horizontal scaling across multiple processes.
@@ -8,13 +8,15 @@
 const socketIO = require("socket.io");
 const { createAdapter } = require("@socket.io/redis-adapter");
 const redis = require("redis");
-const logger = require("../../config/logger");
+const logger = require("../../shared/utils/logger");
+const verifyToken = require("../../core/auth/verifyToken");
 
 class WebSocketManager {
-  constructor(httpServer, redisClient) {
+  constructor(httpServer, redisClient, dbPool = null) {
     this.io = null;
     this.httpServer = httpServer;
     this.redisClient = redisClient;
+    this.dbPool = dbPool;
     this.redisSubscriber = null;
     this.authenticatedUsers = new Map(); // userId -> Set of socketIds
   }
@@ -27,7 +29,7 @@ class WebSocketManager {
       // Create Socket.IO instance
       this.io = socketIO(this.httpServer, {
         cors: {
-          origin: process.env.FRONTEND_URL || "http://localhost:3000",
+          origin: process.env.FRONTEND_URL || "http://localhost:5173",
           credentials: true,
           methods: ["GET", "POST"],
         },
@@ -40,17 +42,16 @@ class WebSocketManager {
 
       // Create Redis subscriber for adapter
       this.redisSubscriber = redis.createClient({
-        url: process.env.REDIS_URL || 
-             `redis://:${process.env.REDIS_PASSWORD || ""}@${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`,
+        url:
+          process.env.REDIS_URL ||
+          `redis://:${process.env.REDIS_PASSWORD || ""}@${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`,
         db: parseInt(process.env.REDIS_DB || "0"),
       });
 
       await this.redisSubscriber.connect();
 
       // Use Redis adapter for multi-process support
-      this.io.adapter(
-        createAdapter(this.redisClient, this.redisSubscriber)
-      );
+      this.io.adapter(createAdapter(this.redisClient, this.redisSubscriber));
 
       this._setupMiddleware();
       this._setupEventHandlers();
@@ -70,20 +71,33 @@ class WebSocketManager {
     // Authentication middleware
     this.io.use(async (socket, next) => {
       try {
-        const token = socket.handshake.auth.token;
-        if (!token) {
-          const userId = socket.handshake.auth.guestId;
-          socket.userId = userId; // For guest tracking
+        const token =
+          socket.handshake.auth?.token ||
+          this._extractCookieValue(socket.handshake.headers?.cookie, "token") ||
+          this._extractCookieValue(
+            socket.handshake.headers?.cookie,
+            "access_token",
+          );
+
+        if (token) {
+          const payload = await this._verifyToken(token);
+          if (!payload?.id) {
+            throw new Error("Invalid token");
+          }
+
+          socket.userId = Number(payload.id);
+          socket.isGuest = false;
+          return next();
+        }
+
+        const guestId = socket.handshake.auth?.guestId;
+        if (guestId) {
+          socket.userId = guestId;
           socket.isGuest = true;
           return next();
         }
 
-        // Verify JWT token (simplified - in production, use proper JWT verification)
-        // For now, assume token is valid and contains userId
-        const payload = this._decodeToken(token);
-        socket.userId = payload.userId;
-        socket.isGuest = false;
-        next();
+        throw new Error("Authentication required");
       } catch (error) {
         logger.error("WebSocket authentication failed", { error });
         next(new Error("Authentication failed"));
@@ -96,7 +110,10 @@ class WebSocketManager {
    */
   _setupEventHandlers() {
     this.io.on("connection", (socket) => {
-      logger.debug("Client connected", { socketId: socket.id, userId: socket.userId });
+      logger.debug("Client connected", {
+        socketId: socket.id,
+        userId: socket.userId,
+      });
 
       // Track authenticated user
       if (socket.userId) {
@@ -107,12 +124,23 @@ class WebSocketManager {
 
         // Join user-specific room for targeted updates
         socket.join(`user:${socket.userId}`);
+
+        this._trackSocketConnection(socket).catch((error) => {
+          logger.warn("Failed to persist websocket connection", {
+            socketId: socket.id,
+            userId: socket.userId,
+            error: error.message,
+          });
+        });
       }
 
       // Handle order tracking subscription
       socket.on("subscribe:order", (orderId, callback) => {
         socket.join(`order:${orderId}`);
-        logger.debug("User subscribed to order updates", { orderId, userId: socket.userId });
+        logger.debug("User subscribed to order updates", {
+          orderId,
+          userId: socket.userId,
+        });
         callback({ success: true });
       });
 
@@ -141,6 +169,14 @@ class WebSocketManager {
             }
           }
         }
+
+        this._markSocketDisconnected(socket.id).catch((error) => {
+          logger.warn("Failed to persist websocket disconnection", {
+            socketId: socket.id,
+            error: error.message,
+          });
+        });
+
         logger.debug("Client disconnected", { socketId: socket.id });
       });
 
@@ -149,6 +185,82 @@ class WebSocketManager {
         logger.error("WebSocket error", { socketId: socket.id, error });
       });
     });
+  }
+
+  _extractCookieValue(cookieHeader, name) {
+    if (!cookieHeader) {
+      return null;
+    }
+
+    const match = cookieHeader
+      .split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith(`${name}=`));
+
+    if (!match) {
+      return null;
+    }
+
+    return decodeURIComponent(match.slice(name.length + 1));
+  }
+
+  async _verifyToken(token) {
+    const payload = await verifyToken(token);
+    if (!payload?.id) {
+      throw new Error("Invalid token");
+    }
+
+    return payload;
+  }
+
+  async _trackSocketConnection(socket) {
+    if (!this.io || !socket.userId || socket.isGuest) {
+      return;
+    }
+
+    const userId = Number(socket.userId);
+    if (!Number.isFinite(userId)) {
+      return;
+    }
+
+    if (!this.dbPool) {
+      return;
+    }
+
+    await this.dbPool.query(
+      `INSERT INTO websocket_sessions (
+        id,
+        user_id,
+        socket_id,
+        connected_at,
+        disconnected_at,
+        is_active
+      ) VALUES ($1, $2, $3, NOW(), NULL, true)
+      ON CONFLICT (id) DO UPDATE SET
+        user_id = EXCLUDED.user_id,
+        socket_id = EXCLUDED.socket_id,
+        connected_at = EXCLUDED.connected_at,
+        disconnected_at = NULL,
+        is_active = true`,
+      [socket.id, userId, socket.id],
+    );
+  }
+
+  async _markSocketDisconnected(socketId) {
+    if (!socketId) {
+      return;
+    }
+
+    if (!this.dbPool) {
+      return;
+    }
+
+    await this.dbPool.query(
+      `UPDATE websocket_sessions
+       SET disconnected_at = NOW(), is_active = false
+       WHERE id = $1`,
+      [socketId],
+    );
   }
 
   /**
@@ -175,9 +287,14 @@ class WebSocketManager {
     this.io.to(`order:${orderId}`).emit("order:status-updated", payload);
 
     // Emit to user's dashboard
-    this.io.to(`user:${statusChangeEvent.userId}`).emit("order:status-updated", payload);
+    this.io
+      .to(`user:${statusChangeEvent.userId}`)
+      .emit("order:status-updated", payload);
 
-    logger.debug("Order status update emitted", { orderId, newStatus: statusChangeEvent.newStatus });
+    logger.debug("Order status update emitted", {
+      orderId,
+      newStatus: statusChangeEvent.newStatus,
+    });
   }
 
   /**
@@ -201,7 +318,7 @@ class WebSocketManager {
    */
   emitToUsers(userIds, eventType, data) {
     if (!this.io) return;
-    userIds.forEach(userId => {
+    userIds.forEach((userId) => {
       this.io.to(`user:${userId}`).emit(eventType, data);
     });
   }
@@ -218,26 +335,6 @@ class WebSocketManager {
    */
   isUserConnected(userId) {
     return this.authenticatedUsers.has(userId);
-  }
-
-  /**
-   * Simplified token decoder (in production, use proper JWT verification)
-   */
-  _decodeToken(token) {
-    try {
-      // This is a placeholder - implement proper JWT verification
-      const base64Url = token.split(".")[1];
-      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split("")
-          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-          .join("")
-      );
-      return JSON.parse(jsonPayload);
-    } catch (error) {
-      throw new Error("Invalid token");
-    }
   }
 
   /**

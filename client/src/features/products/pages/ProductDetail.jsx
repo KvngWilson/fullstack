@@ -13,6 +13,7 @@ import { selectCartIsLoading } from "@/features/cart/cartSelectors";
 import WishlistButton from "@/features/wishlist/components/WishlistButton";
 import { EmptyState, ErrorState } from "@/components/common/AsyncState";
 import { Skeleton, TextBlockSkeleton } from "@/components/common/Skeleton";
+import { resolveAssetUrl } from "@/utils/resolveAssetUrl";
 import { notifySuccess } from "@/utils/toast";
 import { Button, Card, Input } from "@/components/ui";
 
@@ -73,7 +74,9 @@ export default function ProductDetail() {
         variant_id: defaultVariantId,
         quantity: Math.max(1, Number(quantity) || 1),
         product_name: displayProduct?.name,
-        price: Number(displayProduct?.base_price ?? displayProduct?.price ?? 49.99),
+        price: Number(
+          displayProduct?.base_price ?? displayProduct?.price ?? 49.99,
+        ),
       }),
     );
 
@@ -86,7 +89,7 @@ export default function ProductDetail() {
     <div className="landing-container section-wrap">
       {isLoading && (
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
-          <Skeleton className="h-[520px] w-full rounded-section" />
+          <Skeleton className="h-130 w-full rounded-section" />
           <div className="space-y-4">
             <Skeleton className="h-4 w-1/4 rounded-full" />
             <Skeleton className="h-12 w-2/3 rounded-full" />
@@ -107,10 +110,11 @@ export default function ProductDetail() {
       {!isLoading && displayProduct && (
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
           <Card padding="none" className="overflow-hidden">
-            <div className="relative h-full min-h-[440px] bg-[linear-gradient(180deg,#f8fafc,#e2e8f0)]">
+            <div className="relative h-full min-h-110 bg-[linear-gradient(180deg,#f8fafc,#e2e8f0)]">
               <img
                 src={
-                  displayProduct.image_url || "https://via.placeholder.com/600x600?text=No+Image"
+                  resolveAssetUrl(displayProduct.image_url) ||
+                  "https://via.placeholder.com/600x600?text=No+Image"
                 }
                 alt={displayProduct.name}
                 className="h-full w-full object-cover"
@@ -133,7 +137,9 @@ export default function ProductDetail() {
               </div>
 
               <p className="mt-5 text-3xl font-bold text-slate-950">
-                {formatPrice(displayProduct.base_price ?? displayProduct.price ?? 0)}
+                {formatPrice(
+                  displayProduct.base_price ?? displayProduct.price ?? 0,
+                )}
               </p>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-3">
@@ -142,7 +148,9 @@ export default function ProductDetail() {
                     key={label}
                     className="rounded-card border border-slate-100 bg-slate-50/90 px-4 py-4 text-sm font-medium text-slate-600"
                   >
-                    {createElement(icon, { className: "mb-3 h-4 w-4 text-sky-600" })}
+                    {createElement(icon, {
+                      className: "mb-3 h-4 w-4 text-sky-600",
+                    })}
                     {label}
                   </div>
                 ))}
@@ -157,24 +165,25 @@ export default function ProductDetail() {
                 </p>
               </div>
 
-              {displayProduct.variants && displayProduct.variants.length > 0 && (
-                <div className="mt-8">
-                  <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">
-                    Available variants
-                  </h3>
-                  <div className="mt-4 flex flex-wrap gap-sm">
-                    {displayProduct.variants.map((variant) => (
-                      <div
-                        key={variant.id}
-                        className="rounded-full border border-slate-200/80 bg-white px-4 py-2 text-sm font-medium text-slate-700"
-                      >
-                        {variant.sku}
-                        {variant.price && ` - ${formatPrice(variant.price)}`}
-                      </div>
-                    ))}
+              {displayProduct.variants &&
+                displayProduct.variants.length > 0 && (
+                  <div className="mt-8">
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">
+                      Available variants
+                    </h3>
+                    <div className="mt-4 flex flex-wrap gap-sm">
+                      {displayProduct.variants.map((variant) => (
+                        <div
+                          key={variant.id}
+                          className="rounded-full border border-slate-200/80 bg-white px-4 py-2 text-sm font-medium text-slate-700"
+                        >
+                          {variant.sku}
+                          {variant.price && ` - ${formatPrice(variant.price)}`}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
 
             {defaultVariantId ? (
@@ -210,7 +219,8 @@ export default function ProductDetail() {
               </Card>
             ) : (
               <div className="rounded-section border border-amber-100 bg-amber-50/90 p-5 text-sm text-amber-900">
-                This product is not available for purchase yet (no variants available).
+                This product is not available for purchase yet (no variants
+                available).
               </div>
             )}
 
@@ -218,7 +228,9 @@ export default function ProductDetail() {
               <div className="space-y-4 text-sm text-slate-600">
                 <div className="flex justify-between gap-4">
                   <span>SKU</span>
-                  <span className="font-medium text-slate-900">{displayProduct.sku || "N/A"}</span>
+                  <span className="font-medium text-slate-900">
+                    {displayProduct.sku || "N/A"}
+                  </span>
                 </div>
                 <div className="flex justify-between gap-4">
                   <span>Category</span>
@@ -229,7 +241,9 @@ export default function ProductDetail() {
                 {displayProduct.weight && (
                   <div className="flex justify-between gap-4">
                     <span>Weight</span>
-                    <span className="font-medium text-slate-900">{displayProduct.weight} lbs</span>
+                    <span className="font-medium text-slate-900">
+                      {displayProduct.weight} lbs
+                    </span>
                   </div>
                 )}
               </div>

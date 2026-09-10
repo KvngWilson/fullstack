@@ -1,0 +1,61 @@
+project_id = "your-gcp-project-id"
+
+# Optional auth override. Either set raw JSON or a local file path.
+# Leave empty to use Application Default Credentials.
+gcp_svc_key = ""
+
+region      = "us-east1"
+zone        = "us-east1-b"
+environment = "dev"
+
+name_prefix  = "fullstack"
+cluster_name = "fullstack-dev-gke"
+
+network_cidr      = "10.50.0.0/20"
+pods_cidr         = "10.60.0.0/16"
+services_cidr     = "10.70.0.0/20"
+master_ipv4_cidr  = "172.16.0.0/28"
+
+machine_type   = "e2-standard-4"
+disk_type      = "pd-balanced"
+disk_size_gb   = 100
+node_count     = 1
+node_min_count = 1
+node_max_count = 4
+
+# Optional. Leave empty to let GKE choose zones within the region.
+node_locations = []
+
+enable_private_endpoint    = false
+enable_private_nodes       = true
+maintenance_window_start   = "03:00"
+enable_deletion_protection = true
+
+# Set these to false/use existing resources when your IAM principal cannot create
+# VPCs, subnets, routers, NATs, or service accounts.
+create_network_resources     = true
+create_node_service_account  = true
+manage_node_service_account_iam     = true
+existing_network_name               = null
+existing_subnetwork_name            = null
+existing_pods_range_name            = null
+existing_services_range_name        = null
+existing_node_service_account_email = null
+
+master_authorized_networks = [
+  {
+    cidr_block   = "203.0.113.0/24"
+    display_name = "replace-with-admin-network"
+  }
+]
+
+tags = {
+  app = "fullstack"
+}
+
+# Optional Cloud DNS (public zone)
+# enable_cloud_dns = true
+# dns_use_existing_managed_zone = false
+# dns_domain_name = "example.com"
+# dns_existing_zone_name = "example-com"
+# dns_record_ipv4_addresses = ["203.0.113.10"]

@@ -528,7 +528,7 @@ class CheckoutService {
       orderId,
       refundAmount: refundMinorUnits,
       currency: order.currency,
-      exchangeRateUsed: order.exchange_rate,
+      exchangeRateUsed: order.exchangeRateAtTime,
       processedAt: new Date(),
     };
 

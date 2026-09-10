@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: fullstack-k8s
+resources:
+  - namespace.yaml
+  - app-configmap.yaml
+  - app-secrets.yaml
+  - gateway-nginx-config.yaml
+  - mail-tls.yaml
+  - poddisruptionbudgets.yaml
+  - networkpolicies.yaml
+  - postgres.yaml
+  - redis.yaml
+  - rabbitmq.yaml
+  - mailhog.yaml
+  - server.yaml
+  - worker.yaml
+  - client.yaml
+  - gateway.yaml

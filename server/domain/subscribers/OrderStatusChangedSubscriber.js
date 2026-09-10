@@ -63,6 +63,11 @@ class OrderStatusChangedSubscriber {
    */
   async _sendCustomerNotification(event) {
     try {
+      const normalizedStatus =
+        typeof event.getNormalizedStatus === "function"
+          ? event.getNormalizedStatus()
+          : event.newStatus;
+
       // Get order and user details
       const order = await this.orderRepository.findById(event.orderId);
       if (!order) return;
@@ -70,15 +75,17 @@ class OrderStatusChangedSubscriber {
       if (!user?.email) return;
 
       const emailTemplates = {
-        pending: "order-received",
-        processing: "order-processing",
-        paid: "payment-confirmed",
-        fulfilled: "order-shipped",
-        cancelled: "order-cancelled",
-        refunded: "order-refunded",
+        pending: "orderReceived",
+        processing: "orderProcessing",
+        paid: "paymentConfirmed",
+        shipped: "orderShipped",
+        delivered: "orderDelivered",
+        fulfilled: "orderShipped",
+        cancelled: "orderCancelled",
+        refunded: "orderRefunded",
       };
 
-      const template = emailTemplates[event.newStatus];
+      const template = emailTemplates[normalizedStatus];
       if (!template) return;
 
       // Queue email job (via Bull job queue)
@@ -87,9 +94,10 @@ class OrderStatusChangedSubscriber {
         template,
         {
           orderNumber: order.id,
-          status: event.newStatus,
+          status: normalizedStatus,
           message: event.getStatusMessage(),
           reason: event.reason,
+          orderUrl: `${process.env.API_URL || "http://localhost:5000"}/orders/${order.id}`,
           ...order,
         },
       );
@@ -112,11 +120,16 @@ class OrderStatusChangedSubscriber {
    */
   async _broadcastToAdmin(event) {
     try {
+      const normalizedStatus =
+        typeof event.getNormalizedStatus === "function"
+          ? event.getNormalizedStatus()
+          : event.newStatus;
+
       this.websocketManager.broadcastToAdmin("order-status-changed", {
         orderId: event.orderId,
         userId: event.userId,
         previousStatus: event.previousStatus,
-        newStatus: event.newStatus,
+        newStatus: normalizedStatus,
         message: event.getStatusMessage(),
         priority: event.getNotificationPriority(),
         timestamp: event.occurredAt,
@@ -130,14 +143,20 @@ class OrderStatusChangedSubscriber {
    * Handle specific status transitions with side effects
    */
   async _handleStatusTransition(event) {
+    const normalizedStatus =
+      typeof event.getNormalizedStatus === "function"
+        ? event.getNormalizedStatus()
+        : event.newStatus;
     const handlers = {
       paid: () => this._handlePaymentConfirmed(event),
+      shipped: () => this._handleOrderFulfilled(event),
+      delivered: () => this._handleOrderDelivered(event),
       fulfilled: () => this._handleOrderFulfilled(event),
       refunded: () => this._handleOrderRefunded(event),
       cancelled: () => this._handleOrderCancelled(event),
     };
 
-    const handler = handlers[event.newStatus];
+    const handler = handlers[normalizedStatus];
     if (handler) {
       await handler();
     }
@@ -167,6 +186,18 @@ class OrderStatusChangedSubscriber {
       // Trigger review request email (after 2 days)
     } catch (error) {
       logger.error("Error handling order fulfilled", { error });
+    }
+  }
+
+  /**
+   * Handle order delivered
+   */
+  async _handleOrderDelivered(event) {
+    try {
+      logger.info("Handling order delivered", { orderId: event.orderId });
+      // Trigger post-delivery processes such as review requests or CSAT follow-ups.
+    } catch (error) {
+      logger.error("Error handling order delivered", { error });
     }
   }
 

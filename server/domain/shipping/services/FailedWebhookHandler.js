@@ -10,7 +10,7 @@
  */
 
 const logger = require('../../../shared/utils/logger');
-const MetricsRegistry = require('../../../infrastructure/metrics/MetricsRegistry');
+const MetricsRegistry = require("../../../infrastructure/observability/metrics/MetricsRegistry");
 const StructuredLogger = require('../../../infrastructure/logging/StructuredLogger');
 const { sendOpsAlert } = require('../../../infrastructure/notifications/alerts');
 
@@ -24,6 +24,16 @@ class FailedWebhookHandler {
     this.maxRetries = 3;
     this.baseDelayMs = 5000;
     this.backoffMultiplier = 2;
+
+    this.metricsRegistry.registerCounter(
+      'webhook_permanent_failure',
+      'Count of permanently failed webhook events',
+    );
+    this.metricsRegistry.registerCounter(
+      'webhook_failure_by_provider_total',
+      'Count of permanent webhook failures grouped by provider',
+      { labelNames: ['provider'] },
+    );
   }
 
   /**
@@ -189,7 +199,11 @@ class FailedWebhookHandler {
     this.structuredLogger.error('ALERT: Webhook permanently failed', alertContext, error);
 
     this.metricsRegistry.incrementCounter('webhook_permanent_failure', 1);
-    this.metricsRegistry.incrementCounter(`webhook_failure_by_provider_${event.provider}`, 1);
+    this.metricsRegistry.incrementCounter(
+      'webhook_failure_by_provider_total',
+      1,
+      { provider: event.provider },
+    );
 
     try {
       await sendOpsAlert({

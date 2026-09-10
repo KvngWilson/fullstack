@@ -1,5 +1,5 @@
-import { createElement } from "react";
-import { Link } from "react-router-dom";
+import { createElement, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
   Heart,
@@ -11,7 +11,11 @@ import {
   User,
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/store";
-import { selectIsAuthenticated, selectUser } from "@/features/auth/authSelectors";
+import {
+  selectIsAuthenticated,
+  selectUser,
+} from "@/features/auth/authSelectors";
+import { getPostLoginPath } from "@/features/auth/getPostLoginPath";
 import { logoutThunk } from "@/features/auth/authThunks";
 import { selectCartItemCount } from "@/features/cart/cartSelectors";
 import { selectWishlistCount } from "@/features/wishlist/wishlistSelectors";
@@ -33,6 +37,7 @@ const highlightPills = [
 
 export default function Header() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectUser);
   const cartItemCount = useAppSelector(selectCartItemCount);
@@ -47,6 +52,15 @@ export default function Header() {
     t,
     formatCurrency,
   } = useAppPreferences();
+  const [searchTerm, setSearchTerm] = useState("");
+  const workspacePath = getPostLoginPath(user?.role);
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+    const term = searchTerm.trim();
+    if (!term) return;
+    navigate(`/search?q=${encodeURIComponent(term)}`);
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full">
@@ -86,7 +100,12 @@ export default function Header() {
                 </option>
               ))}
             </select>
-            <span className="hidden md:inline-flex">24/7 style support</span>
+            <Link
+              to="/vendor/apply"
+              className="hidden rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/20 md:inline-flex"
+            >
+              Sell on Dealport
+            </Link>
           </div>
         </div>
       </div>
@@ -120,16 +139,24 @@ export default function Header() {
               </div>
 
               <div className="flex flex-1 flex-col gap-3 xl:mx-6 xl:max-w-3xl">
-                <div className="flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/92 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
+                <form
+                  className="flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/92 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]"
+                  onSubmit={handleSearchSubmit}
+                >
                   <Search className="h-4 w-4 text-slate-400" />
                   <input
                     className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
                     placeholder={t("header.searchPlaceholder")}
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
                   />
-                  <button className="btn-primary hidden min-w-[7rem] lg:inline-flex" type="button">
+                  <button
+                    className="btn-primary hidden min-w-28 lg:inline-flex"
+                    type="submit"
+                  >
                     {t("header.search")}
                   </button>
-                </div>
+                </form>
 
                 <div className="hidden flex-wrap items-center gap-2 lg:flex">
                   {highlightPills.map(({ icon, label }) => (
@@ -137,7 +164,9 @@ export default function Header() {
                       key={label}
                       className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-slate-50/85 px-3 py-1.5 text-xs font-semibold text-slate-600"
                     >
-                      {createElement(icon, { className: "h-3.5 w-3.5 text-sky-500" })}
+                      {createElement(icon, {
+                        className: "h-3.5 w-3.5 text-sky-500",
+                      })}
                       {label}
                     </span>
                   ))}
@@ -163,7 +192,10 @@ export default function Header() {
                 >
                   <span className="sr-only">{cartItemCount}</span>
                   <ShoppingCart className="h-4 w-4" />
-                  <span aria-label="cart-count" className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">
+                  <span
+                    aria-label="cart-count"
+                    className="rounded-full bg-slate-100 px-2 py-0.5 text-xs"
+                  >
                     {cartItemCount}
                   </span>
                   <span>{t("header.cart")}</span>
@@ -176,7 +208,7 @@ export default function Header() {
                     </span>
                     <div className="flex min-w-0 flex-col">
                       <Link
-                        to="/dashboard"
+                        to={workspacePath}
                         className="truncate text-sm font-semibold text-slate-900 hover:text-sky-600"
                       >
                         {user?.first_name || "Account"}
@@ -193,7 +225,7 @@ export default function Header() {
                     </div>
                   </div>
                 ) : (
-                  <Link to="/login" className="btn-primary min-w-[7.5rem]">
+                  <Link to="/login" className="btn-primary min-w-30">
                     Sign In
                   </Link>
                 )}

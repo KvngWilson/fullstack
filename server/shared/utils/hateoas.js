@@ -3,7 +3,7 @@
  * Adds navigation links to API responses for better discoverability
  */
 
-const BASE_URL = process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
+const BASE_URL = process.env.API_URL || `http://localhost:${process.env.PORT || 5000}`;
 
 /**
  * Generate a HATEOAS link object
@@ -40,8 +40,9 @@ function addOrderLinks(order, user) {
     links.push(createLink('update-status', `/api/v1/ordering/orders/${order.id}/status`, 'PATCH'));
   }
 
-  // Navigation links
-  links.push(createLink('customer', `/api/v1/identity/users/${order.user_id}`, 'GET'));
+  // Do not emit links to deprecated identity auth aliases here. The legacy
+  // /api/v1/identity/users/:id read route is not mounted, so advertising it
+  // would create a broken HATEOAS target.
   links.push(createLink('payment', `/api/v1/payments?order_id=${order.id}`, 'GET'));
 
   return {
@@ -57,13 +58,12 @@ function addOrderLinks(order, user) {
  */
 function addUserLinks(user) {
   const links = [
-    createLink('self', `/api/v1/identity/users/${user.id}`, 'GET'),
     createLink('profile', `/api/v1/identity/profile`, 'GET'),
     createLink('update', `/api/v1/identity/profile`, 'PATCH'),
     createLink('delete', `/api/v1/identity/profile`, 'DELETE'),
     createLink('addresses', `/api/v1/identity/profile/addresses`, 'GET'),
     createLink('orders', `/api/v1/ordering/orders?user_id=${user.id}`, 'GET'),
-    createLink('wishlist', `/api/v1/catalog/wishlist`, 'GET'),
+    createLink('wishlist', `/api/v1/wishlist`, 'GET'),
   ];
 
   return {
@@ -82,7 +82,7 @@ function addProductLinks(product, user) {
   const links = [
     createLink('self', `/api/v1/catalog/products/${product.id}`, 'GET'),
     createLink('add-to-cart', `/api/v1/ordering/cart`, 'POST'),
-    createLink('add-to-wishlist', `/api/v1/catalog/wishlist`, 'POST'),
+    createLink('add-to-wishlist', `/api/v1/wishlist`, 'POST'),
   ];
 
   if (user?.role === 'admin' || user?.role === 'vendor') {

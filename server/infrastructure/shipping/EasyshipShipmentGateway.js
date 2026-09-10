@@ -13,6 +13,7 @@ const easyship = require('@api/easyship');
 const logger = require('../../shared/utils/logger');
 const CircuitBreaker = require('../resilience/CircuitBreaker');
 const RateLimiter = require('../resilience/RateLimiter');
+const { withChildSpan } = require('../observability/tracing/tracingScope');
 
 class EasyshipShipmentGateway {
   constructor(defaultApiKey = null) {
@@ -66,10 +67,22 @@ class EasyshipShipmentGateway {
         destination: shipmentData.destination_address?.country_alpha2,
       });
 
-      const response = await this.circuitBreaker.execute(async () => {
-        await this.rateLimiter.acquireToken();
-        return easyship.shipments(shipmentData);
-      });
+      const response = await withChildSpan(
+        'external.easyship.shipments',
+        {
+          tags: {
+            'external.system': 'easyship',
+            'external.operation': 'shipments',
+            'vendor.id': vendorId || 'unknown',
+            'order.id': orderId || 'unknown',
+          },
+        },
+        () =>
+          this.circuitBreaker.execute(async () => {
+            await this.rateLimiter.acquireToken();
+            return easyship.shipments(shipmentData);
+          }),
+      );
 
       const normalizedShipment = this._normalizeShipmentResponse(
         response.data || response
@@ -198,10 +211,21 @@ class EasyshipShipmentGateway {
         easyship.auth(apiKey);
       }
 
-      const response = await this.circuitBreaker.execute(async () => {
-        await this.rateLimiter.acquireToken();
-        return easyship.shipment_id(shipmentId);
-      });
+      const response = await withChildSpan(
+        'external.easyship.shipment_id',
+        {
+          tags: {
+            'external.system': 'easyship',
+            'external.operation': 'shipment_id',
+            'shipment.id': shipmentId,
+          },
+        },
+        () =>
+          this.circuitBreaker.execute(async () => {
+            await this.rateLimiter.acquireToken();
+            return easyship.shipment_id(shipmentId);
+          }),
+      );
       return this._normalizeShipmentResponse(response.data || response);
     } catch (error) {
       logger.error('Failed to fetch shipment', {
@@ -236,13 +260,23 @@ class EasyshipShipmentGateway {
   async healthCheck() {
     try {
       // Try to fetch a known shipment or use rates as health check
-      await this.circuitBreaker.execute(async () => {
-        await this.rateLimiter.acquireToken();
-        return easyship.rates_request({
-          destination_address: { country_alpha2: 'US' },
-          parcels: [{ items: [] }],
-        });
-      });
+      await withChildSpan(
+        'external.easyship.shipment_health_check',
+        {
+          tags: {
+            'external.system': 'easyship',
+            'external.operation': 'health_check_rates',
+          },
+        },
+        () =>
+          this.circuitBreaker.execute(async () => {
+            await this.rateLimiter.acquireToken();
+            return easyship.rates_request({
+              destination_address: { country_alpha2: 'US' },
+              parcels: [{ items: [] }],
+            });
+          }),
+      );
 
       return { healthy: true, gateway: 'easyship-shipment' };
     } catch (error) {

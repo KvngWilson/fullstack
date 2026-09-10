@@ -1,653 +1,722 @@
 -- =====================================================
--- Seed Data (large sample) for current schema in queries.sql
+-- Seed data for the canonical tenant-aware marketplace schema
 -- =====================================================
--- Safe to re-run: truncates transactional/domain data and reseeds.
+-- This seed intentionally reflects the current baseline in
+-- server/infrastructure/database/migrations/025_consolidated_schema_baseline.sql
+-- and does not depend on the legacy single-tenant ecommerce schema.
 
 BEGIN;
 
--- =====================================================
--- Reset data (in dependency-safe order)
--- =====================================================
 TRUNCATE TABLE
   audit_logs,
-  vendor_staff,
   role_permissions,
+  vendor_staff,
+  permissions,
   roles,
+  reviews,
   payments,
-  order_addresses,
   order_items,
-  order_exchange_rates,
   orders,
   cart_items,
   carts,
-  reviews,
-  product_variants,
-  products,
-  categories,
-  exchange_rates,
-  system_config,
-  permissions,
   addresses,
   vendors,
+  tenant_users,
+  tenants,
   users
 RESTART IDENTITY CASCADE;
 
 -- =====================================================
+-- Tenants
+-- =====================================================
+INSERT INTO tenants (
+  name,
+  slug,
+  plan,
+  status,
+  subscription_status,
+  primary_contact_email,
+  primary_contact_name,
+  created_at,
+  updated_at
+)
+VALUES
+  ('Default Organization', 'default', 'enterprise', 'active', 'active', 'admin@dealport.local', 'Default Admin', now(), now()),
+  ('Aurora Retail Group', 'aurora-retail', 'growth', 'active', 'active', 'aurora@dealport.local', 'Aurora Admin', now(), now()),
+  ('Harbor Home Collective', 'harbor-home', 'pro', 'active', 'active', 'harbor@dealport.local', 'Harbor Admin', now(), now());
+
+-- =====================================================
 -- Users
 -- =====================================================
-INSERT INTO users (email, password_hash, role, email_verified, is_active, last_login)
+INSERT INTO users (
+  email,
+  password_hash,
+  role,
+  email_verified,
+  is_active,
+  last_login,
+  created_at,
+  updated_at
+)
 VALUES
-  ('admin@dealport.local',   '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin',   true, true, now() - interval '1 hour'),
-  ('support@dealport.local', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'support', true, true, now() - interval '2 hour');
+  ('admin@dealport.local', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', true, true, now() - interval '1 hour', now(), now()),
+  ('support@dealport.local', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'support', true, true, now() - interval '2 hour', now(), now());
 
-INSERT INTO users (email, password_hash, role, email_verified, is_active, last_login)
+INSERT INTO users (
+  email,
+  password_hash,
+  role,
+  email_verified,
+  is_active,
+  last_login,
+  created_at,
+  updated_at
+)
 SELECT
   format('vendor-owner-%s@dealport.local', lpad(gs::text, 2, '0')),
   '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
   'vendor',
   true,
   true,
+  now() - (gs || ' hour')::interval,
+  now() - (gs || ' hour')::interval,
   now() - (gs || ' hour')::interval
-FROM generate_series(1, 10) gs;
+FROM generate_series(1, 6) AS gs;
 
-INSERT INTO users (email, password_hash, role, email_verified, is_active, last_login)
-SELECT
-  format('vendor-staff-%s@dealport.local', lpad(gs::text, 2, '0')),
-  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
-  'support',
-  true,
-  true,
-  now() - (gs || ' day')::interval
-FROM generate_series(1, 40) gs;
-
-INSERT INTO users (email, password_hash, role, email_verified, is_active, last_login)
+INSERT INTO users (
+  email,
+  password_hash,
+  role,
+  email_verified,
+  is_active,
+  last_login,
+  created_at,
+  updated_at
+)
 SELECT
   format('customer-%s@dealport.local', lpad(gs::text, 3, '0')),
   '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
   'customer',
-  (gs % 3) <> 0,
+  gs % 3 <> 0,
   true,
-  now() - ((gs % 30) || ' day')::interval
-FROM generate_series(1, 180) gs;
+  now() - ((gs % 21) || ' day')::interval,
+  now() - ((gs % 21) || ' day')::interval,
+  now() - ((gs % 21) || ' day')::interval
+FROM generate_series(1, 42) AS gs;
+
+-- =====================================================
+-- Tenant membership
+-- =====================================================
+WITH tenant_rows AS (
+  SELECT id, row_number() OVER (ORDER BY id) AS rn FROM tenants
+),
+owner_rows AS (
+  SELECT id, row_number() OVER (ORDER BY id) AS rn
+  FROM users
+  WHERE email LIKE 'vendor-owner-%@dealport.local'
+),
+admin_row AS (
+  SELECT id FROM users WHERE email = 'admin@dealport.local' LIMIT 1
+)
+INSERT INTO tenant_users (tenant_id, user_id, role, is_active, invited_by, invited_at, joined_at)
+SELECT
+  tr.id,
+  or_.id,
+  'owner',
+  true,
+  ar.id,
+  now() - interval '30 days',
+  now() - interval '30 days'
+FROM tenant_rows tr
+JOIN owner_rows or_ ON or_.rn IN ((tr.rn * 2) - 1, tr.rn * 2)
+CROSS JOIN admin_row ar;
+
+WITH customer_rows AS (
+  SELECT id, row_number() OVER (ORDER BY id) AS rn
+  FROM users
+  WHERE role = 'customer'
+),
+tenant_rows AS (
+  SELECT id, row_number() OVER (ORDER BY id) AS rn, count(*) OVER () AS total_tenants
+  FROM tenants
+),
+admin_row AS (
+  SELECT id FROM users WHERE email = 'admin@dealport.local' LIMIT 1
+)
+INSERT INTO tenant_users (tenant_id, user_id, role, is_active, invited_by, invited_at, joined_at)
+SELECT
+  tr.id,
+  cr.id,
+  'member',
+  true,
+  ar.id,
+  now() - ((cr.rn % 12) || ' day')::interval,
+  now() - ((cr.rn % 12) || ' day')::interval
+FROM customer_rows cr
+JOIN tenant_rows tr
+  ON tr.rn = ((cr.rn - 1) % tr.total_tenants) + 1
+CROSS JOIN admin_row ar;
 
 -- =====================================================
 -- Vendors
 -- =====================================================
-WITH owner_users AS (
-  SELECT id, email, row_number() OVER (ORDER BY id) AS rn
-  FROM users
-  WHERE email LIKE 'vendor-owner-%@dealport.local'
-),
-vendor_seed AS (
-  SELECT * FROM (VALUES
-    (1, 'Aurora Fashion House',      'aurora-fashion-house',      'Modern apparel and premium wardrobe staples'),
-    (2, 'Northline Footwear',        'northline-footwear',        'Contemporary shoes and seasonal drops'),
-    (3, 'Lumen Beauty Collective',   'lumen-beauty-collective',   'Skincare and cosmetics with clean formulas'),
-    (4, 'Verve Accessories',         'verve-accessories',         'Curated accessories and lifestyle accents'),
-    (5, 'Summit Tech Boutique',      'summit-tech-boutique',      'Consumer electronics and smart essentials'),
-    (6, 'Atlas Outdoor Supply',      'atlas-outdoor-supply',      'Travel and outdoor-ready product lines'),
-    (7, 'Harbor Home Goods',         'harbor-home-goods',         'Home organization and decor essentials'),
-    (8, 'Meridian Jewelry Studio',   'meridian-jewelry-studio',   'Handcrafted jewelry and statement pieces'),
-    (9, 'Pulse Activewear',          'pulse-activewear',          'Performance apparel and training gear'),
-    (10, 'Cedar Kids Corner',        'cedar-kids-corner',         'Kids apparel, toys, and family picks')
-  ) AS t(rn, store_name, slug, description)
-)
-INSERT INTO vendors (user_id, store_name, slug, description, status)
-SELECT o.id, v.store_name, v.slug, v.description, 'active'
-FROM vendor_seed v
-JOIN owner_users o ON o.rn = v.rn;
-
--- =====================================================
--- Categories (ltree hierarchy)
--- =====================================================
-INSERT INTO categories (name, slug, path)
-VALUES
-  ('Fashion',        'fashion',        'fashion'),
-  ('Shoes',          'shoes',          'fashion.shoes'),
-  ('Activewear',     'activewear',     'fashion.activewear'),
-  ('Bags',           'bags',           'fashion.bags'),
-  ('Beauty',         'beauty',         'beauty'),
-  ('Skincare',       'skincare',       'beauty.skincare'),
-  ('Makeup',         'makeup',         'beauty.makeup'),
-  ('Accessories',    'accessories',    'accessories'),
-  ('Jewelry',        'jewelry',        'accessories.jewelry'),
-  ('Electronics',    'electronics',    'electronics'),
-  ('Audio',          'audio',          'electronics.audio'),
-  ('Mobile',         'mobile',         'electronics.mobile'),
-  ('Home',           'home',           'home'),
-  ('Decor',          'decor',          'home.decor'),
-  ('Kitchen',        'kitchen',        'home.kitchen'),
-  ('Outdoor',        'outdoor',        'outdoor'),
-  ('Travel',         'travel',         'outdoor.travel'),
-  ('Kids',           'kids',           'kids'),
-  ('Toys',           'toys',           'kids.toys'),
-  ('School',         'school',         'kids.school');
-
--- =====================================================
--- Products (160)
--- =====================================================
-WITH vendor_pool AS (
-  SELECT id, row_number() OVER (ORDER BY id) rn, count(*) OVER () total
-  FROM vendors
-),
-category_pool AS (
-  SELECT id, slug, row_number() OVER (ORDER BY id) rn, count(*) OVER () total
-  FROM categories
-),
-name_words AS (
-  SELECT * FROM (VALUES
-    (1, 'Essential'), (2, 'Premium'), (3, 'Everyday'), (4, 'Classic'),
-    (5, 'Modern'), (6, 'Signature'), (7, 'Studio'), (8, 'Heritage'),
-    (9, 'Urban'), (10, 'Summit'), (11, 'Harbor'), (12, 'Luxe')
-  ) AS t(id, word)
-)
-INSERT INTO products (vendor_id, category_id, name, slug, description, created_at, updated_at)
-SELECT
-  vp.id,
-  cp.id,
-  format('%s %s Item %s', nw.word, initcap(replace(cp.slug, '-', ' ')), lpad(gs::text, 3, '0')),
-  format('%s-item-%s', cp.slug, lpad(gs::text, 3, '0')),
-  format(
-    'Sample catalog product %s in %s from vendor %s. Designed for realistic browsing, sorting, and checkout test flows.',
-    lpad(gs::text, 3, '0'),
-    cp.slug,
-    vp.id
-  ),
-  now() - ((gs % 45) || ' day')::interval,
-  now() - ((gs % 10) || ' day')::interval
-FROM generate_series(1, 160) gs
-JOIN vendor_pool vp ON vp.rn = ((gs - 1) % vp.total) + 1
-JOIN category_pool cp ON cp.rn = ((gs - 1) % cp.total) + 1
-JOIN name_words nw ON nw.id = ((gs - 1) % 12) + 1;
-
--- =====================================================
--- Product variants (~480, 3 per product)
--- =====================================================
-WITH sizes AS (
-  SELECT * FROM (VALUES (1, 'S'), (2, 'M'), (3, 'L')) AS t(pos, size_code)
-),
-colors AS (
-  SELECT * FROM (VALUES
-    (1, 'Black'),
-    (2, 'White'),
-    (3, 'Navy'),
-    (4, 'Olive'),
-    (5, 'Sand'),
-    (6, 'Rose')
-  ) AS t(pos, color_name)
-)
-INSERT INTO product_variants
-  (product_id, sku, price_cents, price_minor_units, currency_code, currency, stock, attributes, created_at)
-SELECT
-  p.id,
-  format('SKU-%s-%s-%s', lpad(p.id::text, 5, '0'), s.size_code, lpad(s.pos::text, 2, '0')),
-  (1999 + ((p.id % 80) * 175) + (s.pos * 125))::int,
-  (1999 + ((p.id % 80) * 175) + (s.pos * 125))::int,
-  CASE (p.id % 4) WHEN 0 THEN 'USD' WHEN 1 THEN 'EUR' WHEN 2 THEN 'GBP' ELSE 'CAD' END,
-  CASE (p.id % 4) WHEN 0 THEN 'USD' WHEN 1 THEN 'EUR' WHEN 2 THEN 'GBP' ELSE 'CAD' END,
-  (8 + ((p.id + s.pos) % 60))::int,
-  jsonb_build_object(
-    'size', s.size_code,
-    'color', c.color_name,
-    'material', CASE WHEN (p.id % 3) = 0 THEN 'Cotton Blend' WHEN (p.id % 3) = 1 THEN 'Leather' ELSE 'Polyester' END
-  ),
-  now() - ((p.id % 25) || ' day')::interval
-FROM products p
-JOIN sizes s ON true
-JOIN colors c ON c.pos = ((p.id + s.pos) % 6) + 1;
-
--- =====================================================
--- Addresses (for customers and vendor owners)
--- =====================================================
-INSERT INTO addresses
-  (user_id, first_name, last_name, phone, street, city, state, postal_code, country, created_at)
+INSERT INTO vendors (user_id, tenant_id, store_name, slug, description, status, created_at, updated_at)
 SELECT
   u.id,
-  CASE
-    WHEN u.role = 'customer' THEN format('Customer%s', lpad((row_number() OVER (ORDER BY u.id))::text, 3, '0'))
-    ELSE format('Vendor%s', lpad((row_number() OVER (ORDER BY u.id))::text, 2, '0'))
-  END,
-  'User',
+  t.id,
+  seed.store_name,
+  seed.slug,
+  seed.description,
+  'active',
+  now(),
+  now()
+FROM (
+  VALUES
+    (1, 'Aurora Atelier', 'aurora-atelier', 'Modern essentials for everyday living'),
+    (2, 'Moonlit Goods', 'moonlit-goods', 'Curated goods with a soft premium aesthetic'),
+    (3, 'Harbor House', 'harbor-house', 'Household staples and elevated home basics'),
+    (4, 'Northline Studio', 'northline-studio', 'Studio pieces for active and urban lifestyles'),
+    (5, 'Cedar & Co.', 'cedar-and-co', 'Thoughtful products for relaxed living'),
+    (6, 'Summit Supply', 'summit-supply', 'Performance and practical essentials for every day')
+) AS seed(rn, store_name, slug, description)
+JOIN users u ON u.email = format('vendor-owner-%s@dealport.local', lpad(seed.rn::text, 2, '0'))
+JOIN tenants t
+  ON t.slug = CASE seed.rn
+    WHEN 1 THEN 'default'
+    WHEN 2 THEN 'default'
+    WHEN 3 THEN 'aurora-retail'
+    WHEN 4 THEN 'aurora-retail'
+    WHEN 5 THEN 'harbor-home'
+    ELSE 'harbor-home'
+  END;
+
+-- =====================================================
+-- Categories
+-- =====================================================
+INSERT INTO categories (tenant_id, name, slug, path)
+SELECT
+  t.id,
+  c.name,
+  format('%s-%s', t.slug, c.slug),
+  (format('%s.%s', t.slug, c.path))::ltree
+FROM tenants t
+CROSS JOIN (
+  VALUES
+    ('Fashion', 'fashion', 'fashion'),
+    ('Shoes', 'shoes', 'fashion.shoes'),
+    ('Beauty', 'beauty', 'beauty'),
+    ('Home', 'home', 'home'),
+    ('Decor', 'decor', 'home.decor'),
+    ('Outdoor', 'outdoor', 'outdoor'),
+    ('Accessories', 'accessories', 'accessories')
+) AS c(name, slug, path);
+
+-- =====================================================
+-- Products
+-- =====================================================
+INSERT INTO products (
+  vendor_id,
+  tenant_id,
+  category_id,
+  name,
+  slug,
+  brand,
+  description,
+  material,
+  care_instructions,
+  image_url,
+  base_price,
+  is_active,
+  created_by,
+  updated_by,
+  created_at,
+  updated_at
+)
+SELECT
+  v.id,
+  v.tenant_id,
+  c.id,
+  seed.name,
+  seed.slug,
+  v.store_name,
+  seed.description,
+  seed.material,
+  seed.care_instructions,
+  seed.image_url,
+  seed.base_price,
+  true,
+  admin.id,
+  admin.id,
+  now(),
+  now()
+FROM (
+  VALUES
+    ('aurora-atelier', 'Fashion', 'Aurora Atelier Everyday Knit', 'aurora-atelier-everyday-knit', 'Soft cotton knit built for all-day comfort.', 'Cotton Blend', 'Machine wash cold. Lay flat to dry.', 'https://images.example.com/aurora-knit.jpg', 4200),
+    ('aurora-atelier', 'Fashion', 'Aurora Atelier Weekender Tote', 'aurora-atelier-weekender-tote', 'Structured tote with generous capacity and clean finishes.', 'Canvas', 'Spot clean only. Store in a dust bag.', 'https://images.example.com/aurora-tote.jpg', 5400),
+    ('moonlit-goods', 'Beauty', 'Moonlit Glass Serum', 'moonlit-glass-serum', 'Lightweight facial serum formulated for smooth hydration.', 'Glass Bottle', 'Use 2-3 drops morning and evening.', 'https://images.example.com/moonlit-serum.jpg', 3600),
+    ('harbor-house', 'Home', 'Harbor House Table Lamp', 'harbor-house-table-lamp', 'Warm ambient lighting for calm evenings at home.', 'Metal', 'Wipe clean with a dry cloth.', 'https://images.example.com/harbor-lamp.jpg', 4800),
+    ('northline-studio', 'Shoes', 'Northline Studio Pace Runner', 'northline-studio-pace-runner', 'Responsive everyday runner with a cushioned profile.', 'Mesh', 'Machine wash gentle cycle. Air dry.', 'https://images.example.com/northline-runner.jpg', 6200),
+    ('cedar-and-co', 'Decor', 'Cedar & Co. Accent Tray', 'cedar-and-co-accent-tray', 'A compact tray for streamlined styling across rooms.', 'Walnut', 'Dust lightly and wipe with a soft cloth.', 'https://images.example.com/cedar-tray.jpg', 3200),
+    ('summit-supply', 'Outdoor', 'Summit Supply Trek Bottle', 'summit-supply-trek-bottle', 'Insulated bottle made for daily hydration on the go.', 'Stainless Steel', 'Wash before first use.', 'https://images.example.com/summit-bottle.jpg', 2900)
+) AS seed(vendor_slug, category_name, name, slug, description, material, care_instructions, image_url, base_price)
+JOIN vendors v ON v.slug = seed.vendor_slug
+JOIN categories c ON c.tenant_id = v.tenant_id AND c.name = seed.category_name
+CROSS JOIN (SELECT id FROM users WHERE email = 'admin@dealport.local' LIMIT 1) AS admin;
+
+-- =====================================================
+-- Product variants
+-- =====================================================
+INSERT INTO product_variants (
+  product_id,
+  sku,
+  price_cents,
+  stock,
+  attributes,
+  created_at,
+  updated_at
+)
+SELECT
+  p.id,
+  format('SKU-%s-%s', p.slug, variant.code),
+  p.base_price + variant.delta,
+  12 + ((p.id + char_length(variant.code)) % 30),
+  jsonb_build_object(
+    'size', variant.code,
+    'color', variant.color,
+    'material', p.material
+  ),
+  now(),
+  now()
+FROM products p
+CROSS JOIN (
+  VALUES
+    ('S', 0, 'Sand', 'sand'),
+    ('M', 300, 'Navy', 'navy'),
+    ('L', 650, 'Black', 'black')
+) AS variant(code, delta, color, color_key)
+WHERE p.id IN (SELECT id FROM products ORDER BY id LIMIT 21);
+
+-- =====================================================
+-- Addresses
+-- =====================================================
+INSERT INTO addresses (
+  user_id,
+  tenant_id,
+  type,
+  first_name,
+  last_name,
+  email,
+  phone,
+  street,
+  city,
+  state,
+  postal_code,
+  country,
+  is_primary,
+  created_at,
+  updated_at
+)
+SELECT
+  u.id,
+  tu.tenant_id,
+  'shipping',
+  initcap(split_part(u.email, '@', 1)),
+  'Customer',
+  u.email,
   format('+1-555-%s-%s', lpad((u.id % 900 + 100)::text, 3, '0'), lpad((u.id % 9000 + 1000)::text, 4, '0')),
   format('%s Market Street', 100 + u.id),
-  (ARRAY['New York','Austin','Seattle','Los Angeles','Chicago','Denver'])[(u.id % 6) + 1],
-  (ARRAY['NY','TX','WA','CA','IL','CO'])[(u.id % 6) + 1],
-  format('%05s', (10000 + u.id)::text),
+  (ARRAY['Austin', 'Seattle', 'New York', 'Denver', 'Chicago', 'Los Angeles'])[(u.id % 6) + 1],
+  (ARRAY['TX', 'WA', 'NY', 'CO', 'IL', 'CA'])[(u.id % 6) + 1],
+  format('%05s', ((u.id * 17) % 90000) + 1000),
   'US',
-  now() - ((u.id % 120) || ' day')::interval
+  true,
+  now() - ((u.id % 30) || ' day')::interval,
+  now() - ((u.id % 30) || ' day')::interval
 FROM users u
-WHERE u.role IN ('customer', 'vendor');
-
--- =====================================================
--- Carts + cart items
--- =====================================================
-INSERT INTO carts (user_id, created_at)
-SELECT u.id, now() - ((u.id % 20) || ' day')::interval
-FROM users u
-WHERE u.role = 'customer'
+JOIN tenant_users tu ON tu.user_id = u.id AND tu.role = 'member'
 ORDER BY u.id
-LIMIT 120;
+LIMIT 42;
 
-WITH cart_pool AS (
-  SELECT id, row_number() OVER (ORDER BY id) rn
-  FROM carts
+-- =====================================================
+-- Carts and cart items
+-- =====================================================
+INSERT INTO carts (user_id, tenant_id, status, created_at, updated_at)
+SELECT
+  u.id,
+  tu.tenant_id,
+  'active',
+  now() - ((u.id % 12) || ' day')::interval,
+  now() - ((u.id % 12) || ' day')::interval
+FROM users u
+JOIN tenant_users tu ON tu.user_id = u.id AND tu.role = 'member'
+ORDER BY u.id
+LIMIT 24;
+
+WITH cart_rows AS (
+  SELECT c.id AS cart_id, c.user_id, c.tenant_id, row_number() OVER (ORDER BY c.id) AS rn
+  FROM carts c
 ),
-variant_pool AS (
-  SELECT id, row_number() OVER (ORDER BY id) rn, count(*) OVER () total
-  FROM product_variants
+variant_rows AS (
+  SELECT pv.id AS variant_id, p.tenant_id, p.id AS product_id, row_number() OVER (ORDER BY pv.id) AS rn
+  FROM product_variants pv
+  JOIN products p ON p.id = pv.product_id
 )
-INSERT INTO cart_items (cart_id, product_variant_id, quantity)
+INSERT INTO cart_items (cart_id, tenant_id, product_id, product_variant_id, quantity, unit_price_cents, created_at, updated_at)
 SELECT
-  c.id,
-  vp.id,
-  ((c.rn + line.n) % 4) + 1
-FROM cart_pool c
-CROSS JOIN generate_series(1, 4) AS line(n)
-JOIN variant_pool vp ON vp.rn = ((c.rn * 13 + line.n * 17) % vp.total) + 1;
+  cr.cart_id,
+  cr.tenant_id,
+  vr.product_id,
+  vr.variant_id,
+  1 + ((cr.rn + vr.rn) % 2),
+  (SELECT price_cents FROM product_variants WHERE id = vr.variant_id),
+  now(),
+  now()
+FROM cart_rows cr
+JOIN variant_rows vr ON vr.tenant_id = cr.tenant_id
+WHERE cr.rn <= 24
+ORDER BY cr.cart_id, vr.variant_id
+LIMIT 48;
 
 -- =====================================================
--- Orders + items + addresses + payments
+-- Orders
 -- =====================================================
-WITH customer_pool AS (
-  SELECT id, row_number() OVER (ORDER BY id) rn, count(*) OVER () total
-  FROM users
-  WHERE role = 'customer'
+INSERT INTO orders (
+  user_id,
+  tenant_id,
+  order_number,
+  status,
+  payment_status,
+  fulfillment_status,
+  currency,
+  subtotal_cents,
+  tax_cents,
+  shipping_cents,
+  total_cents,
+  shipping_first_name,
+  shipping_last_name,
+  shipping_email,
+  shipping_phone,
+  shipping_street_address,
+  shipping_city,
+  shipping_state,
+  shipping_postal_code,
+  shipping_country,
+  created_at,
+  updated_at
 )
-INSERT INTO orders
-  (user_id, status, currency, subtotal_cents, tax_cents, shipping_cents, total_cents, created_at, updated_at)
 SELECT
-  cp.id,
-  CASE (gs % 6)
+  u.id,
+  tu.tenant_id,
+  format('ORD-%s-%s', to_char(now(), 'YYYYMMDD'), lpad((u.id % 1000)::text, 4, '0')),
+  CASE (u.id % 5)
     WHEN 0 THEN 'pending'
     WHEN 1 THEN 'paid'
     WHEN 2 THEN 'shipped'
     WHEN 3 THEN 'delivered'
-    WHEN 4 THEN 'cancelled'
-    ELSE 'refunded'
+    ELSE 'cancelled'
   END::order_status,
-  CASE (gs % 4)
-    WHEN 0 THEN 'USD'
-    WHEN 1 THEN 'EUR'
-    WHEN 2 THEN 'GBP'
-    ELSE 'CAD'
+  CASE (u.id % 5)
+    WHEN 0 THEN 'pending'
+    WHEN 1 THEN 'succeeded'
+    WHEN 2 THEN 'succeeded'
+    WHEN 3 THEN 'succeeded'
+    ELSE 'failed'
+  END::payment_status,
+  CASE (u.id % 4)
+    WHEN 0 THEN 'unfulfilled'
+    WHEN 1 THEN 'partial'
+    WHEN 2 THEN 'fulfilled'
+    ELSE 'delivered'
   END,
-  0,
-  0,
-  0,
-  0,
-  now() - ((gs % 50) || ' day')::interval,
-  now() - ((gs % 12) || ' day')::interval
-FROM generate_series(1, 260) gs
-JOIN customer_pool cp ON cp.rn = ((gs - 1) % cp.total) + 1;
-
-WITH order_pool AS (
-  SELECT id, currency, row_number() OVER (ORDER BY id) rn
-  FROM orders
-),
-currency_variants AS (
-  SELECT id, price_cents, currency, row_number() OVER (PARTITION BY currency ORDER BY id) rn
-  FROM product_variants
-),
-currency_counts AS (
-  SELECT currency, count(*) AS total
-  FROM product_variants
-  GROUP BY currency
-)
-INSERT INTO order_items (order_id, product_variant_id, quantity, unit_price_cents)
-SELECT
-  o.id,
-  cv.id,
-  ((o.rn + line.n) % 3) + 1,
-  cv.price_cents
-FROM order_pool o
-CROSS JOIN generate_series(1, 2) AS line(n)
-JOIN currency_counts cc ON cc.currency = o.currency
-JOIN currency_variants cv
-  ON cv.currency = o.currency
- AND cv.rn = ((o.rn * 7 + line.n * 11) % cc.total) + 1;
-
-UPDATE orders o
-SET
-  subtotal_cents = totals.subtotal_cents,
-  tax_cents = totals.tax_cents,
-  shipping_cents = totals.shipping_cents,
-  total_cents = totals.subtotal_cents + totals.tax_cents + totals.shipping_cents,
-  exchange_rate_at_time = CASE WHEN o.currency = 'USD' THEN 1.00000000 ELSE 1.12000000 END
-FROM (
-  SELECT
-    oi.order_id,
-    sum(oi.unit_price_cents * oi.quantity)::int AS subtotal_cents,
-    round(sum(oi.unit_price_cents * oi.quantity) * 0.08)::int AS tax_cents,
-    CASE WHEN sum(oi.unit_price_cents * oi.quantity) >= 20000 THEN 0 ELSE 999 END AS shipping_cents
-  FROM order_items oi
-  GROUP BY oi.order_id
-) totals
-WHERE o.id = totals.order_id;
-
-INSERT INTO order_addresses
-  (order_id, type, first_name, last_name, email, phone, street, city, state, postal_code, country)
-SELECT
-  o.id,
-  'shipping',
+  'USD',
+  2999 + (u.id % 50) * 100,
+  240 + (u.id % 8) * 25,
+  595,
+  2999 + (u.id % 50) * 100 + 240 + (u.id % 8) * 25 + 595,
   a.first_name,
   a.last_name,
-  u.email,
+  a.email,
   a.phone,
   a.street,
   a.city,
   a.state,
   a.postal_code,
-  a.country
-FROM orders o
-JOIN users u ON u.id = o.user_id
-JOIN LATERAL (
-  SELECT first_name, last_name, phone, street, city, state, postal_code, country
-  FROM addresses
-  WHERE user_id = o.user_id
-  ORDER BY id
-  LIMIT 1
-) a ON true;
+  a.country,
+  now() - ((u.id % 21) || ' day')::interval,
+  now() - ((u.id % 12) || ' day')::interval
+FROM users u
+JOIN tenant_users tu ON tu.user_id = u.id AND tu.role = 'member'
+JOIN addresses a ON a.user_id = u.id AND a.tenant_id = tu.tenant_id
+WHERE u.id <= 24
+ORDER BY u.id;
 
-INSERT INTO order_addresses
-  (order_id, type, first_name, last_name, email, phone, street, city, state, postal_code, country)
+-- =====================================================
+-- Order items
+-- =====================================================
+WITH order_rows AS (
+  SELECT o.id AS order_id, o.user_id, o.tenant_id, ROW_NUMBER() OVER (ORDER BY o.id) AS rn
+  FROM orders o
+),
+variant_rows AS (
+  SELECT pv.id AS variant_id, p.tenant_id, p.id AS product_id, ROW_NUMBER() OVER (ORDER BY pv.id) AS rn
+  FROM product_variants pv
+  JOIN products p ON p.id = pv.product_id
+)
+INSERT INTO order_items (order_id, product_id, product_variant_id, quantity, unit_price_cents, subtotal_cents, created_at)
 SELECT
-  oa.order_id,
-  'billing',
-  oa.first_name,
-  oa.last_name,
-  oa.email,
-  oa.phone,
-  oa.street,
-  oa.city,
-  oa.state,
-  oa.postal_code,
-  oa.country
-FROM order_addresses oa
-WHERE oa.type = 'shipping';
+  or_.order_id,
+  vr.product_id,
+  vr.variant_id,
+  1 + ((or_.rn + vr.rn) % 2),
+  1900 + ((or_.rn * 7 + vr.rn) % 1500),
+  (1 + ((or_.rn + vr.rn) % 2)) * (1900 + ((or_.rn * 7 + vr.rn) % 1500)),
+  now() - ((or_.rn % 15) || ' day')::interval
+FROM order_rows or_
+JOIN variant_rows vr ON vr.tenant_id = or_.tenant_id
+WHERE or_.rn <= 18
+ORDER BY or_.order_id, vr.variant_id
+LIMIT 36;
 
-INSERT INTO payments (order_id, stripe_payment_id, status, amount_cents, created_at)
+-- =====================================================
+-- Payments
+-- =====================================================
+INSERT INTO payments (
+  order_id,
+  stripe_payment_id,
+  processor,
+  transaction_id,
+  amount_cents,
+  currency,
+  status,
+  metadata,
+  created_at,
+  updated_at
+)
 SELECT
   o.id,
   format('pi_mock_%s', lpad(o.id::text, 8, '0')),
+  'stripe',
+  format('txn_%s', lpad(o.id::text, 8, '0')),
+  o.total_cents,
+  o.currency,
   CASE o.status
     WHEN 'pending' THEN 'pending'
     WHEN 'cancelled' THEN 'failed'
-    WHEN 'refunded' THEN 'refunded'
     ELSE 'succeeded'
   END::payment_status,
-  o.total_cents,
+  jsonb_build_object('order_number', o.order_number),
+  o.created_at + interval '10 minutes',
   o.created_at + interval '10 minutes'
 FROM orders o;
 
 -- =====================================================
 -- Reviews
 -- =====================================================
-WITH customer_pool AS (
-  SELECT id AS user_id, row_number() OVER (ORDER BY id) rn
-  FROM users
-  WHERE role = 'customer'
-),
-product_pool AS (
-  SELECT id AS product_id, row_number() OVER (ORDER BY id) rn
-  FROM products
-)
-INSERT INTO reviews (user_id, product_id, rating, comment, created_at)
+INSERT INTO reviews (user_id, product_id, rating, title, comment, created_at, updated_at)
 SELECT
-  c.user_id,
-  p.product_id,
-  ((c.rn + p.rn) % 5) + 1,
-  format('Review by customer %s on product %s. Sample feedback for UX, sorting, and moderation tests.', c.rn, p.rn),
-  now() - (((c.rn + p.rn) % 120) || ' day')::interval
-FROM customer_pool c
-JOIN product_pool p ON ((c.rn * 3 + p.rn * 5) % 17) = 0;
+  u.id,
+  p.id,
+  ((u.id + p.id) % 5) + 1,
+  format('Review %s', p.id),
+  'Helpful sample review for product quality and delivery expectations.',
+  now() - ((u.id + p.id) % 28 || ' day')::interval,
+  now() - ((u.id + p.id) % 20 || ' day')::interval
+FROM users u
+JOIN tenant_users tu ON tu.user_id = u.id AND tu.role = 'member'
+JOIN products p ON p.tenant_id = tu.tenant_id
+WHERE u.id <= 18
+ORDER BY u.id, p.id
+LIMIT 30;
 
 -- =====================================================
--- RBAC: permissions, roles, mappings, staff
+-- RBAC + vendor staff
 -- =====================================================
-INSERT INTO permissions (resource, action)
+INSERT INTO permissions (code, name, description, category, resource, action, is_active, created_at)
 VALUES
-  ('products', 'create'),
-  ('products', 'read'),
-  ('products', 'update'),
-  ('products', 'delete'),
-  ('categories', 'read'),
-  ('orders', 'read'),
-  ('orders', 'update'),
-  ('orders', 'refund'),
-  ('inventory', 'read'),
-  ('inventory', 'update'),
-  ('staff', 'invite'),
-  ('staff', 'read'),
-  ('staff', 'update'),
-  ('staff', 'remove'),
-  ('analytics', 'read'),
-  ('billing', 'read'),
-  ('billing', 'update'),
-  ('support', 'ticket-read'),
-  ('support', 'ticket-update'),
-  ('settings', 'update');
+  ('products:create', 'Create products', 'Create product listings', 'catalog', 'products', 'create', true, now()),
+  ('products:read', 'Read products', 'View product listings', 'catalog', 'products', 'read', true, now()),
+  ('products:update', 'Update products', 'Edit product listings', 'catalog', 'products', 'update', true, now()),
+  ('orders:read', 'Read orders', 'View orders', 'commerce', 'orders', 'read', true, now()),
+  ('orders:update', 'Update orders', 'Update order status', 'commerce', 'orders', 'update', true, now()),
+  ('inventory:read', 'Read inventory', 'View stock levels', 'inventory', 'inventory', 'read', true, now()),
+  ('inventory:update', 'Update inventory', 'Adjust stock levels', 'inventory', 'inventory', 'update', true, now()),
+  ('staff:read', 'Read staff', 'View staff roster', 'people', 'staff', 'read', true, now()),
+  ('staff:invite', 'Invite staff', 'Invite new users to vendor teams', 'people', 'staff', 'invite', true, now());
 
-INSERT INTO roles (vendor_id, name, is_system)
-SELECT v.id, role_name, is_system
-FROM vendors v
-CROSS JOIN (VALUES
-  ('owner', true),
-  ('manager', true),
-  ('support', true),
-  ('warehouse', true),
-  ('finance', true)
-) AS r(role_name, is_system);
-
--- owner -> all permissions
-INSERT INTO role_permissions (role_id, permission_id)
-SELECT r.id, p.id
-FROM roles r
-JOIN permissions p ON true
-WHERE r.name = 'owner';
-
--- manager -> broad ops
-INSERT INTO role_permissions (role_id, permission_id)
-SELECT r.id, p.id
-FROM roles r
-JOIN permissions p
-  ON (p.resource, p.action) IN (
-    ('products', 'read'),
-    ('products', 'update'),
-    ('categories', 'read'),
-    ('orders', 'read'),
-    ('orders', 'update'),
-    ('inventory', 'read'),
-    ('inventory', 'update'),
-    ('analytics', 'read'),
-    ('staff', 'read')
-  )
-WHERE r.name = 'manager';
-
--- support
-INSERT INTO role_permissions (role_id, permission_id)
-SELECT r.id, p.id
-FROM roles r
-JOIN permissions p
-  ON (p.resource, p.action) IN (
-    ('orders', 'read'),
-    ('support', 'ticket-read'),
-    ('support', 'ticket-update'),
-    ('products', 'read')
-  )
-WHERE r.name = 'support';
-
--- warehouse
-INSERT INTO role_permissions (role_id, permission_id)
-SELECT r.id, p.id
-FROM roles r
-JOIN permissions p
-  ON (p.resource, p.action) IN (
-    ('inventory', 'read'),
-    ('inventory', 'update'),
-    ('orders', 'read'),
-    ('orders', 'update')
-  )
-WHERE r.name = 'warehouse';
-
--- finance
-INSERT INTO role_permissions (role_id, permission_id)
-SELECT r.id, p.id
-FROM roles r
-JOIN permissions p
-  ON (p.resource, p.action) IN (
-    ('billing', 'read'),
-    ('billing', 'update'),
-    ('orders', 'read'),
-    ('orders', 'refund')
-  )
-WHERE r.name = 'finance';
-
--- Add vendor owners to vendor_staff as owner role
-INSERT INTO vendor_staff (vendor_id, user_id, role_id, status, invited_by, created_at)
+INSERT INTO roles (vendor_id, code, name, description, hierarchy_level, is_system, is_active, created_at, updated_at)
 SELECT
   v.id,
-  v.user_id,
-  r.id,
-  'active',
-  (SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1),
-  now() - interval '90 days'
+  format('vendor-%s-owner', lower(replace(v.slug, '-', '_'))),
+  'owner',
+  'Vendor owner access',
+  100,
+  true,
+  true,
+  now(),
+  now()
 FROM vendors v
-JOIN roles r ON r.vendor_id = v.id AND r.name = 'owner';
+UNION ALL
+SELECT
+  v.id,
+  format('vendor-%s-manager', lower(replace(v.slug, '-', '_'))),
+  'manager',
+  'Operational manager',
+  80,
+  true,
+  true,
+  now(),
+  now()
+FROM vendors v
+UNION ALL
+SELECT
+  v.id,
+  format('vendor-%s-support', lower(replace(v.slug, '-', '_'))),
+  'support',
+  'Customer support agent',
+  60,
+  true,
+  true,
+  now(),
+  now()
+FROM vendors v;
 
--- Add 4 staff per vendor from support users
-WITH support_users AS (
-  SELECT id, row_number() OVER (ORDER BY id) rn
-  FROM users
-  WHERE email LIKE 'vendor-staff-%@dealport.local'
+WITH owner_roles AS (
+  SELECT r.id AS role_id, r.vendor_id
+  FROM roles r
+  WHERE r.name = 'owner'
 ),
-vendors_ranked AS (
-  SELECT id, row_number() OVER (ORDER BY id) rn
-  FROM vendors
+permission_ids AS (
+  SELECT id FROM permissions
+)
+INSERT INTO role_permissions (role_id, permission_id, granted_at)
+SELECT
+  or_.role_id,
+  p.id,
+  now()
+FROM owner_roles or_
+CROSS JOIN permission_ids p;
+
+WITH manager_roles AS (
+  SELECT r.id AS role_id, r.vendor_id
+  FROM roles r
+  WHERE r.name = 'manager'
 ),
-staff_slots AS (
-  SELECT
-    v.id AS vendor_id,
-    s.slot,
-    ((v.rn - 1) * 4 + s.slot) AS staff_index
-  FROM vendors_ranked v
-  CROSS JOIN generate_series(1, 4) s(slot)
+manager_perms AS (
+  SELECT p.id
+  FROM permissions p
+  WHERE p.resource IN ('products', 'orders', 'inventory')
+)
+INSERT INTO role_permissions (role_id, permission_id, granted_at)
+SELECT
+  mr.role_id,
+  mp.id,
+  now()
+FROM manager_roles mr
+JOIN manager_perms mp ON true;
+
+WITH support_roles AS (
+  SELECT r.id AS role_id, r.vendor_id
+  FROM roles r
+  WHERE r.name = 'support'
+),
+support_perms AS (
+  SELECT p.id
+  FROM permissions p
+  WHERE p.resource IN ('orders', 'products')
+    AND p.action IN ('read', 'update')
+)
+INSERT INTO role_permissions (role_id, permission_id, granted_at)
+SELECT
+  sr.role_id,
+  sp.id,
+  now()
+FROM support_roles sr
+JOIN support_perms sp ON true;
+
+WITH vendor_owner_map AS (
+  SELECT v.id AS vendor_id, v.user_id, row_number() OVER (ORDER BY v.id) AS rn
+  FROM vendors v
+),
+role_map AS (
+  SELECT r.id AS role_id, r.vendor_id, row_number() OVER (PARTITION BY r.vendor_id ORDER BY r.id) AS rn
+  FROM roles r
+  WHERE r.name = 'owner'
 )
 INSERT INTO vendor_staff (vendor_id, user_id, role_id, status, invited_by, created_at)
 SELECT
-  ss.vendor_id,
-  su.id,
-  r.id,
+  vom.vendor_id,
+  vom.user_id,
+  rm.role_id,
   'active',
-  (SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1),
-  now() - ((ss.slot * 5) || ' day')::interval
-FROM staff_slots ss
-JOIN support_users su ON su.rn = ss.staff_index
-JOIN roles r
-  ON r.vendor_id = ss.vendor_id
- AND r.name = CASE (ss.slot % 4)
-   WHEN 1 THEN 'manager'
-   WHEN 2 THEN 'support'
-   WHEN 3 THEN 'warehouse'
-   ELSE 'finance'
- END;
+  (SELECT id FROM users WHERE email = 'admin@dealport.local' LIMIT 1),
+  now() - interval '45 days'
+FROM vendor_owner_map vom
+JOIN role_map rm ON rm.vendor_id = vom.vendor_id AND rm.rn = 1;
+
+WITH vendor_rows AS (
+  SELECT v.id AS vendor_id, v.tenant_id, row_number() OVER (ORDER BY v.id) AS rn
+  FROM vendors v
+),
+team_users AS (
+  SELECT u.id AS user_id, u.email, row_number() OVER (ORDER BY u.id) AS rn
+  FROM users u
+  WHERE u.role = 'support'
+),
+role_map AS (
+  SELECT r.id AS role_id, r.vendor_id, r.name,
+         ROW_NUMBER() OVER (PARTITION BY r.vendor_id ORDER BY r.id) AS rn
+  FROM roles r
+  WHERE r.name IN ('manager', 'support')
+)
+INSERT INTO vendor_staff (vendor_id, user_id, role_id, status, invited_by, created_at)
+SELECT
+  vr.vendor_id,
+  tu.user_id,
+  rm.role_id,
+  'active',
+  (SELECT id FROM users WHERE email = 'admin@dealport.local' LIMIT 1),
+  now() - ((vr.rn + tu.rn) || ' day')::interval
+FROM vendor_rows vr
+JOIN team_users tu ON tu.rn = ((vr.rn * 2) - 1) OR tu.rn = (vr.rn * 2)
+JOIN role_map rm ON rm.vendor_id = vr.vendor_id AND rm.rn = 1;
 
 -- =====================================================
 -- Audit logs
 -- =====================================================
 INSERT INTO audit_logs (vendor_id, user_id, action, resource, metadata, created_at)
 SELECT
-  p.vendor_id,
+  v.id,
   u.id,
   CASE (u.id % 5)
     WHEN 0 THEN 'create'
     WHEN 1 THEN 'update'
-    WHEN 2 THEN 'read'
+    WHEN 2 THEN 'view'
     WHEN 3 THEN 'delete'
     ELSE 'export'
   END,
   CASE (u.id % 4)
-    WHEN 0 THEN 'product'
-    WHEN 1 THEN 'order'
+    WHEN 0 THEN 'products'
+    WHEN 1 THEN 'orders'
     WHEN 2 THEN 'inventory'
     ELSE 'staff'
   END,
-  jsonb_build_object(
-    'source', 'seed',
-    'user_email', u.email,
-    'note', 'Generated seed audit event'
-  ),
-  now() - ((u.id % 75) || ' hour')::interval
+  jsonb_build_object('source', 'seed', 'actor_email', u.email),
+  now() - ((u.id % 30) || ' day')::interval
 FROM users u
-JOIN products p ON p.id = ((u.id % 160) + 1)
-LIMIT 450;
-
--- =====================================================
--- Multi-currency configs + rates + locked order rates
--- =====================================================
-INSERT INTO system_config (key, value, description, updated_by)
-VALUES
-  ('base_currency', 'USD', 'Base currency for all monetary calculations', (SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1)),
-  ('catalog_default_sort', 'newest', 'Default sort order for catalog pages', (SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1)),
-  ('checkout_guest_enabled', 'true', 'Whether guest checkout is enabled', (SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1)),
-  ('tax_rate_default', '0.08', 'Default sales tax rate used in checkout', (SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1));
-
-WITH pairs AS (
-  SELECT * FROM (VALUES
-    ('USD', 'EUR', 0.92000000::numeric(18,8)),
-    ('EUR', 'USD', 1.08695652::numeric(18,8)),
-    ('USD', 'GBP', 0.79000000::numeric(18,8)),
-    ('GBP', 'USD', 1.26582278::numeric(18,8)),
-    ('USD', 'CAD', 1.34000000::numeric(18,8)),
-    ('CAD', 'USD', 0.74626866::numeric(18,8))
-  ) AS t(from_currency, to_currency, base_rate)
-),
-days AS (
-  SELECT gs::int AS day_offset
-  FROM generate_series(0, 45) gs
-)
-INSERT INTO exchange_rates
-  (from_currency, to_currency, rate, provider, effective_date, expires_at, is_cached, created_at)
-SELECT
-  p.from_currency,
-  p.to_currency,
-  (p.base_rate + ((d.day_offset % 5) * 0.00070000)::numeric(18,8))::numeric(18,8),
-  'mock-seed-provider',
-  (current_date - d.day_offset),
-  (current_date - d.day_offset) + interval '2 day',
-  false,
-  now() - (d.day_offset || ' day')::interval
-FROM pairs p
-CROSS JOIN days d;
-
-INSERT INTO order_exchange_rates
-  (order_id, from_currency, to_currency, rate, original_amount, locked_at, created_at)
-SELECT
-  o.id,
-  o.currency,
-  'USD',
-  CASE o.currency
-    WHEN 'EUR' THEN 1.08695652
-    WHEN 'GBP' THEN 1.26582278
-    ELSE 0.74626866
-  END::numeric(18,8),
-  o.total_cents,
-  o.created_at + interval '2 minute',
-  o.created_at + interval '2 minute'
-FROM orders o
-WHERE o.status IN ('paid', 'shipped', 'delivered', 'refunded')
-  AND o.currency <> 'USD'
-LIMIT 180;
+LEFT JOIN vendors v ON v.user_id = u.id
+WHERE u.role IN ('admin', 'support', 'vendor')
+LIMIT 45;
 
 COMMIT;
 
--- =====================================================
--- Post-seed quick sanity output
--- =====================================================
-SELECT 'users' AS table_name, COUNT(*) AS count FROM users
+SELECT 'tenants' AS table_name, COUNT(*) AS row_count FROM tenants
+UNION ALL SELECT 'users', COUNT(*) FROM users
+UNION ALL SELECT 'tenant_users', COUNT(*) FROM tenant_users
 UNION ALL SELECT 'vendors', COUNT(*) FROM vendors
 UNION ALL SELECT 'categories', COUNT(*) FROM categories
 UNION ALL SELECT 'products', COUNT(*) FROM products
 UNION ALL SELECT 'product_variants', COUNT(*) FROM product_variants
+UNION ALL SELECT 'addresses', COUNT(*) FROM addresses
 UNION ALL SELECT 'carts', COUNT(*) FROM carts
 UNION ALL SELECT 'cart_items', COUNT(*) FROM cart_items
 UNION ALL SELECT 'orders', COUNT(*) FROM orders
@@ -656,8 +725,6 @@ UNION ALL SELECT 'payments', COUNT(*) FROM payments
 UNION ALL SELECT 'reviews', COUNT(*) FROM reviews
 UNION ALL SELECT 'roles', COUNT(*) FROM roles
 UNION ALL SELECT 'permissions', COUNT(*) FROM permissions
+UNION ALL SELECT 'role_permissions', COUNT(*) FROM role_permissions
 UNION ALL SELECT 'vendor_staff', COUNT(*) FROM vendor_staff
-UNION ALL SELECT 'audit_logs', COUNT(*) FROM audit_logs
-UNION ALL SELECT 'system_config', COUNT(*) FROM system_config
-UNION ALL SELECT 'exchange_rates', COUNT(*) FROM exchange_rates
-UNION ALL SELECT 'order_exchange_rates', COUNT(*) FROM order_exchange_rates;
+UNION ALL SELECT 'audit_logs', COUNT(*) FROM audit_logs;

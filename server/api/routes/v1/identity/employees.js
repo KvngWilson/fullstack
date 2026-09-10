@@ -3,6 +3,9 @@ const { protect, permission, anyPermission } = require("../../../decorators");
 const { employees: employeesController } = require("../../../controllers/v1/identity");
 const PERMISSIONS = require("../../../../shared/constants/permissions");
 
+// Validate invitation token
+router.get("/accept-invitation", employeesController.getInvitationPreview);
+
 // Accept invitation and create employee account
 router.post("/accept-invitation", employeesController.acceptInvitation);
 

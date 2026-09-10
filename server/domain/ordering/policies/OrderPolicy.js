@@ -4,7 +4,7 @@ class OrderPolicy {
   }
 
   static canRefund(orderStatus) {
-    return ["paid", "fulfilled"].includes(orderStatus);
+    return ["paid", "shipped", "delivered", "fulfilled"].includes(orderStatus);
   }
 }
 

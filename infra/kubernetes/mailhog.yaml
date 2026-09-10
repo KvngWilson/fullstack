@@ -1,0 +1,168 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mailserver-accounts
+type: Opaque
+immutable: true
+stringData:
+  postfix-accounts.cf: |
+    noreply@example.com|{PLAIN}replace-me-mailbox-password
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postfix
+  labels:
+    app: mailstack
+spec:
+  selector:
+    app: mailstack
+  ports:
+    - name: smtp
+      port: 25
+      targetPort: 25
+    - name: submission
+      port: 587
+      targetPort: 587
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dovecot
+  labels:
+    app: mailstack
+spec:
+  selector:
+    app: mailstack
+  ports:
+    - name: imap
+      port: 143
+      targetPort: 143
+    - name: imaps
+      port: 993
+      targetPort: 993
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mailstack
+  labels:
+    app: mailstack
+spec:
+  serviceName: postfix
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mailstack
+  template:
+    metadata:
+      labels:
+        app: mailstack
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        fsGroup: 5000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mailserver
+          image: ghcr.io/docker-mailserver/docker-mailserver:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: OVERRIDE_HOSTNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: fullstack-config
+                  key: MAIL_HOSTNAME
+            - name: ACCOUNT_PROVISIONER
+              value: FILE
+            - name: LOG_LEVEL
+              value: info
+            - name: ONE_DIR
+              value: "1"
+            - name: PERMIT_DOCKER
+              value: none
+            - name: ENABLE_FAIL2BAN
+              value: "0"
+            - name: ENABLE_AMAVIS
+              value: "0"
+            - name: ENABLE_SPAMASSASSIN
+              value: "0"
+            - name: ENABLE_CLAMAV
+              value: "0"
+            - name: SPOOF_PROTECTION
+              value: "1"
+            - name: SSL_TYPE
+              value: manual
+            - name: SSL_CERT_PATH
+              value: /etc/ssl/mail/tls.crt
+            - name: SSL_KEY_PATH
+              value: /etc/ssl/mail/tls.key
+          ports:
+            - containerPort: 25
+            - containerPort: 587
+            - containerPort: 143
+            - containerPort: 993
+          volumeMounts:
+            - name: mail-data
+              mountPath: /var/mail
+            - name: mail-state
+              mountPath: /var/mail-state
+            - name: mail-config
+              mountPath: /tmp/docker-mailserver
+              readOnly: true
+            - name: mail-tls
+              mountPath: /etc/ssl/mail
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+          startupProbe:
+            tcpSocket:
+              port: 25
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            tcpSocket:
+              port: 587
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 143
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+              ephemeral-storage: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+              ephemeral-storage: 512Mi
+      volumes:
+        - name: mail-config
+          secret:
+            secretName: mailserver-accounts
+        - name: mail-tls
+          secret:
+            secretName: mail-tls
+  volumeClaimTemplates:
+    - metadata:
+        name: mail-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 20Gi
+    - metadata:
+        name: mail-state
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi

@@ -22,9 +22,4 @@ __tests__
 .DS_Store
 .cache
 .parcel-cache
-ARCHITECTURE*.md
-REFACTORING_PLAN.md
-QUICK_START_GUIDE.md
-FRONTEND*.md
-CODE_CITATIONS.md
-guidelines/
+docs/

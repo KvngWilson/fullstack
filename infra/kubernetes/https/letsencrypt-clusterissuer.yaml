@@ -1,0 +1,18 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-production-dns
+spec:
+  acme:
+    email: __ACME_EMAIL__
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-production-dns-account-key
+    solvers:
+      - dns01:
+          cloudDNS:
+            project: __GCP_PROJECT_ID__
+            hostedZoneName: __CLOUD_DNS_ZONE__
+            serviceAccountSecretRef:
+              name: cert-manager-cloud-dns
+              key: key.json

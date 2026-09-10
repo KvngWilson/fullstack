@@ -6,7 +6,9 @@ const cookieParser = require("cookie-parser");
 const { applySessionMiddleware } = require("../config/session");
 const { csrfProtection } = require("../api/middleware/csrf");
 const { getSecurityMiddleware, getCorsOptions } = require("../config/security");
+const { requestLoggerMiddleware } = require("../shared/utils/logger");
 const { correlationIdMiddleware, requestTimingMiddleware } = require("../api/middleware/requestContext");
+const { metricsMiddleware, metricsEndpoint } = require("../api/middleware/metrics");
 const { errorHandler, notFoundHandler } = require("../api/middleware/error");
 const { healthCheck, detailedHealthCheck, readinessCheck, livenessCheck } = require("../api/controllers/health");
 
@@ -21,8 +23,10 @@ function createAdminApp() {
   securityMiddleware.forEach((middleware) => adminApp.use(middleware));
 
   adminApp.use(require("cors")(getCorsOptions()));
+  adminApp.use(requestLoggerMiddleware);
   adminApp.use(correlationIdMiddleware);
   adminApp.use(requestTimingMiddleware);
+  adminApp.use(metricsMiddleware);
   adminApp.use(morgan("dev"));
   adminApp.use(express.json({ limit: "10mb" }));
   adminApp.use(express.urlencoded({ extended: true, limit: "10mb" }));
@@ -58,6 +62,7 @@ function createAdminApp() {
   adminApp.get("/health/detailed", detailedHealthCheck);
   adminApp.get("/health/ready", readinessCheck);
   adminApp.get("/health/live", livenessCheck);
+  adminApp.get("/metrics", metricsEndpoint);
   adminApp.get("/favicon.ico", (_req, res) => res.status(204).end());
 
   // Expose Bull queues status for admin monitoring

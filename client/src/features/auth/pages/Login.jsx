@@ -9,6 +9,7 @@ import {
   selectAuthIsLoading,
   selectAuthUser,
 } from "@/features/auth/authSelectors";
+import { getPostLoginPath } from "@/features/auth/getPostLoginPath";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { ErrorState } from "@/components/common/AsyncState";
@@ -36,7 +37,7 @@ export default function Login() {
 
   useEffect(() => {
     if (user?.id) {
-      navigate("/dashboard");
+      navigate(getPostLoginPath(user.role));
     }
   }, [user, navigate]);
 
@@ -62,12 +63,14 @@ export default function Login() {
     setIsSubmitting(true);
     try {
       const [result] = await Promise.all([
-        dispatch(loginThunk({ email: formData.email, password: formData.password })),
+        dispatch(
+          loginThunk({ email: formData.email, password: formData.password }),
+        ),
         new Promise((resolve) => setTimeout(resolve, 150)),
       ]);
 
       if (result.meta.requestStatus === "fulfilled") {
-        navigate("/dashboard");
+        navigate(getPostLoginPath(result.payload?.user?.role));
       }
     } finally {
       setIsSubmitting(false);
@@ -75,6 +78,8 @@ export default function Login() {
   };
 
   const showExpiredMessage = searchParams.get("expired") === "true";
+  const showInvitationAcceptedMessage =
+    searchParams.get("invitationAccepted") === "true";
 
   return (
     <div className="landing-container section-wrap">
@@ -99,8 +104,8 @@ export default function Login() {
                 Sign in to continue your curated shopping experience.
               </h1>
               <p className="mt-5 text-sm leading-7 text-slate-200">
-                Access your saved items, orders, and a cleaner account space designed to
-                feel modern and effortless.
+                Access your saved items, orders, and a cleaner account space
+                designed to feel modern and effortless.
               </p>
             </div>
 
@@ -154,13 +159,20 @@ export default function Login() {
                 Your session expired. Please sign in again to continue.
               </div>
             )}
+            {showInvitationAcceptedMessage && (
+              <div className="mb-6 rounded-card border border-emerald-100 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-900">
+                Your employee invitation has been accepted. Sign in to continue.
+              </div>
+            )}
 
             {(error || formData.localError) && (
               <ErrorState
                 className="mb-6"
                 title={t("auth.login.failedTitle")}
                 message={formData.localError || error}
-                onRetry={() => setFormData({ email: "", password: "", localError: "" })}
+                onRetry={() =>
+                  setFormData({ email: "", password: "", localError: "" })
+                }
               />
             )}
 
@@ -186,7 +198,7 @@ export default function Login() {
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <label className="block text-sm font-medium text-slate-700">
-                    {t("auth.fields.password")}
+                    {t("auth.fields.passwordLabel")}
                   </label>
                   <Link
                     to="/forgot-password"
@@ -202,22 +214,42 @@ export default function Login() {
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder={t("auth.fields.passwordPlaceholder")}
+                    placeholder={t("auth.fields.passwordPlaceholderText")}
                     required
                     className="pl-11"
                   />
                 </div>
               </div>
 
-              <Button type="submit" className="mt-2 w-full" size="lg" disabled={isLoading || isSubmitting}>
-                {isLoading || isSubmitting ? t("auth.login.loading") : t("auth.login.submit")}
+              <Button
+                type="submit"
+                className="mt-2 w-full"
+                size="lg"
+                disabled={isLoading || isSubmitting}
+              >
+                {isLoading || isSubmitting
+                  ? t("auth.login.loading")
+                  : t("auth.login.submit")}
               </Button>
             </form>
 
             <div className="mt-6 text-center text-sm text-slate-500">
               {t("auth.login.noAccount")}{" "}
-              <Link to="/register" className="font-semibold text-sky-600 hover:text-sky-700">
+              <Link
+                to="/register"
+                className="font-semibold text-sky-600 hover:text-sky-700"
+              >
                 {t("auth.login.signUp")}
+              </Link>
+            </div>
+
+            <div className="mt-3 text-center text-sm text-slate-500">
+              Want to sell on Dealport?{" "}
+              <Link
+                to="/vendor/apply"
+                className="font-semibold text-sky-600 hover:text-sky-700"
+              >
+                Apply as a vendor
               </Link>
             </div>
 

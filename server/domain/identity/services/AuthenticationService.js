@@ -203,7 +203,7 @@ class AuthenticationService {
       [userId, tokenHash, expiresAt],
     );
 
-    const verificationUrl = `${process.env.APP_URL || "http://localhost:5000"}/auth/verify-email?token=${token}`;
+    const verificationUrl = `${process.env.API_URL || "http://localhost:5000"}/auth/verify-email?token=${token}`;
 
     try {
       await EmailQueueProvider.queueEmail(email, "emailVerification", {
@@ -309,15 +309,20 @@ class AuthenticationService {
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
     await pool.query(
-      `INSERT INTO password_resets (user_id, token_hash, expires_at)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (user_id) DO UPDATE SET token_hash = $2, expires_at = $3`,
+      `DELETE FROM password_reset_tokens
+       WHERE user_id = $1 AND used_at IS NULL`,
+      [user.id],
+    );
+
+    await pool.query(
+      `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+       VALUES ($1, $2, $3)`,
       [user.id, tokenHash, expiresAt],
     );
 
     const resetBaseUrl =
       process.env.FRONTEND_URL ||
-      process.env.APP_URL ||
+      process.env.API_URL ||
       "http://localhost:5000";
     const resetUrl = `${resetBaseUrl.replace(/\/+$/, "")}/reset-password/${token}`;
 
@@ -355,7 +360,7 @@ class AuthenticationService {
     }
 
     const result = await pool.query(
-      `SELECT user_id FROM password_resets
+      `SELECT user_id FROM password_reset_tokens
        WHERE token_hash = $1 AND expires_at > NOW() AND used_at IS NULL`,
       [tokenHash],
     );
@@ -378,7 +383,7 @@ class AuthenticationService {
 
     // Mark token as used
     await pool.query(
-      `UPDATE password_resets SET used_at = NOW() WHERE token_hash = $1`,
+      `UPDATE password_reset_tokens SET used_at = NOW() WHERE token_hash = $1`,
       [tokenHash],
     );
 
@@ -394,15 +399,37 @@ class AuthenticationService {
   /**
    * Create refresh token
    */
-  static async createRefreshToken(userId) {
+  static async createRefreshToken(
+    userId,
+    ipAddress = null,
+    userAgent = null,
+    deviceInfo = null,
+  ) {
     const token = this.generateRefreshToken();
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-    await pool.query(
-      `INSERT INTO refresh_tokens (user_id, token, expires_at)
-       VALUES ($1, $2, $3)`,
-      [userId, token, expiresAt],
-    );
+    try {
+      await pool.query(
+        `INSERT INTO refresh_tokens (
+           user_id,
+           token_hash,
+           device_info,
+           ip_address,
+           user_agent,
+           expires_at
+         )
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [userId, tokenHash, deviceInfo, ipAddress, userAgent, expiresAt],
+      );
+    } catch (error) {
+      if (!this._isMissingRelationError(error, "refresh_tokens")) {
+        throw error;
+      }
+
+      logger.warn("refresh_tokens table unavailable, using JWT refresh fallback");
+      return this.generateJWT({ id: userId, type: "refresh" }, "7d");
+    }
 
     return token;
   }
@@ -411,37 +438,161 @@ class AuthenticationService {
    * Verify refresh token
    */
   static async verifyRefreshToken(token) {
-    const result = await pool.query(
-      `SELECT user_id FROM refresh_tokens
-       WHERE token = $1 AND expires_at > NOW() AND revoked = false`,
-      [token],
-    );
+    let result;
+    try {
+      result = await pool.query(
+        `SELECT
+           rt.id,
+           rt.user_id,
+           u.email,
+           u.role
+         FROM refresh_tokens rt
+         JOIN users u ON u.id = rt.user_id
+         WHERE rt.token_hash = $1
+           AND rt.expires_at > NOW()
+           AND rt.revoked_at IS NULL`,
+        [crypto.createHash("sha256").update(token).digest("hex")],
+      );
+    } catch (error) {
+      if (!this._isMissingRelationError(error, "refresh_tokens")) {
+        throw error;
+      }
+
+      const decoded = this.verifyJWT(token);
+      if (!decoded?.id || decoded.type !== "refresh") {
+        throw new AuthenticationError("Invalid or expired refresh token", 401);
+      }
+
+      const user = await userRepository.findById(decoded.id);
+      if (!user || user.deleted_at) {
+        throw new AuthenticationError("Invalid or expired refresh token", 401);
+      }
+
+      return {
+        id: null,
+        user_id: user.id,
+        email: user.email,
+        role: user.role,
+        isJwtFallback: true,
+      };
+    }
 
     if (result.rowCount === 0) {
       throw new AuthenticationError("Invalid or expired refresh token", 401);
     }
 
-    return result.rows[0].user_id;
+    await pool.query(
+      `UPDATE refresh_tokens
+       SET last_used_at = NOW()
+       WHERE id = $1`,
+      [result.rows[0].id],
+    );
+
+    return result.rows[0];
   }
 
   /**
    * Revoke refresh token
    */
-  static async revokeRefreshToken(token) {
-    await pool.query(
-      `UPDATE refresh_tokens SET revoked = true WHERE token = $1`,
-      [token],
-    );
+  static async revokeRefreshToken(token, reason = "manual") {
+    try {
+      await pool.query(
+        `UPDATE refresh_tokens
+         SET revoked_at = NOW(), revoke_reason = $2
+         WHERE token_hash = $1 AND revoked_at IS NULL`,
+        [crypto.createHash("sha256").update(token).digest("hex"), reason],
+      );
+    } catch (error) {
+      if (!this._isMissingRelationError(error, "refresh_tokens")) {
+        throw error;
+      }
+    }
   }
 
   /**
    * Revoke all user refresh tokens
    */
-  static async revokeAllUserTokens(userId) {
-    await pool.query(
-      `UPDATE refresh_tokens SET revoked = true WHERE user_id = $1 AND revoked = false`,
-      [userId],
+  static async revokeAllUserTokens(userId, reason = "manual") {
+    let result;
+    try {
+      result = await pool.query(
+        `UPDATE refresh_tokens
+         SET revoked_at = NOW(), revoke_reason = $2
+         WHERE user_id = $1
+           AND revoked_at IS NULL
+           AND expires_at > NOW()`,
+        [userId, reason],
+      );
+    } catch (error) {
+      if (!this._isMissingRelationError(error, "refresh_tokens")) {
+        throw error;
+      }
+
+      return 0;
+    }
+
+    return result.rowCount;
+  }
+
+  static async validateAndRotateRefreshToken(token, ipAddress, userAgent) {
+    const refreshToken = await this.verifyRefreshToken(token);
+    await this.revokeRefreshToken(token, "rotated");
+
+    const newRefreshToken = await this.createRefreshToken(
+      refreshToken.user_id,
+      ipAddress,
+      userAgent,
+      null,
     );
+
+    return {
+      userId: refreshToken.user_id,
+      email: refreshToken.email,
+      role: refreshToken.role,
+      newRefreshToken,
+    };
+  }
+
+  static async getActiveSessions(userId) {
+    let result;
+    try {
+      result = await pool.query(
+        `SELECT
+           id,
+           device_info,
+           ip_address,
+           user_agent,
+           last_used_at,
+           created_at,
+           expires_at
+         FROM refresh_tokens
+         WHERE user_id = $1
+           AND revoked_at IS NULL
+           AND expires_at > NOW()
+         ORDER BY COALESCE(last_used_at, created_at) DESC`,
+        [userId],
+      );
+    } catch (error) {
+      if (!this._isMissingRelationError(error, "refresh_tokens")) {
+        throw error;
+      }
+
+      return [];
+    }
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      device_info: row.device_info,
+      ip_address: row.ip_address,
+      user_agent: row.user_agent,
+      last_used_at: row.last_used_at,
+      created_at: row.created_at,
+      expires_at: row.expires_at,
+    }));
+  }
+
+  static async revokeAllRefreshTokens(userId, reason = "manual") {
+    return this.revokeAllUserTokens(userId, reason);
   }
 
   // =====================================================
@@ -487,6 +638,13 @@ class AuthenticationService {
   static async _clearFailedAttempts(email) {
     if (!redisClient?.isReady) return;
     await redisClient.del([`login_attempts:${email}`, `login_lock:${email}`]);
+  }
+
+  static _isMissingRelationError(error, relation) {
+    return (
+      error?.code === "42P01" &&
+      (!relation || String(error.message).includes(`"${relation}"`))
+    );
   }
 }
 

@@ -188,3 +188,37 @@ CREATE TABLE IF NOT EXISTS employee_invitations (
 CREATE INDEX idx_employee_invitations_email ON employee_invitations(email);
 CREATE INDEX idx_employee_invitations_status ON employee_invitations(status);
 CREATE INDEX idx_employee_invitations_expires_at ON employee_invitations(expires_at);
+-- Employee Onboarding Tables
+CREATE TABLE IF NOT EXISTS onboardings (
+  id            SERIAL PRIMARY KEY,
+  employee_id   INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  manager_id    INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  status        VARCHAR(20)    NOT NULL DEFAULT 'not_started',
+  start_date    DATE           NOT NULL,
+  end_date      DATE,
+  budget        NUMERIC(10, 2) NOT NULL DEFAULT 5000 CHECK (budget >= 0),
+  budget_spent  NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (budget_spent >= 0),
+  budget_overridden       BOOLEAN NOT NULL DEFAULT false,
+  budget_override_reason  TEXT,
+  notes         TEXT,
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS onboarding_tasks (
+  id             SERIAL PRIMARY KEY,
+  onboarding_id  INTEGER      NOT NULL REFERENCES onboardings(id) ON DELETE CASCADE,
+  name           VARCHAR(255) NOT NULL,
+  description    TEXT,
+  category       VARCHAR(50)  NOT NULL DEFAULT 'general',
+  due_day        SMALLINT,
+  assigned_to    INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  is_completed   BOOLEAN NOT NULL DEFAULT false,
+  completed_at   TIMESTAMP,
+  created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_onboardings_employee    ON onboardings(employee_id);
+CREATE INDEX idx_onboardings_status      ON onboardings(status);
+CREATE INDEX idx_onboarding_tasks_parent ON onboarding_tasks(onboarding_id);

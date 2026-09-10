@@ -1,6 +1,8 @@
 const JobQueueManager = require('./JobQueueManager');
 const EmailJobQueue = require('./handlers/emailQueue');
 const WebhookJobQueue = require('./handlers/webhookQueue');
+const ReportingQueue = require('./handlers/reportingQueue');
+const CleanupQueue = require('./handlers/cleanupQueue');
 const { ExchangeRateQueue } = require('./queues/exchangeRateQueue');
 const { logger } = require('../../shared/utils/logger');
 
@@ -43,49 +45,31 @@ async function initializeJobQueues(emailService, webhookHandlers = {}) {
 
     const webhookJobQueue = new WebhookJobQueue(webhookQueue, webhookHandlers);
 
-    // Reporting queue – processor logs job details; wire up real handlers when ready
     const reportingQueue = queueManager.createQueue('reporting', {
       defaultJobOptions: {
         attempts: 2,
-        timeout: 120000
-      }
+        timeout: 120000,
+      },
     });
-    reportingQueue.process(async (job) => {
-      logger.info('Processing reporting job', { jobId: job.id, type: job.data.type });
-      // TODO: dispatch to a real reporting handler based on job.data.type
-      logger.warn('Reporting job received but no handler is registered', {
-        jobId: job.id,
-        type: job.data.type,
-      });
-      return { skipped: true, reason: 'no_handler' };
-    });
+    const reportingJobQueue = new ReportingQueue(reportingQueue, require('../../config/db').pool, require('../../config/redis').redisClient);
 
-    // Cleanup queue – processor logs job details; wire up real handlers when ready
     const cleanupQueue = queueManager.createQueue('cleanup', {
       defaultJobOptions: {
         attempts: 1,
-        timeout: 3600000
-      }
+        timeout: 3600000,
+      },
     });
-    cleanupQueue.process(async (job) => {
-      logger.info('Processing cleanup job', { jobId: job.id, type: job.data.type });
-      // TODO: dispatch to a real cleanup handler based on job.data.type
-      logger.warn('Cleanup job received but no handler is registered', {
-        jobId: job.id,
-        type: job.data.type,
-      });
-      return { skipped: true, reason: 'no_handler' };
-    });
+    const cleanupJobQueue = new CleanupQueue(cleanupQueue, require('../../config/db').pool, require('../../config/redis').redisClient);
 
     const exchangeRateQueue = queueManager.createQueue('exchange-rates', {
       defaultJobOptions: {
         attempts: 3,
         backoff: {
           type: 'exponential',
-          delay: 5000
+          delay: 5000,
         },
-        timeout: 120000
-      }
+        timeout: 120000,
+      },
     });
 
     const exchangeRateJobQueue = new ExchangeRateQueue(exchangeRateQueue);
@@ -116,12 +100,14 @@ async function initializeJobQueues(emailService, webhookHandlers = {}) {
       emailJobQueue,
       webhookJobQueue,
       exchangeRateJobQueue,
+      reportingJobQueue,
+      cleanupJobQueue,
       reportingQueue,
-      cleanupQueue
+      cleanupQueue,
     };
   } catch (error) {
     logger.error('Failed to initialize job queues', {
-      error: error.message
+      error: error.message,
     });
     throw error;
   }

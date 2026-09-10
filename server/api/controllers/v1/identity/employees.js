@@ -1,9 +1,6 @@
-const { pool } = require("../../../../config/db");
 const { logger } = require("../../../../shared/utils/logger");
-const InvitationService = require("../../../../services/invitation");
-const { sendEmail } = require("../../../../infrastructure/email");
-const { PermissionChecker, invalidateEmployeeLookup } = require("../../../middleware/rbac");
-const PermissionService = require("../../../../shared/core/PermissionService");
+const EmployeeManagementService = require("../../../../services/employeeManagement");
+const { EMPLOYMENT_STATUSES } = require("../../../../services/employeeManagement");
 const { successResponse, errorResponse } = require("../../../../shared/utils/response");
 
 /**
@@ -22,47 +19,12 @@ const { successResponse, errorResponse } = require("../../../../shared/utils/res
 exports.inviteEmployee = async (req, res) => {
   try {
     const { email, roleId } = req.body;
-
-    if (!email || !roleId) {
-      return errorResponse(res, {
-        message: "Email and roleId are required",
-        status: 400,
-      });
-    }
-
-    const invitation = await InvitationService.createInvitation(
+    const invitation = await EmployeeManagementService.inviteEmployee({
       email,
       roleId,
-      req.user.id,
-      24,
-    );
-
-    try {
-      const invitationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accept-invitation?token=${invitation.token}`;
-      
-      await sendEmail({
-        to: email,
-        subject: 'Join Our Team - Employee Invitation',
-        template: 'employee-invitation',
-        context: {
-          invitationUrl,
-          inviterName: req.user.name || 'Your Team',
-          expiresIn: '24 hours',
-        },
-      });
-
-      logger.info('Invitation email sent successfully', {
-        email,
-        invitationId: invitation.id,
-        inviterUserId: req.user.id,
-      });
-    } catch (emailError) {
-      logger.error('Failed to send invitation email', {
-        email,
-        invitationId: invitation.id,
-        error: emailError.message,
-      });
-    }
+      invitedByUserId: req.user.id,
+      expiryHours: 24,
+    });
 
     return successResponse(res, {
       data: {
@@ -78,7 +40,30 @@ exports.inviteEmployee = async (req, res) => {
     logger.error("Failed to create invitation", { error: error.message });
     return errorResponse(res, {
       message: error.message,
-      status: 400,
+      status: EmployeeManagementService.getErrorStatus(error),
+    });
+  }
+};
+
+/**
+ * GET /api/v1/employees/accept-invitation
+ * Validate an invitation token and return preview details
+ */
+exports.getInvitationPreview = async (req, res) => {
+  try {
+    const invitation = await EmployeeManagementService.getInvitationPreview(
+      req.query.token,
+    );
+
+    return successResponse(res, {
+      data: invitation,
+      message: "Invitation is valid",
+    });
+  } catch (error) {
+    logger.error("Failed to validate invitation", { error: error.message });
+    return errorResponse(res, {
+      message: error.message,
+      status: EmployeeManagementService.getErrorStatus(error),
     });
   }
 };
@@ -89,40 +74,15 @@ exports.inviteEmployee = async (req, res) => {
  */
 exports.acceptInvitation = async (req, res) => {
   try {
-    const { token, firstName, lastName, password, confirmPassword } = req.body;
-
-    if (!token || !firstName || !lastName || !password) {
-      return errorResponse(res, {
-        message: "All fields are required",
-        status: 400,
-      });
-    }
-
-    if (password !== confirmPassword) {
-      return errorResponse(res, {
-        message: "Passwords do not match",
-        status: 400,
-      });
-    }
-
-    if (password.length < 8) {
-      return errorResponse(res, {
-        message: "Password must be at least 8 characters",
-        status: 400,
-      });
-    }
-
-    const employee = await InvitationService.acceptInvitation(token, {
-      firstName,
-      lastName,
-      password,
-    });
+    const employee = await EmployeeManagementService.acceptInvitation(req.body);
 
     return successResponse(res, {
       data: {
         userId: employee.userId,
         email: employee.email,
         name: employee.name,
+        roleCode: employee.roleCode,
+        roleName: employee.roleName,
       },
       message: "Employee account created successfully",
       status: 201,
@@ -131,7 +91,7 @@ exports.acceptInvitation = async (req, res) => {
     logger.error("Failed to accept invitation", { error: error.message });
     return errorResponse(res, {
       message: error.message,
-      status: 400,
+      status: EmployeeManagementService.getErrorStatus(error),
     });
   }
 };
@@ -142,26 +102,17 @@ exports.acceptInvitation = async (req, res) => {
  */
 exports.getPendingInvitations = async (req, res) => {
   try {
-    const { page = 1, pageSize = 20 } = req.query;
-    const limit = Math.min(parseInt(pageSize) || 20, 100);
-    const offset = (Math.max(1, parseInt(page) || 1) - 1) * limit;
-
-    const invitations = await InvitationService.getPendingInvitations(
-      limit,
-      offset,
-    );
-
-    const countResult = await pool.query(
-      "SELECT COUNT(*) as count FROM employee_invitations WHERE status = 'pending' AND expires_at > now()",
+    const invitationPage = await EmployeeManagementService.getPendingInvitations(
+      req.query,
     );
 
     return successResponse(res, {
-      data: invitations,
+      data: invitationPage.invitations,
       message: "Pending invitations retrieved",
       meta: {
-        page: parseInt(page),
-        pageSize: limit,
-        total: parseInt(countResult.rows[0].count),
+        page: invitationPage.page,
+        pageSize: invitationPage.pageSize,
+        total: invitationPage.total,
       },
     });
   } catch (error) {
@@ -170,7 +121,7 @@ exports.getPendingInvitations = async (req, res) => {
     });
     return errorResponse(res, {
       message: "Failed to fetch invitations",
-      status: 500,
+      status: EmployeeManagementService.getErrorStatus(error),
     });
   }
 };
@@ -181,12 +132,10 @@ exports.getPendingInvitations = async (req, res) => {
  */
 exports.resendInvitation = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const invitation = await InvitationService.resendInvitation(
-      id,
-      req.user.id,
-    );
+    const invitation = await EmployeeManagementService.resendInvitation({
+      invitationId: req.params.id,
+      invitedByUserId: req.user.id,
+    });
 
     return successResponse(res, {
       data: {
@@ -200,7 +149,7 @@ exports.resendInvitation = async (req, res) => {
     logger.error("Failed to resend invitation", { error: error.message });
     return errorResponse(res, {
       message: error.message,
-      status: 400,
+      status: EmployeeManagementService.getErrorStatus(error),
     });
   }
 };
@@ -215,59 +164,24 @@ exports.resendInvitation = async (req, res) => {
  */
 exports.listEmployees = async (req, res) => {
   try {
-    const { page = 1, pageSize = 20, status = "active", roleId } = req.query;
-    const limit = Math.min(parseInt(pageSize) || 20, 100);
-    const offset = (Math.max(1, parseInt(page) || 1) - 1) * limit;
-
-    let query = `
-      SELECT 
-        e.id, e.user_id, e.employment_status, e.mfa_enabled, e.last_login_at, e.created_at,
-        u.email, u.first_name, u.last_name,
-        r.code as role_code, r.name as role_name, r.hierarchy_level
-      FROM employees e
-      JOIN users u ON e.user_id = u.id
-      JOIN roles r ON e.role_id = r.id
-      WHERE 1=1
-    `;
-    const params = [];
-    let paramIndex = 1;
-
-    if (status) {
-      query += ` AND e.employment_status = $${paramIndex}`;
-      params.push(status);
-      paramIndex++;
-    }
-
-    if (roleId) {
-      query += ` AND e.role_id = $${paramIndex}`;
-      params.push(roleId);
-      paramIndex++;
-    }
-
-    query += ` ORDER BY e.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-    params.push(limit, offset);
-
-    const result = await pool.query(query, params);
-
-    const countResult = await pool.query(
-      "SELECT COUNT(*) as count FROM employees WHERE employment_status = $1",
-      [status],
+    const employeePage = await EmployeeManagementService.listEmployeesForIdentity(
+      req.query,
     );
 
     return successResponse(res, {
-      data: result.rows,
+      data: employeePage.employees,
       message: "Employees retrieved",
       meta: {
-        page: parseInt(page),
-        pageSize: limit,
-        total: parseInt(countResult.rows[0].count),
+        page: employeePage.page,
+        pageSize: employeePage.pageSize,
+        total: employeePage.total,
       },
     });
   } catch (error) {
     logger.error("Failed to list employees", { error: error.message });
     return errorResponse(res, {
       message: "Failed to fetch employees",
-      status: 500,
+      status: EmployeeManagementService.getErrorStatus(error),
     });
   }
 };
@@ -278,43 +192,19 @@ exports.listEmployees = async (req, res) => {
  */
 exports.getEmployee = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const result = await pool.query(
-      `
-      SELECT 
-        e.id, e.user_id, e.employment_status, e.mfa_enabled, e.mfa_verified_at,
-        e.last_login_at, e.failed_login_attempts, e.account_locked_until, e.created_at,
-        u.email, u.first_name, u.last_name,
-        r.id as role_id, r.code as role_code, r.name as role_name,
-        COALESCE(json_agg(DISTINCT p.code) FILTER (WHERE p.code IS NOT NULL), '[]'::json) as permissions
-      FROM employees e
-      JOIN users u ON e.user_id = u.id
-      JOIN roles r ON e.role_id = r.id
-      LEFT JOIN role_permissions rp ON r.id = rp.role_id
-      LEFT JOIN permissions p ON rp.permission_id = p.id
-      WHERE e.id = $1
-      GROUP BY e.id, u.id, r.id
-      `,
-      [id],
+    const employee = await EmployeeManagementService.getEmployeeDetailsForIdentity(
+      req.params.id,
     );
 
-    if (result.rowCount === 0) {
-      return errorResponse(res, {
-        message: "Employee not found",
-        status: 404,
-      });
-    }
-
     return successResponse(res, {
-      data: result.rows[0],
+      data: employee,
       message: "Employee details retrieved",
     });
   } catch (error) {
     logger.error("Failed to get employee", { error: error.message });
     return errorResponse(res, {
-      message: "Failed to fetch employee",
-      status: 500,
+      message: error.message,
+      status: EmployeeManagementService.getErrorStatus(error),
     });
   }
 };
@@ -324,89 +214,25 @@ exports.getEmployee = async (req, res) => {
  * Change employee role
  */
 exports.updateEmployeeRole = async (req, res) => {
-  const client = await pool.connect();
   try {
-    const { id } = req.params;
-    const { roleId, reason } = req.body;
-
-    if (!roleId) {
-      return errorResponse(res, {
-        message: "roleId is required",
-        status: 400,
-      });
-    }
-
-    await client.query("BEGIN");
-
-    // Get employee's current role
-    const empResult = await client.query(
-      "SELECT role_id, user_id FROM employees WHERE id = $1",
-      [id],
-    );
-
-    if (empResult.rowCount === 0) {
-      throw new Error("Employee not found");
-    }
-
-    const oldRoleId = empResult.rows[0].role_id;
-    const targetUserId = empResult.rows[0].user_id;
-
-    // Check hierarchy: can only assign roles at or below your level
-    const myRole = await PermissionChecker.getEmployeeRole(
-      req.employee.id,
-    );
-    const targetRole = await client.query(
-      "SELECT hierarchy_level FROM roles WHERE id = $1",
-      [roleId],
-    );
-
-    if (
-      !myRole ||
-      !targetRole.rows[0] ||
-      targetRole.rows[0].hierarchy_level > myRole.hierarchy_level
-    ) {
-      throw new Error(
-        "Cannot assign role with higher hierarchy level than your own",
-      );
-    }
-
-    // Update role
-    const updateResult = await client.query(
-      `UPDATE employees SET role_id = $1, updated_at = now()
-       WHERE id = $2
-       RETURNING id`,
-      [roleId, id],
-    );
-
-    // Log security event
-    await client.query(
-      `INSERT INTO security_audit_log (event_type, actor_id, target_id, description, metadata)
-       VALUES ('role_changed', $1, $2, $3, $4)`,
-      [
-        req.user.id,
-        targetUserId,
-        `Employee role changed from ${oldRoleId} to ${roleId}`,
-        JSON.stringify({ oldRoleId, newRoleId: roleId, reason }),
-      ],
-    );
-
-    await client.query("COMMIT");
-
-    await PermissionService.invalidateEmployeePermissions(id);
+    const updateResult = await EmployeeManagementService.updateEmployeeRole({
+      employeeId: req.params.id,
+      roleId: req.body.roleId,
+      actorEmployeeId: req.employee.id,
+      actorUserId: req.user.id,
+      reason: req.body.reason,
+    });
 
     return successResponse(res, {
-      data: updateResult.rows[0],
+      data: updateResult,
       message: "Employee role updated successfully",
     });
   } catch (error) {
-    await client.query("ROLLBACK");
     logger.error("Failed to update employee role", { error: error.message });
     return errorResponse(res, {
       message: error.message,
-      status: 400,
+      status: EmployeeManagementService.getErrorStatus(error),
     });
-  } finally {
-    client.release();
   }
 };
 
@@ -415,77 +241,26 @@ exports.updateEmployeeRole = async (req, res) => {
  * Update employee employment status
  */
 exports.updateEmployeeStatus = async (req, res) => {
-  const client = await pool.connect();
   try {
-    const { id } = req.params;
-    const { status, reason } = req.body;
-
-    const validStatuses = [
-      "active",
-      "suspended",
-      "on_leave",
-      "terminated",
-      "inactive",
-    ];
-    if (!validStatuses.includes(status)) {
-      return errorResponse(res, {
-        message: `Status must be one of: ${validStatuses.join(", ")}`,
-        status: 400,
-      });
-    }
-
-    await client.query("BEGIN");
-
-    const empResult = await client.query(
-      "SELECT user_id, employment_status FROM employees WHERE id = $1",
-      [id],
-    );
-
-    if (empResult.rowCount === 0) {
-      throw new Error("Employee not found");
-    }
-
-    const oldStatus = empResult.rows[0].employment_status;
-    const targetUserId = empResult.rows[0].user_id;
-
-    const result = await client.query(
-      `UPDATE employees SET employment_status = $1, updated_at = now()
-       WHERE id = $2
-       RETURNING id, employment_status`,
-      [status, id],
-    );
-
-    // Log security event
-    await client.query(
-      `INSERT INTO security_audit_log (event_type, actor_id, target_id, description, metadata)
-       VALUES ('employment_status_changed', $1, $2, $3, $4)`,
-      [
-        req.user.id,
-        targetUserId,
-        `Employment status changed from ${oldStatus} to ${status}`,
-        JSON.stringify({ oldStatus, newStatus: status, reason }),
-      ],
-    );
-
-    await client.query("COMMIT");
-
-    // Deactivated employees must lose cached access immediately
-    await PermissionService.invalidateEmployeePermissions(id);
-    await invalidateEmployeeLookup(targetUserId);
+    const result = await EmployeeManagementService.updateEmployeeStatus({
+      employeeId: req.params.id,
+      status: req.body.status,
+      actorEmployeeId: req.employee.id,
+      actorUserId: req.user.id,
+      reason: req.body.reason,
+      allowedStatuses: EMPLOYMENT_STATUSES,
+    });
 
     return successResponse(res, {
-      data: result.rows[0],
+      data: result,
       message: "Employee status updated successfully",
     });
   } catch (error) {
-    await client.query("ROLLBACK");
     logger.error("Failed to update employee status", { error: error.message });
     return errorResponse(res, {
       message: error.message,
-      status: 400,
+      status: EmployeeManagementService.getErrorStatus(error),
     });
-  } finally {
-    client.release();
   }
 };
 
@@ -495,48 +270,14 @@ exports.updateEmployeeStatus = async (req, res) => {
  */
 exports.setPermissionOverride = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { permissionCode, grantType = "grant", scope, reason } = req.body;
-
-    if (!permissionCode) {
-      return errorResponse(res, {
-        message: "permissionCode is required",
-        status: 400,
-      });
-    }
-
-    // Get permission ID
-    const permResult = await pool.query(
-      "SELECT id FROM permissions WHERE code = $1",
-      [permissionCode],
-    );
-
-    if (permResult.rowCount === 0) {
-      return errorResponse(res, {
-        message: "Permission not found",
-        status: 404,
-      });
-    }
-
-    const permissionId = permResult.rows[0].id;
-
-    const result = await pool.query(
-      `INSERT INTO employee_permission_overrides 
-       (employee_id, permission_id, grant_type, scope, reason, granted_by_id)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (employee_id, permission_id, scope) DO UPDATE SET
-       grant_type = $3, reason = $5
-       RETURNING id, grant_type, permission_id, scope`,
-      [id, permissionId, grantType, scope, reason, req.user.id],
-    );
-
-    logger.info("Permission override set", {
-      employeeId: id,
-      permissionCode,
-      grantType,
+    const result = await EmployeeManagementService.setPermissionOverride({
+      employeeId: req.params.id,
+      permissionCode: req.body.permissionCode,
+      grantType: req.body.grantType,
+      scope: req.body.scope,
+      reason: req.body.reason,
+      grantedByUserId: req.user.id,
     });
-
-    await PermissionService.invalidateEmployeePermissions(id);
 
     return successResponse(res, {
       data: result.rows[0],
@@ -548,7 +289,7 @@ exports.setPermissionOverride = async (req, res) => {
     });
     return errorResponse(res, {
       message: error.message,
-      status: 400,
+      status: EmployeeManagementService.getErrorStatus(error),
     });
   }
 };
@@ -559,27 +300,21 @@ exports.setPermissionOverride = async (req, res) => {
  */
 exports.getEmployeeAuditLog = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { limit = 50, offset = 0 } = req.query;
-
-    const result = await pool.query(
-      `SELECT id, event_type, actor_id, description, metadata, created_at
-       FROM security_audit_log
-       WHERE target_id = (SELECT user_id FROM employees WHERE id = $1)
-       ORDER BY created_at DESC
-       LIMIT $2 OFFSET $3`,
-      [id, limit, offset],
-    );
+    const result = await EmployeeManagementService.getEmployeeAuditLog({
+      employeeId: req.params.id,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    });
 
     return successResponse(res, {
-      data: result.rows,
+      data: result,
       message: "Audit log retrieved",
     });
   } catch (error) {
     logger.error("Failed to get employee audit log", { error: error.message });
     return errorResponse(res, {
-      message: "Failed to fetch audit log",
-      status: 500,
+      message: error.message,
+      status: EmployeeManagementService.getErrorStatus(error),
     });
   }
 };

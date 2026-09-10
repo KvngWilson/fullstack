@@ -67,8 +67,27 @@ services:
       environment: "development"
       service: "mailhog"
     ports:
-      - "1025:1025" # SMTP
-      - "8025:8025" # Web UI
+      - "1025:25" # SMTP
+      - "8025:80" # Web UI
+    restart: unless-stopped
+    networks:
+      - server-network
+
+    # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: server-rabbitmq
+    labels:
+      description: "RabbitMQ message broker for background jobs and messaging"
+    ports:
+      - "15672:15672" # Management UI
+      - "5672:5672" # AMQP
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     restart: unless-stopped
     networks:
       - server-network
@@ -97,20 +116,23 @@ services:
       REDIS_PORT: 6379
       REDIS_DB: 0
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_1234567890}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672}
 
       JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production}
       JWT_EXPIRES_IN: 7d
       SESSION_SECRET: ${SESSION_SECRET:-dev-session-secret-change-in-production}
 
-      APP_URL: ${APP_URL:-http://localhost:5000}
+      API_URL: ${API_URL:-http://localhost:5000}
       LOG_LEVEL: debug
-    command: nodemon src/admin-index.js
+    command: nodemon src/index.js
     ports:
       - "5000:5000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     volumes:
       - ./logs:/app/logs
@@ -169,17 +191,20 @@ services:
       REDIS_PORT: 6379
       REDIS_DB: 0
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_1234567890}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672}
 
       JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production}
       SESSION_SECRET: ${SESSION_SECRET:-dev-session-secret-change-in-production}
 
       LOG_LEVEL: debug
-      ALLOW_IMMEDIATE_JOBS: 'true'
+      ALLOW_IMMEDIATE_JOBS: "true"
     command: nodemon src/worker.js
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     volumes:
       - ./logs:/app/logs

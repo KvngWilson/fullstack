@@ -5,6 +5,9 @@
 
 const Stripe = require('stripe');
 const logger = require('../../../shared/utils/logger');
+const {
+  withChildSpan,
+} = require("../../../infrastructure/observability/tracing/tracingScope");
 
 /**
  * Get Stripe instance (lazy initialization for testing)
@@ -24,6 +27,20 @@ const getStripe = () => {
 const getStripeWebhookSecret = () => {
   return process.env.STRIPE_WEBHOOK_SECRET;
 };
+
+async function traceStripeCall(operation, tags, callback) {
+  return withChildSpan(
+    `external.stripe.${operation}`,
+    {
+      tags: {
+        "external.system": "stripe",
+        "external.operation": operation,
+        ...tags,
+      },
+    },
+    callback,
+  );
+}
 
 /**
  * Convert amount from major units to minor units (multiply by 100)
@@ -98,11 +115,18 @@ async function createPaymentIntent(params) {
     if (statement_descriptor) intentParams.statement_descriptor = statement_descriptor;
     if (customer_email) intentParams.receipt_email = customer_email;
 
-    const paymentIntent = await stripe.paymentIntents.create(
-      intentParams,
+    const paymentIntent = await traceStripeCall(
+      "paymentIntents.create",
       {
-        idempotencyKey: metadata?.idempotency_key || undefined,
-      }
+        "payment.currency": intentParams.currency,
+      },
+      () =>
+        stripe.paymentIntents.create(
+          intentParams,
+          {
+            idempotencyKey: metadata?.idempotency_key || undefined,
+          }
+        ),
     );
 
     return {
@@ -155,7 +179,13 @@ async function verifyPaymentIntent(intentId) {
       throw new Error('Payment intent ID is required');
     }
 
-    const paymentIntent = await stripe.paymentIntents.retrieve(intentId);
+    const paymentIntent = await traceStripeCall(
+      "paymentIntents.retrieve",
+      {
+        "payment.intent_id": intentId,
+      },
+      () => stripe.paymentIntents.retrieve(intentId),
+    );
 
     // Check if payment was successful
     if (paymentIntent.status !== 'succeeded') {
@@ -229,7 +259,13 @@ async function refundPayment(intentId, amount, reason) {
       refundParams.reason = reason;
     }
 
-    const refund = await stripe.refunds.create(refundParams);
+    const refund = await traceStripeCall(
+      "refunds.create",
+      {
+        "payment.intent_id": intentId,
+      },
+      () => stripe.refunds.create(refundParams),
+    );
 
     return {
       success: refund.status === 'succeeded',
@@ -319,10 +355,17 @@ async function listPaymentIntents(customerId, limit = 10) {
       throw new Error('Customer ID is required');
     }
 
-    const intents = await stripe.paymentIntents.list({
-      customer: customerId,
-      limit: Math.min(limit, 100),
-    });
+    const intents = await traceStripeCall(
+      "paymentIntents.list",
+      {
+        "payment.customer_id": customerId,
+      },
+      () =>
+        stripe.paymentIntents.list({
+          customer: customerId,
+          limit: Math.min(limit, 100),
+        }),
+    );
 
     return {
       success: true,

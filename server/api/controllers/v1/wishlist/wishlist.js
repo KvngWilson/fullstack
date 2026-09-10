@@ -24,7 +24,7 @@ const getWishlist = async (req, res, next) => {
           json_build_object(
             'id', pv.id,
             'sku', pv.sku,
-            'price', pv.price,
+            'price', pv.price_cents / 100.0,
             'stock', pv.stock
           )
         ) FROM product_variants pv WHERE pv.product_id = p.id) as variants

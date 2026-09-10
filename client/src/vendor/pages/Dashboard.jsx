@@ -21,46 +21,75 @@ export default function Dashboard() {
       ]}
       stats={[
         { label: "Revenue today", value: "$8.4k", change: "+11% vs yesterday" },
-        { label: "Open orders", value: "52", change: "9 need same-day handling" },
+        {
+          label: "Open orders",
+          value: "52",
+          change: "9 need same-day handling",
+        },
         { label: "Low-stock SKUs", value: "14", change: "3 critical" },
-        { label: "Repeat customers", value: "38%", change: "Strong retention trend" },
+        {
+          label: "Repeat customers",
+          value: "38%",
+          change: "Strong retention trend",
+        },
       ]}
       modules={[
         {
           icon: CircleDollarSign,
           title: "Revenue pulse",
-          description: "Monitor daily sales with clear trend visibility and conversion context.",
+          description:
+            "Monitor daily sales with clear trend visibility and conversion context.",
           items: ["Sales velocity", "Top-selling lines", "Margin sensitivity"],
         },
         {
           icon: ShoppingBag,
           title: "Order operations",
-          description: "Stay ahead of fulfillment priorities and customer expectations.",
-          items: ["Pending fulfillment", "Cancellation signals", "Delivery confidence"],
+          description:
+            "Stay ahead of fulfillment priorities and customer expectations.",
+          items: [
+            "Pending fulfillment",
+            "Cancellation signals",
+            "Delivery confidence",
+          ],
         },
         {
           icon: Boxes,
           title: "Inventory confidence",
           description: "Reduce stockouts and improve replenishment timing.",
-          items: ["Low-stock alerts", "Demand forecasting", "Slow-mover detection"],
+          items: [
+            "Low-stock alerts",
+            "Demand forecasting",
+            "Slow-mover detection",
+          ],
         },
         {
           icon: BarChart3,
           title: "Performance insights",
-          description: "Understand what drives growth and where to optimize next.",
+          description:
+            "Understand what drives growth and where to optimize next.",
           items: ["Category performance", "Basket behavior", "Promo impact"],
         },
         {
           icon: Users,
           title: "Customer intelligence",
-          description: "Build stronger retention with visibility into buying behavior.",
-          items: ["Returning customer mix", "Lifecycle stage", "Satisfaction indicators"],
+          description:
+            "Build stronger retention with visibility into buying behavior.",
+          items: [
+            "Returning customer mix",
+            "Lifecycle stage",
+            "Satisfaction indicators",
+          ],
         },
         {
           icon: Clock3,
           title: "Execution speed",
-          description: "Keep internal operations aligned with service-level goals.",
-          items: ["Pick/pack timing", "Response latency", "Operational bottlenecks"],
+          description:
+            "Keep internal operations aligned with service-level goals.",
+          items: [
+            "Pick/pack timing",
+            "Response latency",
+            "Operational bottlenecks",
+          ],
         },
       ]}
     />

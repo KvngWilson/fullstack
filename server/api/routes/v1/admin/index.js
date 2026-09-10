@@ -8,8 +8,15 @@ const router = express.Router();
 
 // Admin authentication API
 router.use("/auth", require("./auth"));
-// Admin SSR (server-side rendering) and hydration
-router.use("/ssr", require("./ssr"));
+
+// Dashboard and profile summary
+router.use("/dashboard", require("./dashboard"));
+
+// Marketplace user management
+router.use("/users", require("./users"));
+
+// Order operations
+router.use("/orders", require("./orders"));
 
 // Employee management
 router.use("/employees", require("./employees"));
@@ -32,7 +39,10 @@ router.use("/audit-logs", require("./audit-logs"));
 // Background jobs management
 router.use("/jobs", require("./jobs"));
 
-// Legacy admin management API endpoints migrated from SSR router
-router.use("/", require("../../admin/management"));
+// Admin asset uploads
+router.use("/uploads", require("./uploads"));
+
+// Admin product management helpers
+router.use("/products", require("./products"));
 
 module.exports = router;

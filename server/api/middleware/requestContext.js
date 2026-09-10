@@ -3,28 +3,13 @@
  * Adds correlation ID and tracing context to requests for observability
  */
 
-const { v4: uuidv4 } = require('uuid');
+const {
+  createTracingMiddleware,
+} = require("../../infrastructure/observability/tracing/tracingMiddleware");
 
-// Add correlation ID to requests for distributed tracing
-function correlationIdMiddleware(req, res, next) {
-  // Use existing correlation ID from header or generate new one
-  const correlationId = req.headers['x-correlation-id'] || 
-                        req.headers['x-request-id'] || 
-                        uuidv4();
-  
-  // Attach to request
-  req.correlationId = correlationId;
-  
-  // Add to response headers
-  res.setHeader('X-Correlation-ID', correlationId);
-  
-  // Attach to logger if available
-  if (req.logger) {
-    req.logger = req.logger.child({ correlationId });
-  }
-  
-  next();
-}
+const correlationIdMiddleware = createTracingMiddleware({
+  headerName: 'x-correlation-id',
+});
 
 // Add request timing for performance monitoring
 function requestTimingMiddleware(req, res, next) {

@@ -43,11 +43,10 @@ const createOrder = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
   if (!shipping_address_id || !billing_address_id) {
-    return errorResponse(
-      res,
-      "Shipping and billing addresses are required",
-      400,
-    );
+    return errorResponse(res, {
+      message: "Shipping and billing addresses are required",
+      status: 400,
+    });
   }
 
   const order = await orderService.createOrder(
@@ -58,7 +57,11 @@ const createOrder = asyncHandler(async (req, res) => {
 
   const orderWithLinks = addOrderLinks(order, req.user);
 
-  return successResponse(res, orderWithLinks, "Order created successfully", 201);
+  return successResponse(res, {
+    data: orderWithLinks,
+    message: "Order created successfully",
+    status: 201,
+  });
 });
 
 const getOrderById = asyncHandler(async (req, res) => {
@@ -67,17 +70,17 @@ const getOrderById = asyncHandler(async (req, res) => {
   const scopes = deriveScopes(req.user);
 
   if (!parsedOrderId) {
-    return errorResponse(res, "Invalid orderId", 400);
+    return errorResponse(res, { message: "Invalid orderId", status: 400 });
   }
 
   if (!scopes.includes("orders:read:own") && !scopes.includes("orders:read:*")) {
-    return errorResponse(res, "Cannot read orders", 403);
+    return errorResponse(res, { message: "Cannot read orders", status: 403 });
   }
 
   const order = await orderService.getOrder(parsedOrderId, userId, true);
 
   if (!order) {
-    return errorResponse(res, "Order not found", 404);
+    return errorResponse(res, { message: "Order not found", status: 404 });
   }
 
   if (
@@ -85,7 +88,10 @@ const getOrderById = asyncHandler(async (req, res) => {
     && !scopes.includes("orders:read:*")
     && Number(order.user_id) !== Number(userId)
   ) {
-    return errorResponse(res, "Cannot read another user's order", 403);
+    return errorResponse(res, {
+      message: "Cannot read another user's order",
+      status: 403,
+    });
   }
 
   if (
@@ -93,12 +99,12 @@ const getOrderById = asyncHandler(async (req, res) => {
     && order.tenant_id
     && Number(order.tenant_id) !== Number(req.user.tenantId)
   ) {
-    return errorResponse(res, "Order not found", 404);
+    return errorResponse(res, { message: "Order not found", status: 404 });
   }
 
   const orderWithLinks = addOrderLinks(order, req.user);
 
-  return successResponse(res, orderWithLinks);
+  return successResponse(res, { data: orderWithLinks });
 });
 
 const getUserOrders = asyncHandler(async (req, res) => {
@@ -148,15 +154,15 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   const normalizedStatus = typeof rawStatus === "string" ? rawStatus.trim().toLowerCase() : "";
 
   if (!parsedOrderId) {
-    return errorResponse(res, "Invalid orderId", 400);
+    return errorResponse(res, { message: "Invalid orderId", status: 400 });
   }
 
   if (!normalizedStatus) {
-    return errorResponse(res, "Status is required", 400);
+    return errorResponse(res, { message: "Status is required", status: 400 });
   }
 
   if (!ALLOWED_ORDER_STATUSES.has(normalizedStatus)) {
-    return errorResponse(res, "Invalid status", 400);
+    return errorResponse(res, { message: "Invalid status", status: 400 });
   }
 
   const order = await orderService.updateOrderStatus(
@@ -167,12 +173,15 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   );
 
   if (!order) {
-    return errorResponse(res, "Order not found", 404);
+    return errorResponse(res, { message: "Order not found", status: 404 });
   }
 
   const orderWithLinks = addOrderLinks(order, req.user);
 
-  return successResponse(res, orderWithLinks, "Order status updated successfully");
+  return successResponse(res, {
+    data: orderWithLinks,
+    message: "Order status updated successfully",
+  });
 });
 
 const cancelOrder = asyncHandler(async (req, res) => {
@@ -181,18 +190,21 @@ const cancelOrder = asyncHandler(async (req, res) => {
   const isAdmin = req.user.role === "admin";
 
   if (!parsedOrderId) {
-    return errorResponse(res, "Invalid orderId", 400);
+    return errorResponse(res, { message: "Invalid orderId", status: 400 });
   }
 
   const order = await orderService.cancelOrder(parsedOrderId, userId, isAdmin);
 
   if (!order) {
-    return errorResponse(res, "Order not found", 404);
+    return errorResponse(res, { message: "Order not found", status: 404 });
   }
 
   const orderWithLinks = addOrderLinks(order, req.user);
 
-  return successResponse(res, orderWithLinks, "Order cancelled successfully");
+  return successResponse(res, {
+    data: orderWithLinks,
+    message: "Order cancelled successfully",
+  });
 });
 
 module.exports = {

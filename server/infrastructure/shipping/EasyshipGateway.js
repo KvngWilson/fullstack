@@ -13,6 +13,7 @@ const easyship = require("@api/easyship");
 const logger = require("../../shared/utils/logger");
 const CircuitBreaker = require("../resilience/CircuitBreaker");
 const RateLimiter = require("../resilience/RateLimiter");
+const { withChildSpan } = require("../observability/tracing/tracingScope");
 
 class EasyshipGateway {
   constructor(defaultApiKey = null) {
@@ -68,10 +69,21 @@ class EasyshipGateway {
         destination: destination.country_code,
       });
 
-      const response = await this.circuitBreaker.execute(async () => {
-        await this.rateLimiter.acquireToken();
-        return easyship.rates_request(requestPayload);
-      });
+      const response = await withChildSpan(
+        "external.easyship.rates_request",
+        {
+          tags: {
+            "external.system": "easyship",
+            "external.operation": "rates_request",
+            "vendor.id": vendorId || "unknown",
+          },
+        },
+        () =>
+          this.circuitBreaker.execute(async () => {
+            await this.rateLimiter.acquireToken();
+            return easyship.rates_request(requestPayload);
+          }),
+      );
 
       const normalizedRates = this._normalizeRates(
         response.data?.rates || [],
@@ -204,24 +216,34 @@ class EasyshipGateway {
   async healthCheck() {
     try {
       // Simple test: get rates with minimal valid payload
-      await this.circuitBreaker.execute(async () => {
-        await this.rateLimiter.acquireToken();
-        return easyship.rates_request({
-          destination_address: {
-            country_alpha2: "US",
-            city: "New York",
-            postal_code: "10001",
-            state: "NY",
+      await withChildSpan(
+        "external.easyship.health_check",
+        {
+          tags: {
+            "external.system": "easyship",
+            "external.operation": "health_check_rates",
           },
-          origin_address: {
-            country_alpha2: "US",
-            city: "San Francisco",
-            postal_code: "94102",
-            state: "CA",
-          },
-          parcels: [{ items: [] }],
-        });
-      });
+        },
+        () =>
+          this.circuitBreaker.execute(async () => {
+            await this.rateLimiter.acquireToken();
+            return easyship.rates_request({
+              destination_address: {
+                country_alpha2: "US",
+                city: "New York",
+                postal_code: "10001",
+                state: "NY",
+              },
+              origin_address: {
+                country_alpha2: "US",
+                city: "San Francisco",
+                postal_code: "94102",
+                state: "CA",
+              },
+              parcels: [{ items: [] }],
+            });
+          }),
+      );
 
       return { healthy: true, gateway: "easyship" };
     } catch (error) {

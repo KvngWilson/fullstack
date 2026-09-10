@@ -18,6 +18,10 @@ class AuthTokenManager {
     this.accessTokenTTL = 24 * 60 * 60; // 24 hours (matches JWT_EXPIRES_IN)
   }
 
+  canUseRedis() {
+    return Boolean(this.redis?.isReady && this.redis?.isOpen);
+  }
+
   /**
    * Generate access token with user claims
    * Token includes: id, email, role (and permissions if admin)
@@ -76,6 +80,10 @@ class AuthTokenManager {
    * @returns {Promise<void>}
    */
   async blacklistToken(token, expiresIn = this.accessTokenTTL) {
+    if (!this.canUseRedis()) {
+      return;
+    }
+
     try {
       const decoded = jwt.decode(token);
 
@@ -114,6 +122,10 @@ class AuthTokenManager {
    * @returns {Promise<boolean>} True if blacklisted, false otherwise
    */
   async isTokenBlacklisted(token) {
+    if (!this.canUseRedis()) {
+      return false;
+    }
+
     try {
       const decoded = jwt.decode(token);
 
@@ -150,6 +162,10 @@ class AuthTokenManager {
    * @returns {Promise<number>} Number of tokens blacklisted
    */
   async blacklistAllUserTokens(userId) {
+    if (!this.canUseRedis()) {
+      return 0;
+    }
+
     try {
       // Get all token keys for this user
       const pattern = `token:blacklist:${userId}:*`;

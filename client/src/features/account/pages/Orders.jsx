@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { fetchOrdersThunk } from "@/features/orders/ordersThunks";
@@ -16,6 +16,8 @@ import { paymentsService } from "@/services/paymentService";
 import { getStoredCurrency } from "@/preferences";
 import { formatPrice } from "@/utils/format";
 import { useAppPreferences } from "@/contexts/AppPreferencesContext";
+import useOrderRealtime from "@/features/orders/hooks/useOrderRealtime";
+import { notifyInfo } from "@/utils/toast";
 
 export default function Orders() {
   const dispatch = useAppDispatch();
@@ -35,10 +37,24 @@ export default function Orders() {
         .filter((id) => Number.isFinite(id)),
     [orders],
   );
+  const currentPage = pagination?.page || 1;
+  const pageSize = pagination?.pageSize || 10;
 
   useEffect(() => {
     dispatch(fetchOrdersThunk({ page: 1, pageSize: 10 }));
   }, [dispatch]);
+
+  const handleRealtimeUpdate = useCallback(
+    (event) => {
+      dispatch(fetchOrdersThunk({ page: currentPage, pageSize }));
+      notifyInfo(
+        `Order #${event?.orderId} updated to ${event?.newStatus || "new status"}`,
+      );
+    },
+    [currentPage, dispatch, pageSize],
+  );
+
+  useOrderRealtime(visibleOrderIds, handleRealtimeUpdate);
 
   useEffect(() => {
     let isActive = true;
@@ -75,10 +91,13 @@ export default function Orders() {
           }
         });
 
-        const normalized = Object.entries(statuses).reduce((acc, [orderId, value]) => {
-          acc[orderId] = value.status;
-          return acc;
-        }, {});
+        const normalized = Object.entries(statuses).reduce(
+          (acc, [orderId, value]) => {
+            acc[orderId] = value.status;
+            return acc;
+          },
+          {},
+        );
 
         setPaymentStatusByOrderId(normalized);
       } catch {
@@ -126,7 +145,11 @@ export default function Orders() {
       {!isLoading && !error && (
         <div className="mt-8 space-y-4">
           {orders.map((order) => (
-            <Link key={order.id} to={`/account/orders/${order.id}`} className="block">
+            <Link
+              key={order.id}
+              to={`/account/orders/${order.id}`}
+              className="block"
+            >
               <Card className="hover:-translate-y-1">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
@@ -134,7 +157,10 @@ export default function Orders() {
                       {t("orders.orderNumber", { id: order.id })}
                     </p>
                     <p className="mt-3 text-lg font-semibold text-slate-950">
-                      {formatPrice(Number(order.total_amount ?? order.total ?? 0), currency)}
+                      {formatPrice(
+                        Number(order.total_amount ?? order.total ?? 0),
+                        currency,
+                      )}
                     </p>
                     <p className="mt-2 text-sm text-slate-500">
                       {t("orders.trackHint", { id: order.id })}

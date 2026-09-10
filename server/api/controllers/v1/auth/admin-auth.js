@@ -7,9 +7,8 @@
 const logger = require("../../../../shared/utils/logger");
 const domain = require("../../../../domain");
 const AuthenticationService = domain.identity.services.AuthenticationService;
-
-// Admin and employee roles
-const ALLOWED_ADMIN_ROLES = ["admin", "employee"];
+const { buildAuthUser } = require("./shared-auth");
+const { isInternalAdminRole } = require("../../../../shared/constants/userRoles");
 
 function clearRefreshCookie(res) {
   res.clearCookie("refresh_token", {
@@ -25,7 +24,7 @@ function validateAdminRole(user) {
     return { valid: false, error: "User role not found" };
   }
 
-  if (!ALLOWED_ADMIN_ROLES.includes(user.role)) {
+  if (!isInternalAdminRole(user.role)) {
     return {
       valid: false,
       error: "Access denied. This login is for administrative staff only.",
@@ -78,7 +77,7 @@ async function apiAdminLogin(req, res) {
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.headers["user-agent"] || "unknown";
 
-    const { user, token } = await loginUser({ email, password });
+    const { user, token } = await AuthenticationService.loginUser({ email, password });
 
     // Validate user is admin or employee
     const validation = validateAdminRole(user);
@@ -123,14 +122,7 @@ async function apiAdminLogin(req, res) {
     return res.status(200).json({
       success: true,
       message: "Admin login successful",
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        first_name: user.first_name || null,
-        last_name: user.last_name || null,
-        email_verified: user.email_verified || false,
-      },
+      user: await buildAuthUser(user),
     });
   } catch (error) {
     if (error.status) {

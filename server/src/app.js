@@ -17,6 +17,7 @@ const { payment } = require("../api/controllers/v1/payments");
 const { handleStripeWebhook } = payment;
 const { applySessionMiddleware } = require("../config/session");
 const { getSecurityMiddleware, getCorsOptions } = require("../config/security");
+const { requestLoggerMiddleware } = require("../shared/utils/logger");
 const {
   correlationIdMiddleware,
   requestTimingMiddleware,
@@ -31,7 +32,6 @@ const {
   readinessCheck,
   livenessCheck,
 } = require("../api/controllers/health");
-const { registerDomainSubscribers } = require("../domain/subscribers");
 const { createAdminApp } = require("./admin-app");
 
 const adminRoutes = require("../api/routes/v1/admin");
@@ -53,6 +53,7 @@ function registerCoreMiddleware(app) {
   securityMiddleware.forEach((middleware) => app.use(middleware));
 
   app.use(cors(getCorsOptions()));
+  app.use(requestLoggerMiddleware);
   app.use(correlationIdMiddleware);
   app.use(requestTimingMiddleware);
   app.use(metricsMiddleware);
@@ -97,6 +98,9 @@ function registerRoutes(app) {
 
   app.use(vhost("admin.localhost", adminApp));
   app.use(vhost("admin.*", adminApp));
+  // Multi-segment admin domains (e.g. admin.ashbourne.dev) — vhost * only
+  // matches a single label so multi-part TLDs need explicit entries or regex.
+  app.use(vhost(/^admin\..+/, adminApp));
 
   // Cache validation headers for API responses
   app.use("/api/v1", etagSupport);
@@ -132,7 +136,6 @@ function registerErrorHandlers(app) {
 function createApp() {
   const app = express();
 
-  registerDomainSubscribers();
   registerAppSettings(app);
   registerCoreMiddleware(app);
   applySessionMiddleware(app);

@@ -6,18 +6,17 @@
 const express = require("express");
 const router = express.Router();
 
-const userRoutes = require("./user");
 const profileRoutes = require("./profile");
 const employeesRoutes = require("./employees");
-
-// User registration and authentication
-router.use("/", userRoutes);
-router.use("/users", userRoutes);
+const onboardingRoutes = require("./onboarding");
 
 // User profile management
 router.use("/profile", profileRoutes);
 
 // Employee/staff management
 router.use("/employees", employeesRoutes);
+
+// Employee onboarding plans
+router.use("/onboarding", onboardingRoutes);
 
 module.exports = router;

@@ -1,0 +1,417 @@
+<%
+  const dependencyCards = [
+    { label: "Database", data: operationsData.dependencies.database },
+    { label: "Redis", data: operationsData.dependencies.redis },
+  ];
+  const metrics = operationsData.metrics || {};
+  const queueEntries = Object.entries(operationsData.queues || {});
+  const memory = operationsData.system.memory || {};
+  const uptimeHours = (operationsData.system.uptimeSeconds / 3600).toFixed(1);
+  const requestCount = metrics.counter_http_requests_total?.value || 0;
+  const errorCount = metrics.counter_http_requests_errors_total?.value || 0;
+  const activeConnections = metrics.gauge_active_connections?.value || 0;
+  const auditSummary = operationsData.audit?.summary || {};
+  const auditEvents = operationsData.audit?.recent || [];
+  const exchangeSummary = operationsData.exchangeRates?.summary || {};
+  const exchangeRates = operationsData.exchangeRates?.recent || [];
+  const observability = operationsData.observability || {};
+  const monitoringAssets = observability.monitoring?.assets || [];
+  const tracingAssets = observability.tracing?.assets || [];
+%>
+
+<section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+  <div class="card stat-card">
+    <div class="stat-head">
+      <div>
+        <p class="stat-title">Uptime</p>
+        <h3 class="stat-value"><%= uptimeHours %>h</h3>
+      </div>
+    </div>
+    <div class="stat-footer">
+      <span class="badge badge-success"><%= operationsData.system.environment %></span>
+      <span class="stat-subtitle"><%= operationsData.system.nodeVersion %></span>
+    </div>
+  </div>
+
+  <div class="card stat-card">
+    <div class="stat-head">
+      <div>
+        <p class="stat-title">HTTP Requests</p>
+        <h3 class="stat-value"><%= requestCount %></h3>
+      </div>
+    </div>
+    <div class="stat-footer">
+      <span class="badge badge-primary">Since boot</span>
+      <span class="stat-subtitle"><%= errorCount %> errors tracked</span>
+    </div>
+  </div>
+
+  <div class="card stat-card">
+    <div class="stat-head">
+      <div>
+        <p class="stat-title">Active Connections</p>
+        <h3 class="stat-value"><%= activeConnections %></h3>
+      </div>
+    </div>
+    <div class="stat-footer">
+      <span class="badge badge-pending">Live</span>
+      <span class="stat-subtitle">Current in-flight requests</span>
+    </div>
+  </div>
+
+  <div class="card stat-card">
+    <div class="stat-head">
+      <div>
+        <p class="stat-title">Heap Used</p>
+        <h3 class="stat-value"><%= Math.round((memory.heapUsed || 0) / 1024 / 1024) %>MB</h3>
+      </div>
+    </div>
+    <div class="stat-footer">
+      <span class="badge badge-primary">Memory</span>
+      <span class="stat-subtitle">RSS <%= Math.round((memory.rss || 0) / 1024 / 1024) %>MB</span>
+    </div>
+  </div>
+</section>
+
+<% if (feedback?.success || feedback?.error) { %>
+  <section class="mb-8">
+    <div class="card">
+      <div class="card-body">
+        <% if (feedback.success) { %>
+          <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"><%= feedback.success %></div>
+        <% } %>
+        <% if (feedback.error) { %>
+          <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"><%= feedback.error %></div>
+        <% } %>
+      </div>
+    </div>
+  </section>
+<% } %>
+
+<section class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+  <div class="card xl:col-span-2">
+    <div class="card-header">
+      <div>
+        <p class="section-kicker">Dependencies</p>
+        <h3 class="card-title">Platform Health</h3>
+      </div>
+      <span class="chip">Updated <%= new Date(operationsData.timestamp).toLocaleTimeString() %></span>
+    </div>
+    <div class="card-body grid grid-cols-1 md:grid-cols-2 gap-4">
+      <% dependencyCards.forEach((entry) => { %>
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-sm font-semibold text-slate-900"><%= entry.label %></p>
+              <p class="text-xs text-slate-500">
+                <%= entry.data.latency || entry.data.error || "No latency reported" %>
+              </p>
+            </div>
+            <span class="badge badge-<%= entry.data.status === 'healthy' ? 'success' : entry.data.status === 'not_configured' || entry.data.status === 'not_initialized' ? 'pending' : 'error' %>">
+              <%= entry.data.status %>
+            </span>
+          </div>
+        </div>
+      <% }) %>
+      <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 md:col-span-2">
+        <p class="text-sm font-semibold text-slate-900">Business admin moved to CSR</p>
+        <p class="mt-2 text-sm text-slate-600">
+          User, order, shipping, support, transaction, and product operations now live in the React admin.
+        </p>
+        <a href="<%= operationsData.csrAdminUrl %>" class="btn btn-primary mt-4 inline-flex">Open CSR admin</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <p class="section-kicker">Access</p>
+        <h3 class="card-title">Effective Permissions</h3>
+      </div>
+    </div>
+    <div class="card-body">
+      <% if ((operationsData.permissions || []).length) { %>
+        <div class="flex flex-wrap gap-2">
+          <% operationsData.permissions.forEach((permission) => { %>
+            <span class="chip"><%= permission %></span>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <div class="empty-state">No resolved permissions.</div>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<section class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <p class="section-kicker">Queues</p>
+        <h3 class="card-title">Background Job Runtime</h3>
+      </div>
+    </div>
+    <div class="table-container">
+      <% if (queueEntries.length) { %>
+        <table class="table">
+          <thead class="table-header">
+            <tr>
+              <th class="table-header-cell">Queue</th>
+              <th class="table-header-cell">Waiting</th>
+              <th class="table-header-cell">Active</th>
+              <th class="table-header-cell">Completed</th>
+              <th class="table-header-cell">Failed</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% queueEntries.forEach(([name, stats]) => { %>
+              <tr class="table-row">
+                <td class="table-cell font-semibold"><%= name %></td>
+                <td class="table-cell"><%= stats.waiting || 0 %></td>
+                <td class="table-cell"><%= stats.active || 0 %></td>
+                <td class="table-cell"><%= stats.completed || 0 %></td>
+                <td class="table-cell"><%= stats.failed || 0 %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } else { %>
+        <div class="empty-state">Job queues are not initialized.</div>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <p class="section-kicker">Controls</p>
+        <h3 class="card-title">Maintenance Actions</h3>
+      </div>
+    </div>
+    <div class="card-body space-y-4">
+      <% if (operationsData.controls?.canManageJobs) { %>
+        <% (operationsData.controls.availableJobs || []).forEach((job) => { %>
+          <form method="post" action="/dashboard/jobs/<%= job.key %>/trigger" class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p class="text-sm font-semibold text-slate-900"><%= job.label %></p>
+                <p class="mt-1 text-sm text-slate-600"><%= job.description %></p>
+              </div>
+              <button type="submit" class="btn btn-primary">Run now</button>
+            </div>
+          </form>
+        <% }) %>
+      <% } else { %>
+        <div class="empty-state">You do not have permission to trigger maintenance jobs.</div>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<section class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <p class="section-kicker">Audit</p>
+        <h3 class="card-title">Audit Activity Summary</h3>
+      </div>
+    </div>
+    <div class="card-body">
+      <% if (operationsData.audit?.available) { %>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p class="text-xs uppercase tracking-wide text-slate-500">24 hours</p>
+            <p class="mt-2 text-2xl font-semibold text-slate-900"><%= auditSummary.events_24h || 0 %></p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p class="text-xs uppercase tracking-wide text-slate-500">7 days</p>
+            <p class="mt-2 text-2xl font-semibold text-slate-900"><%= auditSummary.events_7d || 0 %></p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p class="text-xs uppercase tracking-wide text-slate-500">High priority</p>
+            <p class="mt-2 text-2xl font-semibold text-slate-900"><%= auditSummary.high_priority_events || 0 %></p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p class="text-xs uppercase tracking-wide text-slate-500">30-day total</p>
+            <p class="mt-2 text-2xl font-semibold text-slate-900"><%= auditSummary.total_events || 0 %></p>
+          </div>
+        </div>
+        <div class="mt-6 space-y-3">
+          <% auditEvents.forEach((event) => { %>
+            <div class="rounded-lg border border-slate-200 px-4 py-3">
+              <div class="flex items-center justify-between gap-3">
+                <p class="text-sm font-semibold text-slate-900"><%= event.event_type %></p>
+                <span class="badge badge-<%= ['high', 'critical'].includes(event.severity) ? 'error' : 'primary' %>"><%= event.severity %></span>
+              </div>
+              <p class="mt-2 text-sm text-slate-600"><%= event.description || 'No description recorded.' %></p>
+              <p class="mt-2 text-xs text-slate-500"><%= new Date(event.created_at).toLocaleString() %></p>
+            </div>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <div class="empty-state">Audit summaries require the <code>audit:read</code> permission.</div>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <p class="section-kicker">Exchange rates</p>
+        <h3 class="card-title">Currency Feed Status</h3>
+      </div>
+    </div>
+    <div class="card-body">
+      <% if (operationsData.exchangeRates?.available) { %>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p class="text-xs uppercase tracking-wide text-slate-500">Active pairs</p>
+            <p class="mt-2 text-2xl font-semibold text-slate-900"><%= exchangeSummary.active_rates || 0 %></p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p class="text-xs uppercase tracking-wide text-slate-500">Expiring soon</p>
+            <p class="mt-2 text-2xl font-semibold text-slate-900"><%= exchangeSummary.expiring_soon || 0 %></p>
+          </div>
+        </div>
+        <p class="mt-4 text-sm text-slate-600">
+          Latest effective:
+          <strong><%= exchangeSummary.latest_effective_at ? ` ${new Date(exchangeSummary.latest_effective_at).toLocaleString()}` : " not available" %></strong>
+        </p>
+        <div class="mt-6 space-y-3">
+          <% exchangeRates.forEach((rate) => { %>
+            <div class="rounded-lg border border-slate-200 px-4 py-3">
+              <div class="flex items-center justify-between gap-3">
+                <p class="text-sm font-semibold text-slate-900"><%= rate.from_currency %>/<%= rate.to_currency %></p>
+                <span class="badge badge-<%= rate.expires_at && new Date(rate.expires_at) <= new Date(Date.now() + 24 * 60 * 60 * 1000) ? 'pending' : 'success' %>">
+                  <%= rate.provider || 'provider' %>
+                </span>
+              </div>
+              <p class="mt-2 text-sm text-slate-600">Rate: <%= rate.rate %></p>
+              <p class="mt-1 text-xs text-slate-500">
+                Effective <%= rate.effective_date ? new Date(rate.effective_date).toLocaleString() : "unknown" %>
+                <% if (rate.expires_at) { %>
+                  • Expires <%= new Date(rate.expires_at).toLocaleString() %>
+                <% } %>
+              </p>
+            </div>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <div class="empty-state">Exchange-rate visibility requires the <code>exchange-rates:read</code> permission.</div>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<section class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <p class="section-kicker">Observability</p>
+        <h3 class="card-title">Telemetry & Monitoring Status</h3>
+      </div>
+      <span class="badge badge-<%= observability.monitoring?.available ? 'success' : 'pending' %>">
+        <%= observability.monitoring?.available ? 'active' : 'partial' %>
+      </span>
+    </div>
+    <div class="card-body">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-500">Grafana</p>
+          <p class="mt-2 text-sm font-semibold text-slate-900"><%= observability.monitoring?.endpoints?.grafana || 'Not configured' %></p>
+        </div>
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-500">Prometheus</p>
+          <p class="mt-2 text-sm font-semibold text-slate-900"><%= observability.monitoring?.endpoints?.prometheus || 'Not configured' %></p>
+        </div>
+      </div>
+      <div class="mt-4 flex flex-wrap gap-3 text-sm text-slate-600">
+        <span class="chip"><%= observability.monitoring?.notes?.dashboardPanels || 0 %> dashboard panels</span>
+        <span class="chip"><%= observability.monitoring?.notes?.alertRules || 0 %> alert rules</span>
+        <span class="chip">Grafana default: <%= observability.monitoring?.notes?.defaultGrafanaCredentials || 'n/a' %></span>
+      </div>
+      <div class="mt-6 space-y-3">
+        <% monitoringAssets.forEach((asset) => { %>
+          <div class="rounded-lg border border-slate-200 px-4 py-3">
+            <div class="flex items-center justify-between gap-3">
+              <p class="text-sm font-semibold text-slate-900"><%= asset.label %></p>
+              <span class="badge badge-<%= asset.exists ? 'success' : 'error' %>"><%= asset.exists ? 'present' : 'missing' %></span>
+            </div>
+            <p class="mt-2 text-xs text-slate-500"><code><%= asset.relativePath %></code></p>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <p class="section-kicker">Tracing</p>
+        <h3 class="card-title">Tracing Status</h3>
+      </div>
+      <span class="badge badge-<%= observability.tracing?.enabled ? 'success' : 'pending' %>">
+        <%= observability.tracing?.enabled ? 'active' : 'inactive' %>
+      </span>
+    </div>
+    <div class="card-body">
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-500">Correlation IDs</p>
+          <p class="mt-2 text-2xl font-semibold text-slate-900"><%= observability.tracing?.correlationIdsActive ? 'Active' : 'Inactive' %></p>
+        </div>
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-500">Request timing</p>
+          <p class="mt-2 text-2xl font-semibold text-slate-900"><%= observability.tracing?.requestTimingActive ? 'Active' : 'Inactive' %></p>
+        </div>
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-500">Request spans</p>
+          <p class="mt-2 text-2xl font-semibold text-slate-900"><%= observability.tracing?.requestSpansActive ? 'Active' : 'Inactive' %></p>
+        </div>
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-500">Trace export</p>
+          <p class="mt-2 text-2xl font-semibold text-slate-900"><%= observability.tracing?.exporterActive ? 'Active' : 'Pending' %></p>
+        </div>
+      </div>
+      <div class="mt-4">
+        <p class="text-sm text-slate-600"><%= observability.tracing?.nextStep || 'Tracing rollout guidance unavailable.' %></p>
+      </div>
+      <div class="mt-4 flex flex-wrap gap-3">
+        <% (observability.tracing?.activeHeaders || []).forEach((header) => { %>
+          <span class="chip"><%= header %></span>
+        <% }) %>
+      </div>
+      <div class="mt-6 space-y-3">
+        <% tracingAssets.forEach((asset) => { %>
+          <div class="rounded-lg border border-slate-200 px-4 py-3">
+            <div class="flex items-center justify-between gap-3">
+              <p class="text-sm font-semibold text-slate-900"><%= asset.label %></p>
+              <span class="badge badge-<%= asset.exists ? 'success' : 'error' %>"><%= asset.exists ? 'present' : 'missing' %></span>
+            </div>
+            <p class="mt-2 text-xs text-slate-500"><code><%= asset.relativePath %></code></p>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <p class="section-kicker">Telemetry</p>
+        <h3 class="card-title">Runtime Endpoints & Tools</h3>
+      </div>
+    </div>
+    <div class="card-body space-y-4">
+      <a href="/health" class="btn btn-outline w-full justify-center">Open /health</a>
+      <a href="/health/detailed" class="btn btn-outline w-full justify-center">Open /health/detailed</a>
+      <a href="/health/jobs" class="btn btn-outline w-full justify-center">Open /health/jobs</a>
+      <a href="/metrics" class="btn btn-outline w-full justify-center">Open /metrics</a>
+      <a href="<%= observability.monitoring?.endpoints?.grafana || '#' %>" class="btn btn-outline w-full justify-center">Open Grafana</a>
+      <a href="<%= observability.monitoring?.endpoints?.prometheus || '#' %>" class="btn btn-outline w-full justify-center">Open Prometheus</a>
+    </div>
+  </div>
+</section>

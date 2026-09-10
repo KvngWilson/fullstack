@@ -6,6 +6,7 @@ const permissionService = domain.identity.services.PermissionService;
 
 const {
   renderDashboard,
+  triggerOperationsJob,
   renderUsers,
   renderOrders,
   renderCategories,
@@ -26,29 +27,33 @@ function redirectToAdminLogin(req, res, errorMessage) {
   return res.redirect(`/auth/login?${params.toString()}`);
 }
 
-const protectedWithPermission = (requiredPermission) => async (req, res, next) => {
-  try {
-    const user = getAuthenticatedAdminUser(req);
-    if (!user) {
-      return redirectToAdminLogin(req, res);
-    }
+const protectedWithPermission =
+  (requiredPermission) => async (req, res, next) => {
+    try {
+      const user = getAuthenticatedAdminUser(req);
+      if (!user) {
+        return redirectToAdminLogin(req, res);
+      }
 
-    req.user = user;
+      req.user = user;
 
-    if (!requiredPermission) {
+      if (!requiredPermission) {
+        return next();
+      }
+
+      const allowed = await permissionService.hasPermission(
+        user,
+        requiredPermission,
+      );
+      if (!allowed) {
+        return redirectToAdminLogin(req, res, "Access denied");
+      }
+
       return next();
+    } catch (_error) {
+      return redirectToAdminLogin(req, res, "Please sign in again");
     }
-
-    const allowed = await permissionService.hasPermission(user, requiredPermission);
-    if (!allowed) {
-      return redirectToAdminLogin(req, res, "Access denied");
-    }
-
-    return next();
-  } catch (_error) {
-    return redirectToAdminLogin(req, res, "Please sign in again");
-  }
-};
+  };
 
 // SSR Routes (Server-Side Rendered Views)
 router.get("/", (req, res) => res.redirect("/dashboard"));
@@ -57,6 +62,12 @@ router.get(
   "/dashboard",
   protectedWithPermission(PERMISSIONS.ADMIN.DASHBOARD.READ),
   renderDashboard,
+);
+
+router.post(
+  "/dashboard/jobs/:jobName/trigger",
+  protectedWithPermission(PERMISSIONS.ADMIN.JOBS.MANAGE),
+  triggerOperationsJob,
 );
 
 router.get(
@@ -77,7 +88,11 @@ router.post(
   postUserDelete,
 );
 
-router.get("/orders", protectedWithPermission(PERMISSIONS.ORDER.READ), renderOrders);
+router.get(
+  "/orders",
+  protectedWithPermission(PERMISSIONS.ORDER.READ),
+  renderOrders,
+);
 
 router.get(
   "/categories",

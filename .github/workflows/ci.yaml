@@ -1,30 +1,54 @@
-name: CI/CD Pipeline
+name: CI
+
 on:
-  push:
-    branches: [main, develop]
+  workflow_dispatch:
   pull_request:
     branches: [main, develop]
+    paths:
+      - "server/**"
+      - "Dockerfile"
+      - "server/Dockerfile"
+      - "docker-compose.yml"
+      - "nginx/**"
+      - ".github/workflows/ci.yaml"
+  push:
+    branches: [main, develop]
+    paths:
+      - "server/**"
+      - "Dockerfile"
+      - "server/Dockerfile"
+      - "docker-compose.yml"
+      - "nginx/**"
+      - ".github/workflows/ci.yaml"
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 env:
-  NODE_VERSION: "18"
+  NODE_VERSION: "20"
 
 jobs:
-  test:
-    name: Test
+  backend-tests:
+    name: Backend tests
     runs-on: ubuntu-latest
+    timeout-minutes: 35
 
     services:
       postgres:
-        image: postgres:15
+        image: postgres:16-alpine
         env:
-          POSTGRES_DB: test_db
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: fullstack_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres -d fullstack_test"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
         ports:
           - 5432:5432
 
@@ -34,69 +58,93 @@ jobs:
           --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
         ports:
           - 6379:6379
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    defaults:
+      run:
+        working-directory: ./server
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+    env:
+      CI: "true"
+      NODE_ENV: test
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+      DB_NAME: fullstack_test
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST_TEST: 127.0.0.1
+      DB_PORT_TEST: "5432"
+      DB_NAME_TEST: fullstack_test
+      DB_USER_TEST: postgres
+      DB_PASSWORD_TEST: postgres
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: "6379"
+      JWT_SECRET: test_jwt_secret_at_least_32_characters_long
+      SESSION_SECRET: test_session_secret_at_least_32_characters
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
+          cache: npm
           cache-dependency-path: server/package-lock.json
 
-      - name: Install dependencies
-        working-directory: ./server
+      - name: Install server dependencies
         run: npm ci
 
-      - name: Run linter
-        working-directory: ./server
-        run: npm run lint || echo "No lint script"
+      - name: Prepare test database
+        run: |
+          chmod +x scripts/setup-test-db.sh
+          ./scripts/setup-test-db.sh
 
-      - name: Run tests
-        working-directory: ./server
-        env:
-          NODE_ENV: test
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: test_db
-          DB_USER: test_user
-          DB_PASSWORD: test_password
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          JWT_SECRET: test_jwt_secret_at_least_32_characters_long
-          SESSION_SECRET: test_session_secret_at_least_32_characters
-        run: npm test -- --coverage
+      - name: Run backend coverage suite
+        run: npm run test:coverage -- --runInBand
 
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
+      - name: Upload backend coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          files: ./server/coverage/lcov.info
-          flags: unittests
+          name: backend-coverage
+          path: server/coverage
+          if-no-files-found: ignore
+          retention-days: 7
 
-  build:
-    name: Build Docker Image
+  docker-build:
+    name: Docker build (${{ matrix.image.name }})
     runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'push'
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - name: gateway
+            context: .
+            dockerfile: ./Dockerfile
+            tag: fullstack-gateway
+          - name: server
+            context: ./server
+            dockerfile: ./server/Dockerfile
+            tag: fullstack-server
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build image
-        uses: docker/build-push-action@v4
+      - name: Build ${{ matrix.image.name }} image
+        uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./Dockerfile
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
           push: false
-          tags: ecommerce-api:${{ github.sha }}
+          tags: ${{ matrix.image.tag }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

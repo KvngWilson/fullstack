@@ -23,6 +23,7 @@ import WishlistButton from "@/features/wishlist/components/WishlistButton";
 import { ProductGridSkeleton } from "@/components/common/Skeleton";
 import { ErrorState } from "@/components/common/AsyncState";
 import { notifyInfo } from "@/utils/toast";
+import { resolveAssetUrl } from "@/utils/resolveAssetUrl";
 import { Button, Card } from "@/components/ui";
 
 const fallbackCategories = [
@@ -90,7 +91,8 @@ const promoTiles = [
 const testimonials = [
   {
     name: "Emily R.",
-    quote: "Fast delivery and amazing packaging. Love the curated picks every week.",
+    quote:
+      "Fast delivery and amazing packaging. Love the curated picks every week.",
     avatar:
       "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=80&q=80",
   },
@@ -118,17 +120,20 @@ const shoppingPerks = [
   {
     icon: Truck,
     title: "Quick delivery",
-    description: "Streamlined shipping for fast-moving essentials and trend-led finds.",
+    description:
+      "Streamlined shipping for fast-moving essentials and trend-led finds.",
   },
   {
     icon: ShieldCheck,
     title: "Secure by default",
-    description: "Checkout and account flows designed to feel trustworthy and effortless.",
+    description:
+      "Checkout and account flows designed to feel trustworthy and effortless.",
   },
   {
     icon: TrendingUp,
     title: "Always trending",
-    description: "Freshly merchandised collections with modern aesthetics and strong value.",
+    description:
+      "Freshly merchandised collections with modern aesthetics and strong value.",
   },
 ];
 
@@ -161,7 +166,9 @@ export default function Home() {
     ? categories.map((category, index) => ({
         name: category.name,
         slug: category.slug || category.name?.toLowerCase() || category.id,
-        image: category.image || fallbackCategories[index % fallbackCategories.length].image,
+        image:
+          category.image ||
+          fallbackCategories[index % fallbackCategories.length].image,
       }))
     : fallbackCategories;
 
@@ -223,8 +230,9 @@ export default function Home() {
                 Sleek finds for style, beauty, home, and everyday upgrades.
               </h1>
               <p className="mt-5 max-w-lg text-sm leading-7 text-slate-200 sm:text-base">
-                Explore premium-looking essentials and standout deals designed to make your
-                storefront feel polished, current, and conversion-friendly.
+                Explore premium-looking essentials and standout deals designed
+                to make your storefront feel polished, current, and
+                conversion-friendly.
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -232,7 +240,10 @@ export default function Home() {
                   Shop collection
                   <ArrowRight className="h-4 w-4" />
                 </Link>
-                <Link className="btn-ghost text-white hover:text-slate-950" to="/category/fashion">
+                <Link
+                  className="btn-ghost text-white hover:text-slate-950"
+                  to="/category/fashion"
+                >
                   View seasonal picks
                 </Link>
               </div>
@@ -243,7 +254,9 @@ export default function Home() {
                     key={item.label}
                     className="rounded-card border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-md"
                   >
-                    <p className="font-heading text-2xl font-bold text-white">{item.value}</p>
+                    <p className="font-heading text-2xl font-bold text-white">
+                      {item.value}
+                    </p>
                     <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-300">
                       {item.label}
                     </p>
@@ -260,8 +273,8 @@ export default function Home() {
                 Kids accessories with a fresh, editorial look.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-500">
-                Mix soft palettes, standout texture, and practical pieces shoppers love to
-                revisit.
+                Mix soft palettes, standout texture, and practical pieces
+                shoppers love to revisit.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link className="btn-primary" to="/category/accessories">
@@ -275,7 +288,11 @@ export default function Home() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               {promoTiles.map((tile, index) => (
-                <Card key={tile.title} padding="none" className="overflow-hidden">
+                <Card
+                  key={tile.title}
+                  padding="none"
+                  className="overflow-hidden"
+                >
                   <img
                     src={tile.image}
                     alt={tile.title}
@@ -300,14 +317,19 @@ export default function Home() {
       <section className="landing-container">
         <div className="grid gap-4 rounded-section border border-white/70 bg-white/75 p-5 shadow-[0_20px_70px_-46px_rgba(15,23,42,0.3)] backdrop-blur-lg md:grid-cols-3 md:p-6">
           {shoppingPerks.map(({ icon, title, description }) => (
-            <div key={title} className="rounded-card border border-slate-100 bg-white/80 p-5">
+            <div
+              key={title}
+              className="rounded-card border border-slate-100 bg-white/80 p-5"
+            >
               <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
                 {createElement(icon, { className: "h-5 w-5" })}
               </span>
               <h2 className="mt-4 font-heading text-xl font-semibold tracking-tight text-slate-950">
                 {title}
               </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                {description}
+              </p>
             </div>
           ))}
         </div>
@@ -319,7 +341,11 @@ export default function Home() {
             All
           </button>
           {displayCategories.map((category) => (
-            <Link key={category.slug} to={`/category/${category.slug}`} className="pill">
+            <Link
+              key={category.slug}
+              to={`/category/${category.slug}`}
+              className="pill"
+            >
               {category.name}
             </Link>
           ))}
@@ -329,9 +355,12 @@ export default function Home() {
       <section className="landing-container section-wrap pt-0">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="section-title">Trending products with elevated presentation.</h2>
+            <h2 className="section-title">
+              Trending products with elevated presentation.
+            </h2>
             <p className="section-subtitle">
-              Hand-picked editor favorites arranged to feel premium and easy to browse.
+              Hand-picked editor favorites arranged to feel premium and easy to
+              browse.
             </p>
           </div>
           <Link to="/products" className="btn-ghost">
@@ -353,10 +382,17 @@ export default function Home() {
         ) : (
           <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
             {displayProducts.map((product) => (
-              <Link key={product.id} to={`/products/${product.id}`} className="product-card group">
+              <Link
+                key={product.id}
+                to={`/products/${product.id}`}
+                className="product-card group"
+              >
                 <div className="product-image relative">
                   <img
-                    src={product.image || promoTiles[0].image}
+                    src={
+                      resolveAssetUrl(product.image_url || product.image) ||
+                      promoTiles[0].image
+                    }
                     alt={product.name}
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
@@ -395,10 +431,12 @@ export default function Home() {
       <section className="landing-container section-wrap pt-0">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="section-title">Start with clean, modern category browsing.</h2>
+            <h2 className="section-title">
+              Start with clean, modern category browsing.
+            </h2>
             <p className="section-subtitle">
-              Use structured collections to guide shoppers through your best-performing
-              categories.
+              Use structured collections to guide shoppers through your
+              best-performing categories.
             </p>
           </div>
           <Link to="/products" className="btn-ghost">
@@ -408,8 +446,16 @@ export default function Home() {
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {displayCategories.map((category) => (
-            <Link key={category.slug} to={`/category/${category.slug}`} className="category-card">
-              <img src={category.image} alt={category.name} className="category-avatar" />
+            <Link
+              key={category.slug}
+              to={`/category/${category.slug}`}
+              className="category-card"
+            >
+              <img
+                src={category.image}
+                alt={category.name}
+                className="category-avatar"
+              />
               <p className="mt-4 font-heading text-base font-semibold text-slate-900">
                 {category.name}
               </p>
@@ -423,10 +469,12 @@ export default function Home() {
         <div className="rounded-section border border-white/70 bg-white/80 p-6 shadow-[0_26px_90px_-52px_rgba(15,23,42,0.3)] backdrop-blur-xl lg:p-8">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h2 className="section-title">Limited-time deals worth spotlighting.</h2>
+              <h2 className="section-title">
+                Limited-time deals worth spotlighting.
+              </h2>
               <p className="section-subtitle">
-                Showcase time-sensitive offers with stronger contrast, clearer hierarchy,
-                and softer luxury styling.
+                Showcase time-sensitive offers with stronger contrast, clearer
+                hierarchy, and softer luxury styling.
               </p>
             </div>
             <Link to="/products" className="btn-ghost">
@@ -436,10 +484,17 @@ export default function Home() {
 
           <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             {displayProducts.slice(0, 4).map((product) => (
-              <Link key={`deal-${product.id}`} to={`/products/${product.id}`} className="product-card group">
+              <Link
+                key={`deal-${product.id}`}
+                to={`/products/${product.id}`}
+                className="product-card group"
+              >
                 <div className="deal-image relative">
                   <img
-                    src={product.image || promoTiles[1].image}
+                    src={
+                      resolveAssetUrl(product.image_url || product.image) ||
+                      promoTiles[1].image
+                    }
                     alt={product.name}
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
@@ -476,13 +531,19 @@ export default function Home() {
         <div className="rounded-section border border-slate-950/10 bg-[linear-gradient(135deg,rgba(15,23,42,0.98),rgba(30,41,59,0.96))] p-6 text-white shadow-[0_30px_90px_-52px_rgba(15,23,42,0.95)] lg:p-8">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="section-title text-white">Customers notice the difference.</h2>
+              <h2 className="section-title text-white">
+                Customers notice the difference.
+              </h2>
               <p className="section-subtitle max-w-2xl text-slate-300">
-                A refined shopping experience helps the catalog feel more premium while
-                keeping flows easy to navigate.
+                A refined shopping experience helps the catalog feel more
+                premium while keeping flows easy to navigate.
               </p>
             </div>
-            <Button className="self-start lg:self-auto" size="lg" variant="primary">
+            <Button
+              className="self-start lg:self-auto"
+              size="lg"
+              variant="primary"
+            >
               Get started
             </Button>
           </div>
@@ -500,13 +561,17 @@ export default function Home() {
                     className="avatar-img rounded-avatar object-cover"
                   />
                   <div>
-                    <p className="font-heading text-lg font-semibold">{item.name}</p>
+                    <p className="font-heading text-lg font-semibold">
+                      {item.name}
+                    </p>
                     <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
                       Verified buyer
                     </p>
                   </div>
                 </div>
-                <p className="mt-5 text-sm leading-7 text-slate-300">{item.quote}</p>
+                <p className="mt-5 text-sm leading-7 text-slate-300">
+                  {item.quote}
+                </p>
               </div>
             ))}
           </div>

@@ -32,6 +32,12 @@ router.get(
   vendorApplicationController.getMyVendorProfile
 );
 
+router.patch(
+  "/me/onboarding",
+  ...role("vendor"),
+  vendorApplicationController.updateMyVendorOnboarding
+);
+
 /**
  * PATCH /me
  * Update current vendor's profile

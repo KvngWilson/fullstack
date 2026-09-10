@@ -1,19 +1,30 @@
-const { testConnection, closePool } = require("../config/db");
+const http = require("http");
+const { testConnection, closePool, pool } = require("../config/db");
 const { connectRedis, redisClient } = require("../config/redis");
 const { logger } = require("../shared/utils/logger");
-const { initializeJobs } = require("../infrastructure/jobs/tasks/initializeJobs");
-const { initializeJobQueues, shutdownJobQueues } = require("../infrastructure/jobs/initializeQueues");
+const {
+  initializeJobs,
+} = require("../infrastructure/jobs/tasks/initializeJobs");
+const {
+  initializeJobQueues,
+  shutdownJobQueues,
+} = require("../infrastructure/jobs/initializeQueues");
 const { sendEmailJob } = require("../infrastructure/email/email");
-const { createWebhookHandlers } = require("../infrastructure/jobs/handlers/webhookHandlers");
+const {
+  createWebhookHandlers,
+} = require("../infrastructure/jobs/handlers/webhookHandlers");
 const {
   setJobQueuesRuntime,
   clearJobQueuesRuntime,
 } = require("../infrastructure/jobs/runtime");
 const dispatcher = require("../domain/shared/events/dispatcher");
+const WebSocketManager = require("../infrastructure/websocket/WebSocketManager");
+const { registerDomainSubscribers } = require("../domain/subscribers");
 
 const SHUTDOWN_TIMEOUT_MS = 30_000;
 let queueRuntime = null;
 let _rabbitMQBus = null;
+let websocketManager = null;
 
 function createEmailServiceAdapter() {
   return {
@@ -26,7 +37,8 @@ function createEmailServiceAdapter() {
       });
 
       if (!result?.success) {
-        const message = result?.error?.message || result?.error || "Email send failed";
+        const message =
+          result?.error?.message || result?.error || "Email send failed";
         throw new Error(message);
       }
 
@@ -67,31 +79,43 @@ async function bootstrap() {
   await connectRedis();
   await initializeJobs();
 
-  // Must initialise transport BEFORE registerDomainSubscribers() in app.js
+  // Must initialise transport before domain subscribers register websocket handlers
   await initRabbitMQ();
 
   try {
-    queueRuntime = await initializeJobQueues(createEmailServiceAdapter(), createWebhookHandlers());
+    queueRuntime = await initializeJobQueues(
+      createEmailServiceAdapter(),
+      createWebhookHandlers(),
+    );
     setJobQueuesRuntime(queueRuntime);
   } catch (error) {
     queueRuntime = null;
     clearJobQueuesRuntime();
-    logger.warn("Background job queues unavailable; continuing without Bull queues", {
-      error: error.message,
-    });
+    logger.warn(
+      "Background job queues unavailable; continuing without Bull queues",
+      {
+        error: error.message,
+      },
+    );
   }
 }
 
 // Start HTTP server
-function createHttpServer(app, port) {
-  const server = app.listen(port, () => {
-    logger.info("Server running", { port });
-    logger.info("API documentation available", {
-      url: `http://localhost:${port}/api-docs`,
-    });
-  });
+function createHttpServer(app) {
+  return http.createServer(app);
+}
 
-  return server;
+async function initializeWebSocketServer(server) {
+  websocketManager = new WebSocketManager(server, redisClient, pool);
+  await websocketManager.initialize();
+  registerDomainSubscribers({ websocketManager });
+}
+
+async function closeRealtimeResources() {
+  if (websocketManager) {
+    await websocketManager.shutdown();
+    websocketManager = null;
+  }
 }
 
 // Close external resources
@@ -131,6 +155,8 @@ function createShutdownHandler(server) {
     }, SHUTDOWN_TIMEOUT_MS);
 
     try {
+      await closeRealtimeResources();
+
       await new Promise((resolve, reject) => {
         server.close((err) => {
           const isNotRunningError =
@@ -176,10 +202,25 @@ async function startServer({ app, port }) {
     }
 
     await bootstrap();
-    const server = createHttpServer(app, port);
+    const server = createHttpServer(app);
+    await initializeWebSocketServer(server);
 
     const shutdown = createShutdownHandler(server);
     registerSignalHandlers(shutdown);
+
+    await new Promise((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(port, () => {
+        logger.info("Server running", { port });
+        logger.info("API documentation available", {
+          url: `http://localhost:${port}/api-docs`,
+        });
+        logger.info("WebSocket endpoint ready", {
+          path: "/socket.io/",
+        });
+        resolve();
+      });
+    });
 
     return server; // useful for testing
   } catch (error) {

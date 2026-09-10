@@ -97,6 +97,23 @@ Apply migrations in this order for fresh database or upgrade path:
      Use: Existing environments apply after 024 as proof-of-idempotence
      Size: ~2100 lines
      Date: 2026-07-18
+
+029. 029_financial_support_tables.sql
+     Purpose: Restore current financial support tables used by payments and multi-currency flows
+     Tables: +exchange_rates, +order_exchange_rates, +order_currency_snapshots, +exchange_rate_sync_log, +refunds
+     Date: 2026-08-09
+
+030. 030_new_features_support.sql
+     Purpose: Add review moderation, vendor commission/payout, analytics, vendor lifecycle, and websocket session schema
+     Tables: +review_moderation_audit, +vendor_commission_settings, +vendor_payouts, +analytics_metrics, +analytics_snapshots, +websocket_sessions
+     Alter: vendors +onboarding_status/admin_notes/rejection_reason/suspension_reason/activated_at/suspended_at/bank_account_last4
+     Date: 2026-08-09
+
+031. 031_vendor_onboarding_step_payloads.sql
+     Purpose: Reintroduce vendor_onboarding for the current code path and add per-step payload storage
+     Tables: +vendor_onboarding
+     Alter: vendor_onboarding +step_payloads
+     Date: 2026-08-09
 ```
 
 ---

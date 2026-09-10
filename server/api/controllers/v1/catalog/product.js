@@ -9,7 +9,21 @@ const domain = require("../../../../domain");
 const productService = domain.catalog.services.ProductService;
 const categoryService = domain.catalog.services.CategoryService;
 
-const PRODUCT_MUTABLE_FIELDS = ["name", "description", "category_id", "slug", "image_url"];
+const PRODUCT_MUTABLE_FIELDS = [
+  "name",
+  "slug",
+  "description",
+  "category_id",
+  "vendor_id",
+  "image_url",
+  "base_price",
+  "is_active",
+  "brand",
+  "material",
+  "care_instructions",
+  "sku",
+  "stock",
+];
 
 const getUploadedImageUrl = (req) => {
   if (!req?.file?.filename) {
@@ -35,6 +49,10 @@ const parseProductId = (rawId) => {
 // Ensure numeric price in serialized response
 const normalizeProductOutput = (product) => ({
   ...product,
+  base_price:
+    product && product.base_price !== undefined && product.base_price !== null
+      ? Number(product.base_price)
+      : null,
   min_price:
     product && product.min_price !== undefined && product.min_price !== null
       ? Number(product.min_price)
@@ -47,13 +65,21 @@ const normalizeProductOutput = (product) => ({
 
 exports.getAllProducts = async (req, res) => {
   try {
-    const { page = 1, pageSize = 20, sort = "id", order = "asc", category } = req.query;
+    const {
+      page = 1,
+      pageSize = 20,
+      sort = "id",
+      order = "asc",
+      category,
+      search,
+    } = req.query;
     const result = await productService.getAll({
       page,
       pageSize,
       sort,
       order,
       category,
+      search,
     });
 
     // Add HATEOAS links to collection response
@@ -64,7 +90,7 @@ exports.getAllProducts = async (req, res) => {
         limit: result.pagination.pageSize,
         totalItems: result.pagination.total,
         baseUrl: '/api/v1/catalog/products',
-        filters: { category, sort, order }
+        filters: { category, sort, order, search }
       },
       addProductLinks,
       req.user
@@ -124,7 +150,7 @@ exports.getProductById = async (req, res) => {
       return errorResponse(res, { message: "Invalid product ID", status: 400 });
     }
 
-    const product = await productService.getById(productId);
+    const product = await productService.getByIdWithVariants(productId);
 
     if (!product) {
       return errorResponse(res, { message: "Product not found", status: 404 });
@@ -161,6 +187,9 @@ exports.createProduct = async (req, res) => {
     if (error.message === "Invalid category_id") {
       return errorResponse(res, { message: "Invalid category_id", status: 400 });
     }
+    if (error.message === "vendor_id is required") {
+      return errorResponse(res, { message: "Vendor is required", status: 400 });
+    }
     logger.error("Create product error", { error, userId: req.user?.id });
     return errorResponse(res, { message: "Failed to create product", status: 500 });
   }
@@ -194,6 +223,9 @@ exports.replaceProduct = async (req, res) => {
   } catch (error) {
     if (error.message === "Invalid category_id") {
       return errorResponse(res, { message: "Invalid category_id", status: 400 });
+    }
+    if (error.message === "vendor_id is required") {
+      return errorResponse(res, { message: "Vendor is required", status: 400 });
     }
     logger.error("Replace product error", { error, productId: req.params.productId, userId: req.user?.id });
     return errorResponse(res, { message: "Failed to replace product", status: 500 });
@@ -236,6 +268,9 @@ exports.updateProductPartial = async (req, res) => {
   } catch (error) {
     if (error.message === "Invalid category_id") {
       return errorResponse(res, { message: "Invalid category_id", status: 400 });
+    }
+    if (error.message === "vendor_id is required") {
+      return errorResponse(res, { message: "Vendor is required", status: 400 });
     }
     logger.error("Patch product error", { error, productId: req.params.productId, userId: req.user?.id });
     return errorResponse(res, { message: "Failed to update product", status: 500 });

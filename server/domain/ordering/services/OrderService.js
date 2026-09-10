@@ -13,6 +13,7 @@ const PERMISSIONS = require("../../../shared/constants/permissions");
 const taxService = require("./TaxService");
 const EmailQueueProvider = require("../../../infrastructure/jobs/EmailQueueProvider");
 const eventDispatcher = require("../../shared/events/dispatcher");
+const OrderStatusChanged = require("../events/OrderStatusChanged");
 const { fireAndForgetWithErrorLog } = require("../../../shared/utils/asyncErrorHandler");
 
 /**
@@ -126,8 +127,8 @@ class OrderService extends BaseService {
       // Capture exchange rate snapshot for audit trail
       await this._captureExchangeRateSnapshot(client, {
         orderId: order.id,
-        customerCurrency: user?.currency_preference ?? process.env.DEFAULT_CURRENCY ?? 'USD',
-        baseCurrency: process.env.BASE_CURRENCY ?? 'USD',
+        customerCurrency: process.env.DEFAULT_CURRENCY ?? "USD",
+        baseCurrency: process.env.BASE_CURRENCY ?? "USD",
         total,
       });
 
@@ -261,7 +262,12 @@ class OrderService extends BaseService {
 
   async _queueOrderConfirmationEmail(order) {
     try {
-      const { user_id, id: orderId, total, items = [] } = order;
+      const { user_id, id: orderId, items = [] } = order;
+      const totalAmount = Number(
+        order.total
+        ?? order.total_amount
+        ?? (order.total_cents !== undefined ? order.total_cents / 100 : 0),
+      );
       const user = await orderRepository.getUserById(user_id);
 
       if (!user || !user.email) {
@@ -285,8 +291,8 @@ class OrderService extends BaseService {
         {
           orderId,
           items: formattedItems,
-          total: total.toFixed(2),
-          orderUrl: `${process.env.APP_URL || "http://localhost:5000"}/orders/${orderId}`,
+          total: totalAmount.toFixed(2),
+          orderUrl: `${process.env.API_URL || "http://localhost:5000"}/orders/${orderId}`,
         },
         {
           attempts: 3,
@@ -332,6 +338,11 @@ class OrderService extends BaseService {
       throw new AuthorizationError("Unauthorized: Only admins/employees can update order status");
     }
 
+    const existingOrder = await orderRepository.findById(orderId);
+    if (!existingOrder) {
+      return null;
+    }
+
     const order = await orderRepository.updateStatus(orderId, newStatus);
 
     if (!order) {
@@ -349,6 +360,17 @@ class OrderService extends BaseService {
         { operation: 'sendDeliveryNotification', orderId: order.id }
       );
     }
+
+    fireAndForgetWithErrorLog(
+      () =>
+        this._publishOrderStatusChangedEvent({
+          orderId: order.id,
+          userId: existingOrder.user_id,
+          previousStatus: existingOrder.status,
+          newStatus,
+        }),
+      { operation: "publishOrderStatusChangedEvent", orderId: order.id },
+    );
 
     return order;
   }
@@ -381,6 +403,17 @@ class OrderService extends BaseService {
     const updatedOrder = await orderRepository.updateStatus(
       orderId,
       "cancelled",
+    );
+
+    fireAndForgetWithErrorLog(
+      () =>
+        this._publishOrderStatusChangedEvent({
+          orderId: updatedOrder.id,
+          userId: order.user_id,
+          previousStatus: order.status,
+          newStatus: "cancelled",
+        }),
+      { operation: "publishOrderStatusChangedEvent", orderId: updatedOrder.id },
     );
 
     await this._restoreInventory(orderId);
@@ -436,6 +469,24 @@ class OrderService extends BaseService {
         error: error.message,
       });
     }
+  }
+
+  async _publishOrderStatusChangedEvent({
+    orderId,
+    userId,
+    previousStatus,
+    newStatus,
+    reason = null,
+  }) {
+    await eventDispatcher.publish(
+      new OrderStatusChanged({
+        orderId,
+        userId,
+        previousStatus,
+        newStatus,
+        reason,
+      }),
+    );
   }
 
   /**

@@ -7,9 +7,11 @@ const {
 } = require("../../../../shared/utils/response");
 const logger = require("../../../../shared/utils/logger");
 const { addUserLinks } = require("../../../../shared/utils/hateoas");
+const domain = require("../../../../domain");
 
 const pool = db.pool || db;
 const ADDRESS_TYPES = new Set(["shipping", "billing"]);
+const permissionService = domain.identity.services.PermissionService;
 
 const runInTransaction = async (handler) => {
   const client = await pool.connect();
@@ -52,6 +54,9 @@ const getProfile = async (req, res) => {
 
     // Add HATEOAS links to user profile response
     const userWithLinks = addUserLinks(userResult.rows[0]);
+    userWithLinks.permissions = await permissionService.resolvePermissionsForUser(
+      req.user,
+    );
 
     return successResponse(res, {
       data: userWithLinks,

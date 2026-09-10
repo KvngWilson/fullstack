@@ -5,41 +5,42 @@ info:
   description: |
     # E-Commerce REST API Documentation
 
-    Modern full-stack e-commerce API with Domain-Driven Design architecture.
+    Current REST API surface for the ecommerce platform.
 
     ## API Overview
     - **Base URL**: `/api/v1`
-    - **Authentication**: Bearer token (JWT)
-    - **Session Model**: Primary auth uses httpOnly cookies (`token`, `refresh_token`), with Bearer JWT accepted for API clients
-    - **Header Auth**: API clients may also send JWT in the `Authorization` header
+    - **Authentication**: httpOnly cookies and JWT bearer support
+    - **Session Model**: Primary auth uses httpOnly cookies (`token`, `refresh_token`); API clients may also use the `Authorization` header
+    - **Header Auth**: Authorization header tokens are accepted for API clients
     - **Rate Limiting**: Applied to auth and payment endpoints
     - **CSRF**: State-changing requests require `X-CSRF-Token` except auth bootstrap endpoints
     - **Response Format**: JSON
     - **Version**: 1.0.0
 
     ## Domain Routes
-    - **Authentication** (`/auth`, `/identity`) - User registration, login, token management
-    - **Identity** (`/identity`) - User profiles, addresses, payment methods
-    - **Catalog** (`/catalog`) - Products, categories, wishlist
-    - **Ordering** (`/ordering`) - Cart, orders, checkout, payments, shipping
+    - **Authentication** (`/auth`) - Registration, login, token management, password reset, and session helpers
+    - **Identity** (`/identity`) - User profiles, addresses, saved cards, employees, and onboarding
+    - **Catalog** (`/catalog`) - Products and categories
+    - **Wishlist** (`/wishlist`) - Authenticated user wishlist operations
+    - **Ordering** (`/ordering`) - Cart, orders, authenticated checkout, and shipping
+    - **Guest Commerce** (`/guest/cart`, `/checkout/guest`) - Guest cart and guest checkout flows
+    - **Payments** (`/payments`) - Payment initialization, verification, refunds, and webhooks
     - **Admin API** (`/admin`) - Administrative API endpoints under `/api/v1/admin`
-    - **Vendors** (`/vendors`) - Vendor management and applications
+    - **Vendors** (`/vendors`) - Vendor applications and vendor self-service endpoints
 
-    ## Admin Control Surfaces (Runtime)
-    - **Route-based admin (CSR)**: `http://localhost:5000/admin`
+    ## Admin Control Surfaces
+    - **Route-based admin (CSR)**: `/admin`
     - **Subdomain admin (SSR)**: `http://admin.localhost:5000`
-    - Both are expected to be reachable when the full compose stack is running.
+    - Adjust server URLs per environment when deploying outside local development.
 
   license:
     name: "MIT"
     url: "https://opensource.org/licenses/MIT"
 servers:
   - url: "http://localhost:5000"
-    description: "Development gateway (API + CSR app routes)"
+    description: "Public application gateway"
   - url: "http://admin.localhost:5000"
-    description: "Development admin subdomain (SSR app host)"
-  - url: "https://api.ecommerce.example"
-    description: "Production"
+    description: "Admin subdomain"
 security:
   - bearerAuth: []
   - cookieAuth: []
@@ -220,7 +221,7 @@ paths:
         "400":
           description: "Invalid or expired token"
 
-  /api/v1/auth/advanced/resend-verification:
+  /api/v1/auth/resend-verification:
     post:
       operationId: resendEmailVerification
       summary: "Resend verification email"
@@ -238,6 +239,12 @@ paths:
       summary: "Change user password"
       description: "Change password with current password verification"
       tags: ["Authentication"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
       responses:
         "200":
           description: "Password changed successfully"
@@ -268,6 +275,18 @@ paths:
         "401":
           description: "Unauthorized"
 
+  /api/v1/auth/advanced/resend-verification:
+    post:
+      operationId: resendEmailVerificationAdvanced
+      summary: "Resend verification email"
+      description: "Compatibility auth endpoint for requesting a new verification email"
+      tags: ["Authentication"]
+      responses:
+        "200":
+          description: "Verification email sent"
+        "401":
+          description: "Unauthorized"
+
   /api/v1/identity/profile:
     get:
       operationId: getProfile
@@ -279,7 +298,7 @@ paths:
           description: "Profile retrieved successfully"
         "401":
           description: "Unauthorized"
-    put:
+    patch:
       operationId: updateProfile
       summary: "Update user profile"
       description: "Update user's profile information"
@@ -297,6 +316,24 @@ paths:
       responses:
         "200":
           description: "Account deleted successfully"
+        "401":
+          description: "Unauthorized"
+
+  /api/v1/identity/profile/password:
+    patch:
+      operationId: changeProfilePasswordPatch
+      summary: "Change user password"
+      description: "Change password with current password verification"
+      tags: ["Identity"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          description: "Password changed successfully"
         "401":
           description: "Unauthorized"
 
@@ -333,6 +370,28 @@ paths:
       operationId: updateAddress
       summary: "Update address"
       description: "Update an existing address"
+      tags: ["Identity"]
+      parameters:
+        - name: addressId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddressInput"
+      responses:
+        "200":
+          description: "Address updated successfully"
+        "401":
+          description: "Unauthorized"
+    put:
+      operationId: replaceAddress
+      summary: "Replace address"
+      description: "Replace an existing address using the legacy PUT alias"
       tags: ["Identity"]
       parameters:
         - name: addressId
@@ -389,7 +448,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              $ref: "#/components/schemas/SavedCardCreateRequest"
       responses:
         "201":
           description: "Card saved successfully"
@@ -397,6 +456,28 @@ paths:
           description: "Unauthorized"
 
   /api/v1/identity/profile/cards/{cardId}:
+    patch:
+      operationId: updateSavedCard
+      summary: "Update saved card preferences"
+      description: "Update saved card preferences such as setting the card as primary"
+      tags: ["Identity"]
+      parameters:
+        - name: cardId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SavedCardPrimaryRequest"
+      responses:
+        "200":
+          description: "Card updated successfully"
+        "401":
+          description: "Unauthorized"
     delete:
       operationId: deleteSavedCard
       summary: "Delete saved card"
@@ -415,7 +496,7 @@ paths:
           description: "Unauthorized"
 
   /api/v1/identity/profile/cards/{cardId}/primary:
-    patch:
+    put:
       operationId: setPrimaryCard
       summary: "Set primary card"
       description: "Set a card as the primary payment method"
@@ -426,11 +507,414 @@ paths:
           required: true
           schema:
             type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SavedCardPrimaryRequest"
       responses:
         "200":
           description: "Primary card updated successfully"
         "401":
           description: "Unauthorized"
+
+  /api/v1/identity/employees/accept-invitation:
+    get:
+      security: []
+      operationId: getEmployeeInvitationPreview
+      summary: "Preview employee invitation"
+      description: "Validate an invitation token and return invitation details before acceptance"
+      tags: ["Identity"]
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Invitation preview retrieved"
+        "404":
+          description: "Invitation not found or expired"
+    post:
+      security: []
+      operationId: acceptEmployeeInvitation
+      summary: "Accept employee invitation"
+      description: "Accept an employee invitation and create the employee account"
+      tags: ["Identity"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeInvitationAcceptanceRequest"
+      responses:
+        "201":
+          description: "Invitation accepted successfully"
+        "400":
+          description: "Invalid invitation payload"
+
+  /api/v1/identity/employees/invite:
+    post:
+      operationId: inviteEmployeeFromIdentity
+      summary: "Invite employee"
+      description: "Send an employee invitation from the identity domain"
+      tags: ["Identity"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdentityEmployeeInviteRequest"
+      responses:
+        "201":
+          description: "Invitation created successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/identity/employees/invitations:
+    get:
+      operationId: listEmployeeInvitations
+      summary: "List pending employee invitations"
+      description: "Retrieve pending invitations for employees"
+      tags: ["Identity"]
+      responses:
+        "200":
+          description: "Pending invitations retrieved"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/identity/employees/resend-invitation/{id}:
+    post:
+      operationId: resendEmployeeInvitation
+      summary: "Resend employee invitation"
+      description: "Resend a pending employee invitation email"
+      tags: ["Identity"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Invitation resent"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/identity/employees:
+    get:
+      operationId: listIdentityEmployees
+      summary: "List employees"
+      description: "Retrieve employees via the identity employee-management surface"
+      tags: ["Identity"]
+      responses:
+        "200":
+          description: "Employees retrieved successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/identity/employees/{id}:
+    get:
+      operationId: getIdentityEmployee
+      summary: "Get employee details"
+      description: "Retrieve an employee record from the identity domain"
+      tags: ["Identity"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Employee retrieved successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/identity/employees/{id}/role:
+    patch:
+      operationId: updateIdentityEmployeeRole
+      summary: "Update employee role"
+      description: "Update an employee's assigned role"
+      tags: ["Identity"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdentityEmployeeRoleUpdateRequest"
+      responses:
+        "200":
+          description: "Employee role updated"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/identity/employees/{id}/status:
+    patch:
+      operationId: updateIdentityEmployeeStatus
+      summary: "Update employee status"
+      description: "Update an employee's employment status"
+      tags: ["Identity"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdentityEmployeeStatusUpdateRequest"
+      responses:
+        "200":
+          description: "Employee status updated"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/identity/employees/{id}/permissions/override:
+    post:
+      operationId: setEmployeePermissionOverride
+      summary: "Set employee permission override"
+      description: "Grant or revoke employee-specific permission overrides"
+      tags: ["Identity"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeePermissionOverrideRequest"
+      responses:
+        "200":
+          description: "Permission override updated"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/identity/employees/{id}/audit-log:
+    get:
+      operationId: getEmployeeAuditLog
+      summary: "Get employee audit log"
+      description: "Retrieve audit events associated with an employee"
+      tags: ["Identity"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Employee audit log retrieved"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/identity/onboarding:
+    get:
+      operationId: listOnboardings
+      summary: "List onboardings"
+      description: "Retrieve onboarding plans with optional filtering"
+      tags: ["Identity"]
+      responses:
+        "200":
+          description: "Onboardings retrieved successfully"
+        "403":
+          description: "Forbidden"
+    post:
+      operationId: createOnboarding
+      summary: "Create onboarding"
+      description: "Create a new employee onboarding plan"
+      tags: ["Identity"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnboardingCreateRequest"
+      responses:
+        "201":
+          description: "Onboarding created successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/identity/onboarding/{id}:
+    get:
+      operationId: getOnboarding
+      summary: "Get onboarding details"
+      description: "Retrieve an onboarding plan and its task list"
+      tags: ["Identity"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Onboarding retrieved successfully"
+        "404":
+          description: "Onboarding not found"
+    put:
+      operationId: updateOnboarding
+      summary: "Update onboarding"
+      description: "Update onboarding details such as notes or budget"
+      tags: ["Identity"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnboardingUpdateRequest"
+      responses:
+        "200":
+          description: "Onboarding updated successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/identity/onboarding/{id}/status:
+    get:
+      operationId: getOnboardingStatus
+      summary: "Get onboarding status"
+      description: "Retrieve completion percentage and task counts for an onboarding plan"
+      tags: ["Identity"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Onboarding status retrieved"
+        "404":
+          description: "Onboarding not found"
+
+  /api/v1/identity/onboarding/{id}/start:
+    put:
+      operationId: startOnboarding
+      summary: "Start onboarding"
+      description: "Transition an onboarding plan from not_started to in_progress"
+      tags: ["Identity"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Onboarding started"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/identity/onboarding/{id}/complete:
+    put:
+      operationId: completeOnboarding
+      summary: "Complete onboarding"
+      description: "Transition an onboarding plan from in_progress to completed"
+      tags: ["Identity"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Onboarding completed"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/identity/onboarding/{id}/tasks:
+    post:
+      operationId: addOnboardingTask
+      summary: "Add onboarding task"
+      description: "Add a task to an onboarding plan"
+      tags: ["Identity"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnboardingTaskCreateRequest"
+      responses:
+        "201":
+          description: "Task added successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/identity/onboarding/{id}/tasks/{taskId}/complete:
+    put:
+      operationId: completeOnboardingTask
+      summary: "Complete onboarding task"
+      description: "Mark an onboarding task as completed"
+      tags: ["Identity"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Task completed successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/identity/onboarding/{id}/budget-override:
+    post:
+      operationId: applyOnboardingBudgetOverride
+      summary: "Apply onboarding budget override"
+      description: "Apply an HR-authorized budget override for an onboarding plan"
+      tags: ["Identity"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnboardingBudgetOverrideRequest"
+      responses:
+        "200":
+          description: "Budget override applied"
+        "403":
+          description: "Forbidden"
 
   /api/v1/catalog/products:
     get:
@@ -572,12 +1056,12 @@ paths:
         "200":
           description: "List of categories"
 
-  /api/v1/catalog/wishlist:
+  /api/v1/wishlist:
     get:
       operationId: getWishlist
       summary: "Get user's wishlist"
       description: "Retrieve all products in the user's wishlist"
-      tags: ["Catalog"]
+      tags: ["Wishlist"]
       responses:
         "200":
           description: "Wishlist retrieved successfully"
@@ -587,13 +1071,13 @@ paths:
       operationId: addToWishlist
       summary: "Add product to wishlist"
       description: "Add a product to the user's wishlist"
-      tags: ["Catalog"]
+      tags: ["Wishlist"]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
+              $ref: "#/components/schemas/WishlistAddRequest"
       responses:
         "201":
           description: "Product added to wishlist"
@@ -603,19 +1087,19 @@ paths:
       operationId: clearWishlist
       summary: "Clear entire wishlist"
       description: "Remove all products from the user's wishlist"
-      tags: ["Catalog"]
+      tags: ["Wishlist"]
       responses:
         "200":
           description: "Wishlist cleared successfully"
         "401":
           description: "Unauthorized"
 
-  /api/v1/catalog/wishlist/{productId}:
+  /api/v1/wishlist/{productId}:
     delete:
       operationId: removeFromWishlist
       summary: "Remove product from wishlist"
       description: "Remove a specific product from the user's wishlist"
-      tags: ["Catalog"]
+      tags: ["Wishlist"]
       parameters:
         - name: productId
           in: path
@@ -628,12 +1112,12 @@ paths:
         "401":
           description: "Unauthorized"
 
-  /api/v1/catalog/wishlist/check/{productId}:
+  /api/v1/wishlist/check/{productId}:
     get:
       operationId: checkInWishlist
       summary: "Check if product is in wishlist"
       description: "Check whether a specific product is in the user's wishlist"
-      tags: ["Catalog"]
+      tags: ["Wishlist"]
       parameters:
         - name: productId
           in: path
@@ -655,6 +1139,22 @@ paths:
       responses:
         "200":
           description: "Cart retrieved successfully"
+        "401":
+          description: "Unauthorized"
+    post:
+      operationId: addToCartLegacy
+      summary: "Add item to cart"
+      description: "Add a product variant to the cart using the legacy cart root alias"
+      tags: ["Ordering"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddToCartRequest"
+      responses:
+        "201":
+          description: "Item added to cart successfully"
         "401":
           description: "Unauthorized"
     delete:
@@ -691,7 +1191,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              $ref: "#/components/schemas/AddToCartRequest"
       responses:
         "201":
           description: "Item added to cart successfully"
@@ -715,7 +1215,29 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              $ref: "#/components/schemas/UpdateCartItemRequest"
+      responses:
+        "200":
+          description: "Cart item updated successfully"
+        "401":
+          description: "Unauthorized"
+    put:
+      operationId: replaceCartItem
+      summary: "Replace cart item quantity"
+      description: "Update the quantity of a specific cart item using the PUT alias"
+      tags: ["Ordering"]
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCartItemRequest"
       responses:
         "200":
           description: "Cart item updated successfully"
@@ -738,11 +1260,65 @@ paths:
         "401":
           description: "Unauthorized"
 
+  /api/v1/ordering/checkout:
+    get:
+      operationId: getCheckoutData
+      summary: "Get checkout data"
+      description: "Retrieve authenticated checkout data including cart, shipping, and totals"
+      tags: ["Ordering"]
+      responses:
+        "200":
+          description: "Checkout data retrieved successfully"
+        "400":
+          description: "Checkout is not ready"
+        "401":
+          description: "Unauthorized"
+
+  /api/v1/ordering/checkout/validate:
+    post:
+      operationId: validateCheckout
+      summary: "Validate checkout"
+      description: "Run pre-flight checkout validation without finalizing the order"
+      tags: ["Ordering"]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutValidationRequest"
+      responses:
+        "200":
+          description: "Checkout validation completed"
+        "400":
+          description: "Checkout validation failed"
+        "401":
+          description: "Unauthorized"
+
+  /api/v1/ordering/checkout/finalize:
+    post:
+      operationId: finalizeCheckout
+      summary: "Finalize checkout"
+      description: "Finalize checkout and initiate payment processing for the authenticated customer"
+      tags: ["Ordering"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutValidationRequest"
+      responses:
+        "200":
+          description: "Checkout finalized successfully"
+        "400":
+          description: "Checkout validation failed"
+        "401":
+          description: "Unauthorized"
+
   /api/v1/ordering/orders:
     get:
       operationId: listOrders
-      summary: "Get all orders"
-      description: "Retrieve orders for authenticated user"
+      summary: "List orders"
+      description: "Retrieve orders. This route is admin-only outside the test environment."
       tags: ["Ordering"]
       parameters:
         - $ref: "#/components/parameters/Page"
@@ -752,6 +1328,8 @@ paths:
           description: "A list of orders"
         "401":
           description: "Unauthorized"
+        "403":
+          description: "Forbidden"
     post:
       operationId: createOrder
       summary: "Create a new order"
@@ -762,10 +1340,25 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              $ref: "#/components/schemas/CreateOrderRequest"
       responses:
         "201":
           description: "Order created successfully"
+        "401":
+          description: "Unauthorized"
+
+  /api/v1/ordering/orders/my-orders:
+    get:
+      operationId: listMyOrders
+      summary: "Get current user's orders"
+      description: "Retrieve orders for the authenticated customer"
+      tags: ["Ordering"]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: "Customer order list retrieved"
         "401":
           description: "Unauthorized"
 
@@ -822,7 +1415,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              $ref: "#/components/schemas/UpdateOrderStatusRequest"
       responses:
         "200":
           description: "Order status updated successfully"
@@ -853,7 +1446,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              $ref: "#/components/schemas/CreatePaymentRequest"
       responses:
         "201":
           description: "Payment initialized successfully"
@@ -927,10 +1520,105 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              $ref: "#/components/schemas/PaystackWebhookRequest"
       responses:
         "200":
-          description: "Webhook processed successfully"
+          description: "Webhook accepted or processed successfully"
+        "401":
+          description: "Invalid webhook signature"
+
+  /api/v1/payments/stripe-webhook:
+    post:
+      operationId: stripeWebhook
+      summary: "Stripe webhook"
+      description: "Handle Stripe webhook events using the raw request body"
+      tags: ["Ordering"]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StripeWebhookRequest"
+      responses:
+        "200":
+          description: "Stripe webhook accepted or processed successfully"
+        "400":
+          description: "Missing or invalid Stripe signature"
+
+  /api/v1/payments/refunds:
+    post:
+      operationId: createRefund
+      summary: "Create refund request"
+      description: "Create a refund request for a payment"
+      tags: ["Ordering"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRefundRequest"
+      responses:
+        "201":
+          description: "Refund request created successfully"
+        "400":
+          description: "Invalid refund request"
+        "401":
+          description: "Unauthorized"
+
+  /api/v1/payments/refunds/{refundId}:
+    get:
+      operationId: getRefundById
+      summary: "Get refund details"
+      description: "Retrieve refund request details"
+      tags: ["Ordering"]
+      parameters:
+        - name: refundId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Refund details retrieved"
+        "401":
+          description: "Unauthorized"
+
+  /api/v1/payments/refunds/{refundId}/process:
+    post:
+      operationId: processRefund
+      summary: "Process refund"
+      description: "Approve and process a refund request"
+      tags: ["Ordering"]
+      parameters:
+        - name: refundId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Refund processed successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/payments/refunds/{refundId}/reject:
+    post:
+      operationId: rejectRefund
+      summary: "Reject refund"
+      description: "Reject a refund request"
+      tags: ["Ordering"]
+      parameters:
+        - name: refundId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Refund rejected successfully"
+        "403":
+          description: "Forbidden"
 
   /api/v1/ordering/shipping/rates:
     post:
@@ -938,17 +1626,231 @@ paths:
       summary: "Calculate shipping rates"
       description: "Calculate available shipping rates for a destination"
       tags: ["Ordering"]
+      security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
+              $ref: "#/components/schemas/ShippingRatesRequest"
       responses:
         "200":
           description: "Shipping rates calculated successfully"
-        "401":
-          description: "Unauthorized"
+        "400":
+          description: "Invalid shipping request"
+
+  /api/v1/guest/cart:
+    get:
+      security: []
+      operationId: getGuestCart
+      summary: "Get guest cart"
+      description: "Retrieve the current guest cart using the guest token"
+      tags: ["Guest Commerce"]
+      responses:
+        "200":
+          description: "Guest cart retrieved successfully"
+        "400":
+          description: "Missing guest token"
+    delete:
+      security: []
+      operationId: clearGuestCart
+      summary: "Clear guest cart"
+      description: "Remove all items from the guest cart"
+      tags: ["Guest Commerce"]
+      responses:
+        "200":
+          description: "Guest cart cleared successfully"
+        "400":
+          description: "Missing guest token"
+
+  /api/v1/guest/cart/add:
+    post:
+      security: []
+      operationId: addToGuestCart
+      summary: "Add item to guest cart"
+      description: "Add a product variant to the guest cart"
+      tags: ["Guest Commerce"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestCartAddRequest"
+      responses:
+        "201":
+          description: "Item added to guest cart"
+        "400":
+          description: "Invalid guest cart request"
+
+  /api/v1/guest/cart/{productVariantId}:
+    patch:
+      security: []
+      operationId: updateGuestCartItem
+      summary: "Update guest cart item"
+      description: "Update quantity for an item in the guest cart"
+      tags: ["Guest Commerce"]
+      parameters:
+        - name: productVariantId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestCartUpdateRequest"
+      responses:
+        "200":
+          description: "Guest cart item updated"
+        "400":
+          description: "Invalid guest cart request"
+    delete:
+      security: []
+      operationId: deleteGuestCartItem
+      summary: "Delete guest cart item"
+      description: "Remove an item from the guest cart"
+      tags: ["Guest Commerce"]
+      parameters:
+        - name: productVariantId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Guest cart item removed"
+        "400":
+          description: "Missing guest token"
+
+  /api/v1/guest/cart/validate:
+    post:
+      security: []
+      operationId: validateGuestCart
+      summary: "Validate guest cart"
+      description: "Validate guest cart availability and pricing before checkout"
+      tags: ["Guest Commerce"]
+      responses:
+        "200":
+          description: "Guest cart validation completed"
+        "400":
+          description: "Guest cart validation failed or guest token is missing"
+
+  /api/v1/checkout/guest:
+    get:
+      security: []
+      operationId: getGuestCheckoutData
+      summary: "Get guest checkout data"
+      description: "Retrieve guest checkout data using the guest token"
+      tags: ["Guest Commerce"]
+      responses:
+        "200":
+          description: "Guest checkout data retrieved"
+        "400":
+          description: "Missing guest token"
+
+  /api/v1/checkout/guest/session:
+    get:
+      security: []
+      operationId: getGuestEntrySession
+      summary: "Resolve guest checkout session"
+      description: "Return an authenticated session, reuse a valid guest token, or create a new guest token"
+      tags: ["Guest Commerce"]
+      responses:
+        "200":
+          description: "Guest session resolved"
+        "201":
+          description: "New guest session created"
+    post:
+      security: []
+      operationId: saveGuestCheckoutSession
+      summary: "Save guest checkout session"
+      description: "Persist guest contact information for checkout"
+      tags: ["Guest Commerce"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestSessionSaveRequest"
+      responses:
+        "200":
+          description: "Guest session saved"
+        "400":
+          description: "Invalid guest session payload or guest token missing"
+
+  /api/v1/checkout/guest/init:
+    post:
+      security: []
+      operationId: initGuestCheckout
+      summary: "Initialize guest checkout"
+      description: "Initialize a guest checkout session and issue a guest token"
+      tags: ["Guest Commerce"]
+      responses:
+        "201":
+          description: "Guest checkout initialized"
+
+  /api/v1/checkout/guest/finalize:
+    post:
+      security: []
+      operationId: finalizeGuestCheckout
+      summary: "Finalize guest checkout"
+      description: "Create an order and process payment for a guest checkout session"
+      tags: ["Guest Commerce"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestCheckoutFinalizeRequest"
+      responses:
+        "201":
+          description: "Guest checkout finalized successfully"
+        "400":
+          description: "Invalid guest checkout request"
+
+  /api/v1/checkout/guest/convert:
+    get:
+      security: []
+      operationId: getGuestConversionForm
+      summary: "Get guest conversion form"
+      description: "Retrieve the account-conversion details for a guest order"
+      tags: ["Guest Commerce"]
+      parameters:
+        - name: orderId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Guest conversion form retrieved"
+        "400":
+          description: "orderId query parameter is required"
+        "403":
+          description: "Guest session does not match this order"
+    post:
+      security: []
+      operationId: convertGuestToAccount
+      summary: "Convert guest order to account"
+      description: "Convert a guest checkout order into a registered account"
+      tags: ["Guest Commerce"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestCheckoutConvertRequest"
+      responses:
+        "200":
+          description: "Guest order converted to account successfully"
+        "400":
+          description: "Invalid conversion request"
+        "403":
+          description: "Guest session is required or does not match the order"
+        "409":
+          description: "Account already exists for this email"
 
   /api/v1/vendors/apply:
     post:
@@ -962,7 +1864,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              $ref: "#/components/schemas/VendorApplicationRequest"
       responses:
         "201":
           description: "Application submitted successfully"
@@ -976,6 +1878,24 @@ paths:
       responses:
         "200":
           description: "List of applications"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/vendors/applications/{applicationId}:
+    get:
+      operationId: getVendorApplicationById
+      summary: "Get vendor application details"
+      description: "Retrieve a single vendor application (admin only)"
+      tags: ["Vendors"]
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Vendor application retrieved"
         "403":
           description: "Forbidden"
 
@@ -994,6 +1914,42 @@ paths:
       responses:
         "200":
           description: "Application approved"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/vendors/applications/{applicationId}/reject:
+    post:
+      operationId: rejectVendorApplication
+      summary: "Reject vendor application"
+      description: "Reject a vendor application (admin only)"
+      tags: ["Vendors"]
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Application rejected"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/vendors/applications/{applicationId}/request-info:
+    post:
+      operationId: requestVendorApplicationInfo
+      summary: "Request additional vendor information"
+      description: "Request more information from a vendor applicant (admin only)"
+      tags: ["Vendors"]
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Information request sent"
         "403":
           description: "Forbidden"
 
@@ -1018,12 +1974,1018 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              $ref: "#/components/schemas/VendorProfileUpdateRequest"
       responses:
         "200":
           description: "Profile updated"
         "404":
           description: "Vendor not found"
+
+  /api/v1/vendors/me/onboarding:
+    patch:
+      operationId: updateVendorOnboarding
+      summary: "Update vendor onboarding"
+      description: "Update onboarding progress or onboarding-related vendor profile fields"
+      tags: ["Vendors"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VendorOnboardingUpdateRequest"
+      responses:
+        "200":
+          description: "Vendor onboarding updated"
+        "404":
+          description: "Vendor not found"
+
+  /api/v1/admin/auth/login:
+    post:
+      security: []
+      operationId: adminLogin
+      summary: "Authenticate admin or employee"
+      description: "JSON API login for admin and employee users"
+      tags: ["Admin"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: "Admin login successful"
+        "401":
+          description: "Invalid credentials"
+
+  /api/v1/admin/auth/logout:
+    post:
+      operationId: adminLogout
+      summary: "Logout admin or employee"
+      description: "Clear admin authentication cookies and logout the current admin user"
+      tags: ["Admin"]
+      responses:
+        "200":
+          description: "Admin logout successful"
+        "401":
+          description: "Unauthorized"
+
+  /api/v1/admin/dashboard:
+    get:
+      operationId: adminDashboardOverview
+      summary: "Get CSR admin dashboard overview"
+      description: "Returns live marketplace overview data for the CSR admin dashboard, including totals, order status breakdown, recent orders, and recent users."
+      tags: ["Admin"]
+      responses:
+        "200":
+          description: "Dashboard overview retrieved successfully"
+        "401":
+          description: "Unauthorized"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/dashboard/profile:
+    get:
+      operationId: adminDashboardProfile
+      summary: "Get current admin profile and permissions"
+      description: "Returns the current admin profile details and resolved effective permissions for the CSR admin settings view."
+      tags: ["Admin"]
+      responses:
+        "200":
+          description: "Admin profile retrieved successfully"
+        "401":
+          description: "Unauthorized"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/users:
+    get:
+      operationId: adminListMarketplaceUsers
+      summary: "List marketplace users"
+      description: "Returns paginated marketplace user accounts plus customer summary statistics for the CSR admin user-management view."
+      tags: ["Admin"]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "Marketplace users retrieved successfully"
+        "401":
+          description: "Unauthorized"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/users/{id}/role:
+    patch:
+      operationId: adminUpdateMarketplaceUserRole
+      summary: "Update marketplace user role"
+      description: "Updates the role of a marketplace user from the CSR admin."
+      tags: ["Admin"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [customer, vendor, admin]
+      responses:
+        "200":
+          description: "User role updated successfully"
+        "400":
+          description: "Validation error"
+        "401":
+          description: "Unauthorized"
+        "403":
+          description: "Forbidden"
+        "404":
+          description: "User not found"
+
+  /api/v1/admin/users/{id}:
+    delete:
+      operationId: adminDeleteMarketplaceUser
+      summary: "Delete marketplace user"
+      description: "Deletes a marketplace user account from the CSR admin."
+      tags: ["Admin"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "User deleted successfully"
+        "401":
+          description: "Unauthorized"
+        "403":
+          description: "Forbidden"
+        "404":
+          description: "User not found"
+
+  /api/v1/admin/orders:
+    get:
+      operationId: adminListOrders
+      summary: "List marketplace orders"
+      description: "Returns paginated orders plus aggregate operational totals for the CSR admin orders view."
+      tags: ["Admin"]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, paid, shipped, delivered, cancelled, refunded]
+      responses:
+        "200":
+          description: "Orders retrieved successfully"
+        "401":
+          description: "Unauthorized"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/orders/{id}/status:
+    patch:
+      operationId: adminUpdateOrderStatus
+      summary: "Update order status"
+      description: "Updates an order status from the CSR admin operations view."
+      tags: ["Admin"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [pending, paid, shipped, delivered, cancelled, refunded]
+      responses:
+        "200":
+          description: "Order status updated successfully"
+        "400":
+          description: "Validation error"
+        "401":
+          description: "Unauthorized"
+        "403":
+          description: "Forbidden"
+        "404":
+          description: "Order not found"
+
+  /api/v1/admin/employees:
+    get:
+      operationId: adminListEmployees
+      summary: "List employees"
+      description: "Retrieve employee records from the admin surface"
+      tags: ["Admin"]
+      responses:
+        "200":
+          description: "Employees retrieved successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/employees/invite:
+    post:
+      operationId: adminInviteEmployee
+      summary: "Invite employee"
+      description: "Send an employee invitation from the admin surface"
+      tags: ["Admin"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminEmployeeInviteRequest"
+      responses:
+        "201":
+          description: "Employee invitation created"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/employees/{id}:
+    get:
+      operationId: adminGetEmployee
+      summary: "Get employee details"
+      description: "Retrieve a single employee from the admin surface"
+      tags: ["Admin"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Employee retrieved successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/employees/{id}/role:
+    put:
+      operationId: adminUpdateEmployeeRole
+      summary: "Update employee role"
+      description: "Update an employee's role from the admin surface"
+      tags: ["Admin"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminEmployeeRoleUpdateRequest"
+      responses:
+        "200":
+          description: "Employee role updated"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/employees/{id}/status:
+    put:
+      operationId: adminUpdateEmployeeStatus
+      summary: "Update employee status"
+      description: "Update an employee's status from the admin surface"
+      tags: ["Admin"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminEmployeeStatusUpdateRequest"
+      responses:
+        "200":
+          description: "Employee status updated"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/roles:
+    get:
+      operationId: adminListRoles
+      summary: "List roles"
+      description: "Retrieve roles available to the admin system"
+      tags: ["Admin"]
+      responses:
+        "200":
+          description: "Roles retrieved successfully"
+        "403":
+          description: "Forbidden"
+    post:
+      operationId: adminCreateRole
+      summary: "Create role"
+      description: "Create a new role"
+      tags: ["Admin"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleCreateRequest"
+      responses:
+        "201":
+          description: "Role created successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/roles/{id}:
+    get:
+      operationId: adminGetRole
+      summary: "Get role details"
+      description: "Retrieve a role with its permissions"
+      tags: ["Admin"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Role retrieved successfully"
+        "403":
+          description: "Forbidden"
+    put:
+      operationId: adminUpdateRole
+      summary: "Update role"
+      description: "Update a role"
+      tags: ["Admin"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleUpdateRequest"
+      responses:
+        "200":
+          description: "Role updated successfully"
+        "403":
+          description: "Forbidden"
+    delete:
+      operationId: adminDeleteRole
+      summary: "Delete role"
+      description: "Delete a role"
+      tags: ["Admin"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Role deleted successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/roles/{id}/permissions:
+    put:
+      operationId: adminAssignRolePermissions
+      summary: "Assign role permissions"
+      description: "Assign permissions to a role"
+      tags: ["Admin"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RolePermissionsUpdateRequest"
+      responses:
+        "200":
+          description: "Role permissions updated"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/permissions:
+    get:
+      operationId: adminListPermissions
+      summary: "List permissions"
+      description: "Retrieve all permissions"
+      tags: ["Admin"]
+      responses:
+        "200":
+          description: "Permissions retrieved successfully"
+        "403":
+          description: "Forbidden"
+    post:
+      operationId: adminCreatePermission
+      summary: "Create permission"
+      description: "Create a new permission"
+      tags: ["Admin"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PermissionCreateRequest"
+      responses:
+        "201":
+          description: "Permission created successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/permissions/matrix:
+    get:
+      operationId: adminGetPermissionMatrix
+      summary: "Get permission matrix"
+      description: "Retrieve a roles-by-permissions matrix"
+      tags: ["Admin"]
+      responses:
+        "200":
+          description: "Permission matrix retrieved"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/permissions/categories:
+    get:
+      operationId: adminGetPermissionCategories
+      summary: "Get permission categories"
+      description: "Retrieve permissions grouped by category"
+      tags: ["Admin"]
+      responses:
+        "200":
+          description: "Permission categories retrieved"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/permissions/{id}:
+    get:
+      operationId: adminGetPermission
+      summary: "Get permission details"
+      description: "Retrieve a single permission"
+      tags: ["Admin"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Permission retrieved successfully"
+        "403":
+          description: "Forbidden"
+    put:
+      operationId: adminUpdatePermission
+      summary: "Update permission"
+      description: "Update a permission"
+      tags: ["Admin"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PermissionUpdateRequest"
+      responses:
+        "200":
+          description: "Permission updated successfully"
+        "403":
+          description: "Forbidden"
+    delete:
+      operationId: adminDeletePermission
+      summary: "Delete permission"
+      description: "Delete a permission"
+      tags: ["Admin"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Permission deleted successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/exchange-rates/current/{from}/{to}:
+    get:
+      security: []
+      operationId: adminGetCurrentExchangeRate
+      summary: "Get current exchange rate"
+      description: "Retrieve the current exchange rate for a currency pair"
+      tags: ["Admin"]
+      parameters:
+        - name: from
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: to
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Current exchange rate retrieved"
+
+  /api/v1/admin/exchange-rates:
+    get:
+      operationId: adminListExchangeRates
+      summary: "List exchange rates"
+      description: "Retrieve exchange rates with filtering and pagination"
+      tags: ["Admin"]
+      responses:
+        "200":
+          description: "Exchange rates retrieved successfully"
+        "403":
+          description: "Forbidden"
+    post:
+      operationId: adminCreateExchangeRate
+      summary: "Create exchange rate"
+      description: "Create a new exchange rate entry"
+      tags: ["Admin"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExchangeRateCreateRequest"
+      responses:
+        "201":
+          description: "Exchange rate created successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/exchange-rates/history/{from}/{to}:
+    get:
+      operationId: adminGetExchangeRateHistory
+      summary: "Get exchange rate history"
+      description: "Retrieve historical exchange rates for a currency pair"
+      tags: ["Admin"]
+      parameters:
+        - name: from
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: to
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Exchange rate history retrieved"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/exchange-rates/{id}:
+    get:
+      operationId: adminGetExchangeRate
+      summary: "Get exchange rate details"
+      description: "Retrieve a single exchange rate"
+      tags: ["Admin"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Exchange rate retrieved successfully"
+        "403":
+          description: "Forbidden"
+    put:
+      operationId: adminUpdateExchangeRate
+      summary: "Update exchange rate"
+      description: "Update an exchange rate"
+      tags: ["Admin"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExchangeRateUpdateRequest"
+      responses:
+        "200":
+          description: "Exchange rate updated successfully"
+        "403":
+          description: "Forbidden"
+    delete:
+      operationId: adminDeactivateExchangeRate
+      summary: "Deactivate exchange rate"
+      description: "Deactivate an exchange rate entry"
+      tags: ["Admin"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Exchange rate deactivated"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/translations/languages:
+    get:
+      security: []
+      operationId: adminListTranslationLanguages
+      summary: "List translation languages"
+      description: "Retrieve the languages supported by the translation system"
+      tags: ["Admin"]
+      responses:
+        "200":
+          description: "Languages retrieved successfully"
+
+  /api/v1/admin/translations/products/{productId}:
+    get:
+      security: []
+      operationId: adminGetProductTranslations
+      summary: "Get product translations"
+      description: "Retrieve translations for a product"
+      tags: ["Admin"]
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Product translations retrieved"
+    post:
+      operationId: adminCreateProductTranslation
+      summary: "Create product translation"
+      description: "Create a translation entry for a product"
+      tags: ["Admin"]
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TranslationCreateRequest"
+      responses:
+        "201":
+          description: "Product translation created"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/translations/products/{productId}/{translationId}:
+    put:
+      operationId: adminUpdateProductTranslation
+      summary: "Update product translation"
+      description: "Update a product translation"
+      tags: ["Admin"]
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: translationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TranslationUpdateRequest"
+      responses:
+        "200":
+          description: "Product translation updated"
+        "403":
+          description: "Forbidden"
+    delete:
+      operationId: adminDeleteProductTranslation
+      summary: "Delete product translation"
+      description: "Delete a product translation"
+      tags: ["Admin"]
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: translationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: "Product translation deleted"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/translations/categories/{categoryId}:
+    get:
+      security: []
+      operationId: adminGetCategoryTranslations
+      summary: "Get category translations"
+      description: "Retrieve translations for a category"
+      tags: ["Admin"]
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Category translations retrieved"
+    post:
+      operationId: adminCreateCategoryTranslation
+      summary: "Create category translation"
+      description: "Create a translation entry for a category"
+      tags: ["Admin"]
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TranslationCreateRequest"
+      responses:
+        "201":
+          description: "Category translation created"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/translations/categories/{categoryId}/{translationId}:
+    put:
+      operationId: adminUpdateCategoryTranslation
+      summary: "Update category translation"
+      description: "Update a category translation"
+      tags: ["Admin"]
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: translationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TranslationUpdateRequest"
+      responses:
+        "200":
+          description: "Category translation updated"
+        "403":
+          description: "Forbidden"
+    delete:
+      operationId: adminDeleteCategoryTranslation
+      summary: "Delete category translation"
+      description: "Delete a category translation"
+      tags: ["Admin"]
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: translationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: "Category translation deleted"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/audit-logs:
+    get:
+      operationId: adminListAuditLogs
+      summary: "List audit logs"
+      description: "Retrieve audit logs with filtering and pagination"
+      tags: ["Admin"]
+      responses:
+        "200":
+          description: "Audit logs retrieved successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/audit-logs/statistics:
+    get:
+      operationId: adminGetAuditStatistics
+      summary: "Get audit statistics"
+      description: "Retrieve aggregated audit statistics"
+      tags: ["Admin"]
+      responses:
+        "200":
+          description: "Audit statistics retrieved"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/audit-logs/search:
+    get:
+      operationId: adminSearchAuditLogs
+      summary: "Search audit logs"
+      description: "Search audit logs using query filters"
+      tags: ["Admin"]
+      responses:
+        "200":
+          description: "Audit log search results retrieved"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/audit-logs/export:
+    get:
+      operationId: adminExportAuditLogs
+      summary: "Export audit logs"
+      description: "Export audit logs in CSV or supported formats"
+      tags: ["Admin"]
+      responses:
+        "200":
+          description: "Audit logs exported successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/audit-logs/{id}:
+    get:
+      operationId: adminGetAuditLog
+      summary: "Get audit log entry"
+      description: "Retrieve a single audit log entry"
+      tags: ["Admin"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Audit log entry retrieved"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/jobs/status:
+    get:
+      operationId: adminGetJobStatus
+      summary: "Get job status"
+      description: "Retrieve the status of all managed background jobs"
+      tags: ["Admin"]
+      responses:
+        "200":
+          description: "Job statuses retrieved"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/jobs/{jobName}/status:
+    get:
+      operationId: adminGetSpecificJobStatus
+      summary: "Get specific job status"
+      description: "Retrieve the status of a specific background job"
+      tags: ["Admin"]
+      parameters:
+        - name: jobName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Job status retrieved"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/jobs/{jobName}/trigger:
+    post:
+      operationId: adminTriggerJob
+      summary: "Trigger job"
+      description: "Manually trigger a background job"
+      tags: ["Admin"]
+      parameters:
+        - name: jobName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Job triggered successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/jobs/exchange-rates/refresh:
+    post:
+      operationId: adminRefreshExchangeRates
+      summary: "Refresh exchange rates"
+      description: "Manually trigger exchange-rate refresh"
+      tags: ["Admin"]
+      responses:
+        "200":
+          description: "Exchange rates refresh triggered"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/uploads:
+    post:
+      operationId: adminUploadAssets
+      summary: "Upload admin assets"
+      description: "Upload assets for administrative workflows"
+      tags: ["Admin"]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/AdminAssetUploadRequest"
+      responses:
+        "201":
+          description: "Assets uploaded successfully"
+        "403":
+          description: "Forbidden"
+
+  /api/v1/admin/products/vendors:
+    get:
+      operationId: adminListProductVendors
+      summary: "List vendors for product administration"
+      description: "Retrieve vendors for admin product-management helpers"
+      tags: ["Admin"]
+      responses:
+        "200":
+          description: "Vendors retrieved successfully"
+        "403":
+          description: "Forbidden"
 
 components:
   securitySchemes:
@@ -1151,12 +3113,16 @@ components:
     AddressInput:
       type: object
       required:
-        - type
         - street
         - city
+        - state
         - country
+        - postal_code
       properties:
         type:
+          type: string
+          enum: ["shipping", "billing"]
+        address_type:
           type: string
           enum: ["shipping", "billing"]
         street:
@@ -1167,5 +3133,791 @@ components:
           type: string
         country:
           type: string
+        postal_code:
+          type: string
+        is_primary:
+          type: boolean
+        is_default:
+          type: boolean
+
+    ChangePasswordRequest:
+      type: object
+      required:
+        - current_password
+        - new_password
+        - confirm_password
+      properties:
+        current_password:
+          type: string
+        new_password:
+          type: string
+          minLength: 8
+        confirm_password:
+          type: string
+
+    SavedCardCreateRequest:
+      type: object
+      required:
+        - card_token
+        - exp_month
+        - exp_year
+      properties:
+        card_token:
+          type: string
+        last_four:
+          type: string
+          pattern: "^[0-9]{4}$"
+        card_last_four:
+          type: string
+          pattern: "^[0-9]{4}$"
+        card_brand:
+          type: string
+          enum: ["visa", "mastercard", "amex", "discover"]
+        card_holder_name:
+          type: string
+        exp_month:
+          type: integer
+          minimum: 1
+          maximum: 12
+        exp_year:
+          type: integer
+
+    SavedCardPrimaryRequest:
+      type: object
+      properties:
+        isPrimary:
+          type: boolean
+        is_primary:
+          type: boolean
+
+    WishlistAddRequest:
+      type: object
+      required:
+        - product_id
+      properties:
+        product_id:
+          type: integer
+          minimum: 1
+
+    AddToCartRequest:
+      type: object
+      required:
+        - product_variant_id
+        - quantity
+      properties:
+        product_variant_id:
+          type: integer
+          minimum: 1
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 1000
+
+    UpdateCartItemRequest:
+      type: object
+      required:
+        - quantity
+      properties:
+        quantity:
+          type: integer
+          minimum: 0
+          maximum: 1000
+
+    CreateOrderRequest:
+      type: object
+      required:
+        - shipping_address_id
+        - billing_address_id
+      properties:
+        shipping_address_id:
+          type: integer
+          minimum: 1
+        billing_address_id:
+          type: integer
+          minimum: 1
+        coupon_code:
+          type: string
+        notes:
+          type: string
+
+    UpdateOrderStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: ["pending", "confirmed", "shipping", "delivered", "cancelled"]
+        notes:
+          type: string
+
+    CheckoutValidationRequest:
+      type: object
+      properties:
+        shippingAddressId:
+          type: integer
+          minimum: 1
+        billingAddressId:
+          type: integer
+          minimum: 1
+        shippingMethodId:
+          type: string
+        paymentMethodId:
+          type: string
+        couponCode:
+          type: string
+
+    CreatePaymentRequest:
+      type: object
+      required:
+        - order_id
+        - amount
+      properties:
+        order_id:
+          type: integer
+          minimum: 1
+        amount:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+        currency:
+          type: string
+          enum: ["USD", "EUR", "GBP", "CAD", "AUD", "JPY", "NGN"]
+        processor:
+          type: string
+          enum: ["stripe", "paystack", "paypal"]
+
+    CreateRefundRequest:
+      type: object
+      required:
+        - payment_id
+        - reason
+      properties:
+        payment_id:
+          type: integer
+          minimum: 1
+        amount:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+        reason:
+          type: string
+          enum:
+            - customer_request
+            - fraud
+            - return
+            - partial_return
+            - duplicate
+            - product_unacceptable
+        note:
+          type: string
+
+    ShippingRatesRequest:
+      type: object
+      required:
+        - destination
+        - items
+      properties:
+        destination:
+          $ref: "#/components/schemas/ShippingAddressRequest"
+        origin:
+          $ref: "#/components/schemas/ShippingAddressRequest"
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ShippingRateItemRequest"
+
+    ShippingAddressRequest:
+      type: object
+      required:
+        - country_code
+        - city
+        - postal_code
+      properties:
+        country_code:
+          type: string
+        city:
+          type: string
+        postal_code:
+          type: string
+        state:
+          type: string
+
+    ShippingRateItemRequest:
+      type: object
+      properties:
+        description:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+        value:
+          type: number
+        weight:
+          type: number
+        height:
+          type: number
+        width:
+          type: number
+        length:
+          type: number
+        currency:
+          type: string
+        category:
+          type: string
+
+    GuestAddressRequest:
+      type: object
+      properties:
+        street:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
         postalCode:
           type: string
+        country:
+          type: string
+
+    GuestCartAddRequest:
+      type: object
+      required:
+        - productVariantId
+        - quantity
+        - price
+        - name
+      properties:
+        productVariantId:
+          type: integer
+          minimum: 1
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 999
+        price:
+          type: number
+          minimum: 0
+        name:
+          type: string
+        sku:
+          type: string
+        weight:
+          type: number
+
+    GuestCartUpdateRequest:
+      type: object
+      required:
+        - quantity
+      properties:
+        quantity:
+          type: integer
+          minimum: 0
+          maximum: 999
+
+    GuestSessionSaveRequest:
+      type: object
+      required:
+        - email
+        - firstName
+        - lastName
+      properties:
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        address:
+          $ref: "#/components/schemas/GuestAddressRequest"
+
+    GuestPaymentMethodRequest:
+      type: object
+      properties:
+        type:
+          type: string
+        token:
+          type: string
+        id:
+          type: string
+
+    GuestShippingMethodRequest:
+      type: object
+      required:
+        - cost
+      properties:
+        id:
+          type: string
+        cost:
+          type: number
+          minimum: 0
+
+    GuestCheckoutFinalizeRequest:
+      type: object
+      required:
+        - email
+        - firstName
+        - lastName
+        - shippingAddress
+        - shippingMethod
+      properties:
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        shippingAddress:
+          $ref: "#/components/schemas/GuestAddressRequest"
+        billingAddress:
+          $ref: "#/components/schemas/GuestAddressRequest"
+        shippingMethod:
+          $ref: "#/components/schemas/GuestShippingMethodRequest"
+        paymentMethod:
+          $ref: "#/components/schemas/GuestPaymentMethodRequest"
+
+    GuestCheckoutConvertRequest:
+      type: object
+      required:
+        - orderId
+        - email
+        - password
+        - confirmPassword
+      properties:
+        orderId:
+          type: integer
+          minimum: 1
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        confirmPassword:
+          type: string
+
+    EmployeeInvitationAcceptanceRequest:
+      type: object
+      required:
+        - token
+        - firstName
+        - lastName
+        - password
+        - confirmPassword
+      properties:
+        token:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        password:
+          type: string
+          minLength: 8
+        confirmPassword:
+          type: string
+
+    IdentityEmployeeInviteRequest:
+      type: object
+      required:
+        - email
+        - roleId
+      properties:
+        email:
+          type: string
+          format: email
+        roleId:
+          type: integer
+          minimum: 1
+
+    IdentityEmployeeRoleUpdateRequest:
+      type: object
+      required:
+        - roleId
+      properties:
+        roleId:
+          type: integer
+          minimum: 1
+        reason:
+          type: string
+
+    IdentityEmployeeStatusUpdateRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: ["active", "pending", "inactive", "suspended", "on_leave", "terminated"]
+        reason:
+          type: string
+
+    EmployeePermissionOverrideRequest:
+      type: object
+      required:
+        - permissionCode
+        - grantType
+      properties:
+        permissionCode:
+          type: string
+        grantType:
+          type: string
+          enum: ["grant", "revoke"]
+        scope:
+          type: string
+        reason:
+          type: string
+
+    OnboardingCreateRequest:
+      type: object
+      required:
+        - employeeId
+        - startDate
+      properties:
+        employeeId:
+          type: integer
+          minimum: 1
+        startDate:
+          type: string
+          format: date
+        managerId:
+          type: integer
+          minimum: 1
+        budget:
+          type: number
+        notes:
+          type: string
+
+    OnboardingUpdateRequest:
+      type: object
+      properties:
+        budget:
+          type: number
+        notes:
+          type: string
+
+    OnboardingTaskCreateRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+        dueDay:
+          type: integer
+        assignedTo:
+          type: integer
+          minimum: 1
+
+    OnboardingBudgetOverrideRequest:
+      type: object
+      required:
+        - newBudget
+      properties:
+        newBudget:
+          type: number
+        reason:
+          type: string
+
+    VendorApplicationRequest:
+      type: object
+      required:
+        - email
+        - password
+        - confirmPassword
+        - storeName
+        - businessType
+        - businessName
+        - contactPerson
+        - phone
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        confirmPassword:
+          type: string
+        storeName:
+          type: string
+        businessType:
+          type: string
+        businessName:
+          type: string
+        businessRegistration:
+          type: string
+          nullable: true
+        taxId:
+          type: string
+          nullable: true
+        contactPerson:
+          type: string
+        phone:
+          type: string
+        address:
+          type: object
+          additionalProperties: true
+        documents:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    VendorProfileUpdateRequest:
+      type: object
+      additionalProperties: true
+
+    VendorOnboardingUpdateRequest:
+      type: object
+      additionalProperties: true
+
+    AdminEmployeeInviteRequest:
+      type: object
+      required:
+        - email
+        - roleCode
+      properties:
+        email:
+          type: string
+          format: email
+        roleCode:
+          type: string
+
+    AdminEmployeeRoleUpdateRequest:
+      type: object
+      required:
+        - roleCode
+      properties:
+        roleCode:
+          type: string
+
+    AdminEmployeeStatusUpdateRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: ["active", "suspended", "on_leave", "terminated"]
+
+    RoleCreateRequest:
+      type: object
+      required:
+        - code
+        - name
+        - hierarchyLevel
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        hierarchyLevel:
+          type: integer
+          minimum: 0
+          maximum: 100
+
+    RoleUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        hierarchyLevel:
+          type: integer
+          minimum: 0
+          maximum: 100
+
+    RolePermissionsUpdateRequest:
+      type: object
+      required:
+        - permissionIds
+      properties:
+        permissionIds:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+
+    PermissionCreateRequest:
+      type: object
+      required:
+        - code
+        - name
+        - category
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+          nullable: true
+
+    PermissionUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+
+    ExchangeRateCreateRequest:
+      type: object
+      required:
+        - fromCurrency
+        - toCurrency
+        - rate
+      properties:
+        fromCurrency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        toCurrency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        rate:
+          type: number
+        effectiveDate:
+          type: string
+          format: date-time
+        expiryDate:
+          type: string
+          format: date-time
+        provider:
+          type: string
+
+    ExchangeRateUpdateRequest:
+      type: object
+      properties:
+        rate:
+          type: number
+        expiryDate:
+          type: string
+          format: date-time
+          nullable: true
+        isActive:
+          type: boolean
+
+    TranslationCreateRequest:
+      type: object
+      required:
+        - languageCode
+        - name
+      properties:
+        languageCode:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+
+    TranslationUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+
+    PaystackWebhookRequest:
+      type: object
+      required:
+        - event
+        - data
+      properties:
+        event:
+          type: string
+        data:
+          type: object
+          properties:
+            id:
+              type: integer
+            reference:
+              type: string
+            amount:
+              type: number
+            status:
+              type: string
+            customer:
+              type: object
+              nullable: true
+              additionalProperties: true
+            metadata:
+              type: object
+              nullable: true
+              additionalProperties: true
+          additionalProperties: true
+
+    StripeWebhookRequest:
+      type: object
+      required:
+        - id
+        - object
+        - created
+        - data
+        - livemode
+        - pending_webhooks
+        - type
+      properties:
+        id:
+          type: string
+        object:
+          type: string
+          enum: ["event"]
+        api_version:
+          type: string
+        created:
+          type: integer
+        data:
+          type: object
+          properties:
+            object:
+              type: object
+              additionalProperties: true
+            previous_attributes:
+              type: object
+              additionalProperties: true
+          additionalProperties: true
+        livemode:
+          type: boolean
+        pending_webhooks:
+          type: integer
+        request:
+          type: object
+          nullable: true
+          additionalProperties: true
+        type:
+          type: string
+
+    AdminAssetUploadRequest:
+      type: object
+      required:
+        - files
+      properties:
+        files:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            format: binary

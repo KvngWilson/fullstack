@@ -10,8 +10,6 @@ services:
       - "5445:5432"
     volumes:
       - test-db-data:/var/lib/postgresql/data
-      - ./data/test-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./data/test-migrations.sql:/docker-entrypoint-initdb.d/02-migrations.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -24,10 +22,10 @@ services:
     image: tophfr/mailhog:latest
     container_name: fullstack_test_email
     ports:
-      - "1025:1025"
-      - "8025:8025"
+      - "1025:25"
+      - "8025:80"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8025/"]
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -37,18 +35,229 @@ services:
   redis-test:
     image: redis:7-alpine
     container_name: fullstack_test_redis
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_1234567890}
+    command: sh -c 'redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"'
     ports:
       - "6380:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        ["CMD-SHELL", 'redis-cli -a "$${REDIS_PASSWORD}" ping | grep -q PONG']
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - test-network
 
+  rabbitmq-test:
+    image: rabbitmq:3-management-alpine
+    container_name: fullstack_test_rabbitmq
+    labels:
+      description: "RabbitMQ message broker for background jobs and messaging"
+    ports:
+      - "15672:15672" # Management UI
+      - "5672:5672" # AMQP
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - test-network
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: test
+    container_name: fullstack_test_server
+    labels:
+      environment: "test"
+      service: "server"
+    environment:
+      NODE_ENV: test
+      PORT: 5000
+
+      DB_HOST: test-db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-fullstack_test}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+
+      REDIS_HOST: redis-test
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_1234567890}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq-test:5672}
+
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production}
+      JWT_EXPIRES_IN: 7d
+      SESSION_SECRET: ${SESSION_SECRET:-dev-session-secret-change-in-production}
+      EASYSHIP_API_KEY: ${EASYSHIP_API_KEY:-dev_mode_key}
+      PAYSTACK_SECRET_KEY: ${PAYSTACK_SECRET_KEY:-sk_test_dev_mode}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_dev_mode}
+
+      API_URL: ${API_URL:-http://localhost:5001}
+      LOG_LEVEL: debug
+    command: nodemon src/index.js
+    ports:
+      - "5001:5000"
+    depends_on:
+      test-db:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+      rabbitmq-test:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+      - ./src:/app/src
+      - ./api:/app/api
+      - ./core:/app/core
+      - ./config:/app/config
+      - ./policies:/app/policies
+      - ./domain:/app/domain
+      - ./services:/app/services
+      - ./shared:/app/shared
+      - ./views:/app/views
+      - ./data:/app/data
+      - ./infrastructure:/app/infrastructure
+      - ./public:/app/public
+      - ./swagger.yml:/app/swagger.yml
+    restart: unless-stopped
+    networks:
+      - test-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://ashbourne.dev/health/live",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: test
+    container_name: fullstack_test_worker
+    labels:
+      environment: "test"
+      service: "worker"
+    environment:
+      NODE_ENV: test
+
+      DB_HOST: test-db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-fullstack_test}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+
+      REDIS_HOST: redis-test
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_1234567890}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq-test:5672}
+
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production}
+      SESSION_SECRET: ${SESSION_SECRET:-dev-session-secret-change-in-production}
+
+      LOG_LEVEL: debug
+      ALLOW_IMMEDIATE_JOBS: "true"
+    command: nodemon src/worker.js
+    depends_on:
+      test-db:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+      rabbitmq-test:
+        condition: service_healthy
+    volumes:
+      - ./infrastructure/observability/logs:/app/logs
+      - ./uploads:/app/uploads
+      - ./src:/app/src
+      - ./api:/app/api
+      - ./core:/app/core
+      - ./config:/app/config
+      - ./policies:/app/policies
+      - ./domain:/app/domain
+      - ./services:/app/services
+      - ./shared:/app/shared
+      - ./views:/app/views
+      - ./data:/app/data
+      - ./infrastructure:/app/infrastructure
+      - ./public:/app/public
+    restart: unless-stopped
+    networks:
+      - test-network
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.55.0
+    container_name: fullstack_test_redis_exporter
+    ports:
+      - "${TEST_REDIS_EXPORTER_PORT:-19121}:9121"
+    environment:
+      - REDIS_ADDR=redis://:${REDIS_PASSWORD:-redis_dev_password_1234567890}@redis-test:6379
+    depends_on:
+      redis-test:
+        condition: service_healthy
+    networks:
+      - test-network
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: fullstack_test_prometheus
+    ports:
+      - "${TEST_PROMETHEUS_PORT:-19091}:9090"
+    volumes:
+      - ../telemetry/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../telemetry/monitoring/rules.yml:/etc/prometheus/rules/rules.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--storage.tsdb.retention.time=7d"
+    networks:
+      - test-network
+
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: fullstack_test_grafana
+    ports:
+      - "${TEST_GRAFANA_PORT:-3300}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_INSTALL_PLUGINS=grafana-clock-panel
+    volumes:
+      - ../telemetry/monitoring/grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ../telemetry/monitoring/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+      - ../telemetry/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - server
+    networks:
+      - test-network
+
 volumes:
   test-db-data:
+  prometheus-data:
+  grafana-data:
 
 networks:
   test-network:

@@ -3,17 +3,27 @@ import { useAppSelector } from "@/store";
 import {
   selectAuthIsHydrated,
   selectIsAuthenticated,
+  selectUserPermissions,
   selectUserRole,
 } from "@/features/auth/authSelectors";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 
-export default function RoleBasedRoute({ allowedRoles, children }) {
+function normalizeValues(values) {
+  return (values || []).map((value) => String(value).toLowerCase());
+}
+
+export default function RoleBasedRoute({
+  allowedRoles,
+  requiredPermissions,
+  permissionMode = "all",
+  children,
+}) {
   const isHydrated = useAppSelector(selectAuthIsHydrated);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const userRole = (useAppSelector(selectUserRole) || "").toLowerCase();
-  const normalizedAllowedRoles = (allowedRoles || []).map((role) =>
-    String(role).toLowerCase(),
-  );
+  const userPermissions = normalizeValues(useAppSelector(selectUserPermissions));
+  const normalizedAllowedRoles = normalizeValues(allowedRoles);
+  const normalizedRequiredPermissions = normalizeValues(requiredPermissions);
 
   if (!isHydrated) {
     return (
@@ -29,12 +39,29 @@ export default function RoleBasedRoute({ allowedRoles, children }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (!normalizedAllowedRoles.length) {
+  if (!normalizedAllowedRoles.length && !normalizedRequiredPermissions.length) {
     return <Navigate to="/unauthorized" replace />;
   }
 
-  if (!userRole || !normalizedAllowedRoles.includes(userRole)) {
-    return <Navigate to="/unauthorized" replace />;
+  if (normalizedAllowedRoles.length) {
+    if (!userRole || !normalizedAllowedRoles.includes(userRole)) {
+      return <Navigate to="/unauthorized" replace />;
+    }
+  }
+
+  if (normalizedRequiredPermissions.length) {
+    const hasRequiredPermissions =
+      permissionMode === "any"
+        ? normalizedRequiredPermissions.some((permission) =>
+            userPermissions.includes(permission),
+          )
+        : normalizedRequiredPermissions.every((permission) =>
+            userPermissions.includes(permission),
+          );
+
+    if (!hasRequiredPermissions) {
+      return <Navigate to="/unauthorized" replace />;
+    }
   }
 
   return children ? <>{children}</> : <Outlet />;

@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const { pool } = require("../config/db");
 const { logger } = require("../shared/utils/logger");
 const { sendEmailJob } = require("../infrastructure/email/email");
+const { ValidationError } = require("../shared/utils/errors");
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
@@ -37,7 +38,7 @@ class InvitationService {
         [roleId],
       );
       if (roleCheck.rowCount === 0) {
-        throw new Error("Invalid role ID");
+        throw new ValidationError("Invalid role ID");
       }
 
       // Check if email already exists
@@ -46,7 +47,7 @@ class InvitationService {
         [email],
       );
       if (userCheck.rowCount > 0) {
-        throw new Error("User with this email already exists");
+        throw new ValidationError("User with this email already exists");
       }
 
       // Check for pending invitation
@@ -55,7 +56,7 @@ class InvitationService {
         [email],
       );
       if (pendingCheck.rowCount > 0) {
-        throw new Error("Pending invitation already exists for this email");
+        throw new ValidationError("Pending invitation already exists for this email");
       }
 
       const { token, tokenHash } = InvitationService.generateInvitationToken();

@@ -1,0 +1,78 @@
+smtpd_banner = Welcome to ESMTP for $myhostname (TempleOS)
+biff = no
+append_dot_mydomain = no
+recipient_delimiter = +
+readme_directory = no
+#myhostname = mail.ashbourne.dev
+mydomain = ashbourne.dev
+myorigin = $mydomain
+inet_interfaces = all
+mydestination = 
+mynetworks = 127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+
+virtual_mailbox_domains = lmdb:/etc/postfix/virtual_domains
+virtual_mailbox_base = /tmp/vhosts
+virtual_mailbox_maps = lmdb:/etc/postfix/vmailbox
+virtual_alias_maps = lmdb:/etc/postfix/virtual_alias
+virtual_minimum_uid = 100
+virtual_uid_maps = static:5000
+virtual_gid_maps = static:5000
+virtual_transport = virtual
+virtual_mailbox_limit = 0
+mailbox_size_limit = 0
+message_size_limit = 0
+dovecot_destination_recipient_limit = 1
+
+##SASL##
+smtpd_sasl_auth_enable = yes
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = private/auth
+smtpd_sasl_security_options = noanonymous
+smtpd_sasl_local_domain = $mydomain
+broken_sasl_auth_clients = yes
+
+##TLS##
+smtpd_use_tls = yes
+smtpd_tls_security_level = may
+smtpd_tls_auth_only = yes
+smtpd_tls_cert_file = /etc/nginx/ssl/mail.ashbourne.dev.pem
+smtpd_tls_key_file = /etc/nginx/ssl/mail.ashbourne.dev-key.pem
+smtpd_tls_session_cache_database = lmdb:${data_directory}/smtpd_scache
+smtpd_tls_received_header = yes
+smtpd_tls_security_level = may
+smtp_tls_security_level = may
+tls_random_source = dev:/dev/urandom
+
+##restrictions##
+smtpd_helo_required = yes
+smtpd_delay_reject = yes
+strict_rfc821_envelopes = yes
+disable_vrfy_command = yes
+
+##limit rate##
+anvil_rate_time_unit = 60s
+smtpd_client_connection_rate_limit = 5
+smtpd_client_connection_count_limit = 5
+
+smtpd_error_sleep_time = 5s
+smtpd_soft_error_limit = 2
+smtpd_hard_error_limit = 3
+##################
+
+smtpd_helo_restrictions = permit_mynetworks,reject_invalid_helo_hostname,permit
+
+smtpd_client_restrictions = permit_mynetworks,permit_sasl_authenticated,reject
+
+smtpd_sender_restrictions = permit_mynetworks,reject
+
+smtpd_recipient_restrictions = reject_non_fqdn_recipient, reject_unknown_recipient_domain, check_sender_access lmdb:/etc/postfix/allowed_senders,  reject
+
+smtpd_recipient_limit = 250
+broken_sasl_auth_clients = yes
+manpage_directory = /usr/share/man
+default_database_type = lmdb
+relay_domains = 
+header_size_limit = 4096000
+smtp_sasl_mechanism_filter = scram,scram,scram,scram,scram,DIGEST-MD5,CRAM-MD5,ntlm,plain,login,anonymous
+smtpd_relay_restrictions = permit
+myhostname = 95b47e5398ec

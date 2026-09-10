@@ -1,4 +1,9 @@
-const { DatabaseHelper } = require('../helpers/testHelpers');
+const {
+  addToCart,
+  createTestVariant,
+  DatabaseHelper,
+  getOrCreateCart,
+} = require("../helpers/testHelpers");
 
 class CartFactory {
   static async create(user_id) {
@@ -6,50 +11,25 @@ class CartFactory {
       throw new Error('user_id is required for CartFactory.create()');
     }
 
-    const result = await DatabaseHelper.query(
-      `INSERT INTO carts (user_id, created_at)
-       VALUES ($1, $2)
-       RETURNING id`,
-      [user_id, new Date()]
-    );
-
     return {
-      id: result.rows[0].id,
+      id: await getOrCreateCart(user_id),
       user_id,
     };
   }
 
-  static async addItem(cart_id, product_id, quantity = 1, price = null) {
+  static async addItem(cart_id, product_id, quantity = 1, _price = null) {
     if (!cart_id || !product_id) {
-      throw new Error('cart_id and product_id are required');
+      throw new Error("cart_id and product_id are required");
     }
 
-    let itemPrice = price;
-    if (!itemPrice) {
-      const productResult = await DatabaseHelper.query(
-        'SELECT base_price FROM products WHERE id = $1',
-        [product_id]
-      );
-      if (productResult.rows.length === 0) {
-        throw new Error(`Product ${product_id} not found`);
-      }
-      itemPrice = productResult.rows[0].base_price;
-    }
-
-    const result = await DatabaseHelper.query(
-      `INSERT INTO cart_items (cart_id, product_id, quantity, price, created_at)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id`,
-      [cart_id, product_id, quantity, itemPrice, new Date()]
+    const ownerResult = await DatabaseHelper.query(
+      "SELECT user_id FROM carts WHERE id = $1",
+      [cart_id],
     );
+    const variant = await createTestVariant(product_id);
+    const cartItem = await addToCart(ownerResult.rows[0].user_id, variant.id, quantity);
 
-    return {
-      id: result.rows[0].id,
-      cart_id,
-      product_id,
-      quantity,
-      price: itemPrice,
-    };
+    return { ...cartItem, cart_id, product_id };
   }
 
   static async createWithItems(user_id, items = []) {

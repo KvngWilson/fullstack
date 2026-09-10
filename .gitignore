@@ -60,6 +60,7 @@ public/uploads/*
 # Playwright test artifacts
 test-results/
 playwright-report/
+.persona-sessions/
 
 # Playwright browser binaries
 browsers/
@@ -68,6 +69,23 @@ browsers/
 .api/
 .docs/
 *.local
+.gitignore
+scorecard,png
+nginx/ssl/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+infra/terraform/terraform.tfvars
+infra/fullstack-ecom-02507020a671.json
 
 # Editor files
 *.suo
@@ -75,3 +93,17 @@ browsers/
 *.njsproj
 *.sln
 *.sw?
+
+# Postfix runtime-generated files
+nginx/mail/*.lmdb
+nginx/mail/aliases
+nginx/mail/allowed_senders
+nginx/mail/dynamicmaps.cf
+nginx/mail/main.cf.proto
+nginx/mail/master.cf.proto
+nginx/mail/postfix-files
+nginx/mail/postfix-files.d/
+nginx/mail/sasl/
+
+# Desloppify local state
+.desloppify/

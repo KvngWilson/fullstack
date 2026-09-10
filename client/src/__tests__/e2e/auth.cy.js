@@ -18,13 +18,16 @@ describe("Auth Flow", () => {
   });
 
   it("logs in with valid credentials", () => {
-    cy.intercept("POST", "**/api/v1/identity/users/login", {
+    cy.intercept("POST", "**/api/v1/auth/login", {
       statusCode: 200,
       body: {
-        id: 1,
-        email: testUser.email,
-        role: "customer",
-        token: "test-token",
+        success: true,
+        message: "Login successful",
+        user: {
+          id: 1,
+          email: testUser.email,
+          role: "customer",
+        },
       },
     }).as("loginRequest");
 

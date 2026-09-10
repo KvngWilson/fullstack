@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: client
+  labels:
+    app: client
+spec:
+  selector:
+    app: client
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client
+  labels:
+    app: client
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  minReadySeconds: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: client
+  template:
+    metadata:
+      labels:
+        app: client
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: client
+      containers:
+        - name: client
+          image: gcr.io/fullstack-ecom/fullstack-client:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          securityContext:
+            allowPrivilegeEscalation: false
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 3
+          startupProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 18
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+              ephemeral-storage: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+              ephemeral-storage: 512Mi

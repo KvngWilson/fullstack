@@ -47,13 +47,15 @@ export default function Footer() {
         <div className="rounded-section border border-white/12 bg-white/10 p-8 shadow-[0_26px_80px_-48px_rgba(15,23,42,0.75)] backdrop-blur-xl lg:p-10">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-xl">
-              <span className="tag-soft bg-white/10 text-sky-200">Stay in the loop</span>
+              <span className="tag-soft bg-white/10 text-sky-200">
+                Stay in the loop
+              </span>
               <h3 className="mt-4 font-heading text-3xl font-bold tracking-tight text-white">
                 Weekly drops, insider pricing, and hand-picked inspiration.
               </h3>
               <p className="mt-3 text-sm leading-6 text-slate-300">
-                Join the Dealport list and get 15% off your first order plus early access
-                to the newest collections.
+                Join the Dealport list and get 15% off your first order plus
+                early access to the newest collections.
               </p>
             </div>
 
@@ -66,7 +68,7 @@ export default function Footer() {
                     placeholder="Enter your email"
                   />
                 </div>
-                <button className="btn-primary min-w-[9.5rem]" type="button">
+                <button className="btn-primary min-w-38" type="button">
                   Subscribe
                 </button>
               </div>
@@ -77,7 +79,9 @@ export default function Footer() {
                     key={label}
                     className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold text-slate-300"
                   >
-                    {createElement(icon, { className: "h-3.5 w-3.5 text-sky-300" })}
+                    {createElement(icon, {
+                      className: "h-3.5 w-3.5 text-sky-300",
+                    })}
                     {label}
                   </span>
                 ))}
@@ -93,7 +97,9 @@ export default function Footer() {
                 D
               </span>
               <div>
-                <h3 className="font-heading text-lg font-bold tracking-tight">Dealport</h3>
+                <h3 className="font-heading text-lg font-bold tracking-tight">
+                  Dealport
+                </h3>
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
                   Modern marketplace
                 </p>
@@ -101,8 +107,8 @@ export default function Footer() {
             </div>
 
             <p className="max-w-sm text-sm leading-6 text-slate-300">
-              Discover premium-looking everyday essentials, trending gifts, and curated
-              collections across fashion, beauty, and home.
+              Discover premium-looking everyday essentials, trending gifts, and
+              curated collections across fashion, beauty, and home.
             </p>
           </div>
 
@@ -125,7 +131,9 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col gap-4 border-t border-white/10 pt-6 text-xs text-slate-400 md:flex-row md:items-center md:justify-between">
-          <p>&copy; {new Date().getFullYear()} Dealport. All rights reserved.</p>
+          <p>
+            &copy; {new Date().getFullYear()} Dealport. All rights reserved.
+          </p>
           <div className="flex flex-wrap items-center gap-4">
             <Link className="hover:text-white" to="/privacy">
               Privacy

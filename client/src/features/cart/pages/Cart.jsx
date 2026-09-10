@@ -36,7 +36,9 @@ export default function Cart() {
 
   useEffect(
     () => () => {
-      Object.values(debounceTimersRef.current).forEach((timer) => clearTimeout(timer));
+      Object.values(debounceTimersRef.current).forEach((timer) =>
+        clearTimeout(timer),
+      );
     },
     [],
   );
@@ -101,11 +103,11 @@ export default function Cart() {
           Shopping cart
         </p>
         <h1 className="mt-3 font-heading text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">
-          Review what you’re taking to checkout.
+          Review what you`re taking to checkout.
         </h1>
         <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-500 sm:text-base">
-          Adjust quantities, remove items, and confirm totals before moving into the
-          cleaner checkout flow.
+          Adjust quantities, remove items, and confirm totals before moving into
+          the cleaner checkout flow.
         </p>
       </div>
 
@@ -138,10 +140,12 @@ export default function Cart() {
                       {item.product?.name || "Product"}
                     </p>
                     <p className="mt-2 text-sm text-slate-500">
-                      Variant: {item.variant?.sku || item.variant?.id || item.variant_id}
+                      Variant:{" "}
+                      {item.variant?.sku || item.variant?.id || item.variant_id}
                     </p>
                     <p className="mt-2 text-sm text-slate-500">
-                      Item price: {formatPrice(Number(item.item_total ?? 0), currency)}
+                      Item price:{" "}
+                      {formatPrice(Number(item.item_total ?? 0), currency)}
                     </p>
                   </div>
 
@@ -151,7 +155,12 @@ export default function Cart() {
                       type="number"
                       min={1}
                       defaultValue={item.quantity}
-                      onChange={(event) => handleQuantityChange(item.cart_item_id, event.target.value)}
+                      onChange={(event) =>
+                        handleQuantityChange(
+                          item.cart_item_id,
+                          event.target.value,
+                        )
+                      }
                       onBlur={() => handleQuantityBlur(item.cart_item_id)}
                       className="w-24"
                     />
@@ -186,7 +195,9 @@ export default function Cart() {
             <div className="mt-5 space-y-3 text-sm text-slate-600">
               <div className="flex justify-between gap-4">
                 <span>Items</span>
-                <span className="font-medium text-slate-900">{items.length}</span>
+                <span className="font-medium text-slate-900">
+                  {items.length}
+                </span>
               </div>
               <div className="flex justify-between gap-4">
                 <span>Subtotal</span>

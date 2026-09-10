@@ -5,6 +5,34 @@
  */
 
 class EmailTemplateService {
+  renderOrderStatusUpdate({
+    orderId,
+    orderNumber,
+    headline,
+    subject,
+    message,
+    orderUrl,
+    reason,
+  }) {
+    const resolvedOrderId = orderNumber || orderId;
+    const resolvedOrderUrl =
+      orderUrl || `${process.env.API_URL || "http://localhost:5000"}/orders/${resolvedOrderId}`;
+    const reasonHtml = reason ? `<p><strong>Reason:</strong> ${reason}</p>` : "";
+    const reasonText = reason ? ` Reason: ${reason}` : "";
+
+    return {
+      subject,
+      html: `
+    <h2>${headline}</h2>
+    <p>Order ID: <strong>${resolvedOrderId}</strong></p>
+    <p>${message}</p>
+    ${reasonHtml}
+    <p>You can view your order here: <a href="${resolvedOrderUrl}">${resolvedOrderUrl}</a></p>
+  `,
+      text: `${headline} for order ${resolvedOrderId}. ${message}${reasonText} View: ${resolvedOrderUrl}`,
+    };
+  }
+
   // Render order confirmation template
   renderOrderConfirmation(data) {
     const { orderId, items = [], total, orderUrl } = data;
@@ -40,6 +68,97 @@ class EmailTemplateService {
     };
   }
 
+  renderOrderReceived(data) {
+    const orderId = data.orderNumber || data.orderId;
+    return this.renderOrderStatusUpdate({
+      orderId,
+      orderNumber: data.orderNumber,
+      headline: "We received your order",
+      subject: `Order Received #${orderId}`,
+      message: "We have received your order and will begin processing it shortly.",
+      orderUrl: data.orderUrl,
+      reason: data.reason,
+    });
+  }
+
+  renderOrderProcessing(data) {
+    const orderId = data.orderNumber || data.orderId;
+    return this.renderOrderStatusUpdate({
+      orderId,
+      orderNumber: data.orderNumber,
+      headline: "Your order is being processed",
+      subject: `Order Processing #${orderId}`,
+      message: "Your order is currently being prepared.",
+      orderUrl: data.orderUrl,
+      reason: data.reason,
+    });
+  }
+
+  renderPaymentConfirmed(data) {
+    const orderId = data.orderNumber || data.orderId;
+    return this.renderOrderStatusUpdate({
+      orderId,
+      orderNumber: data.orderNumber,
+      headline: "Payment confirmed",
+      subject: `Payment Confirmed #${orderId}`,
+      message: "We have confirmed payment for your order.",
+      orderUrl: data.orderUrl,
+      reason: data.reason,
+    });
+  }
+
+  renderOrderShipped(data) {
+    const orderId = data.orderNumber || data.orderId;
+    return this.renderOrderStatusUpdate({
+      orderId,
+      orderNumber: data.orderNumber,
+      headline: "Your order has shipped",
+      subject: `Order Shipped #${orderId}`,
+      message: "Your order is on the way.",
+      orderUrl: data.orderUrl,
+      reason: data.reason,
+    });
+  }
+
+  renderOrderDelivered(data) {
+    const orderId = data.orderNumber || data.orderId;
+    return this.renderOrderStatusUpdate({
+      orderId,
+      orderNumber: data.orderNumber,
+      headline: "Your order was delivered",
+      subject: `Order Delivered #${orderId}`,
+      message: "Your order has been marked as delivered.",
+      orderUrl: data.orderUrl,
+      reason: data.reason,
+    });
+  }
+
+  renderOrderCancelled(data) {
+    const orderId = data.orderNumber || data.orderId;
+    return this.renderOrderStatusUpdate({
+      orderId,
+      orderNumber: data.orderNumber,
+      headline: "Your order was cancelled",
+      subject: `Order Cancelled #${orderId}`,
+      message: "Your order has been cancelled.",
+      orderUrl: data.orderUrl,
+      reason: data.reason,
+    });
+  }
+
+  renderOrderRefunded(data) {
+    const orderId = data.orderNumber || data.orderId;
+    return this.renderOrderStatusUpdate({
+      orderId,
+      orderNumber: data.orderNumber,
+      headline: "Your order was refunded",
+      subject: `Order Refunded #${orderId}`,
+      message: "A refund has been issued for your order.",
+      orderUrl: data.orderUrl,
+      reason: data.reason,
+    });
+  }
+
   // Render password reset template
   renderPasswordReset(data) {
     const { resetUrl, expiresInMinutes = 30 } = data;
@@ -71,7 +190,6 @@ class EmailTemplateService {
     };
   }
 
-  
   // Render employee invitation template
   renderEmployeeInvitation(data) {
     const { to, inviterName, roleName, invitationUrl, expiryHours = 24 } = data;
@@ -175,7 +293,6 @@ Admin Team
     return this[methodName](data);
   }
 
-  
   // Capitalize string (helper)
   _capitalize(str) {
     return str

@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: gateway-tls
+  namespace: fullstack-k8s
+spec:
+  secretName: gateway-tls
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-production-dns
+  dnsNames:
+    - __DOMAIN_NAME__
+    - __WWW_DOMAIN_NAME__
+    - __ADMIN_DOMAIN__

@@ -6,9 +6,26 @@
 const crypto = require("crypto");
 const Paystack = require("@paystack/paystack-sdk");
 const logger = require("../../../shared/utils/logger");
+const {
+  withChildSpan,
+} = require("../../../infrastructure/observability/tracing/tracingScope");
 
 // Initialize Paystack
 const paystack = new Paystack(process.env.PAYSTACK_SECRET_KEY);
+
+async function tracePaystackCall(operation, tags, callback) {
+  return withChildSpan(
+    `external.paystack.${operation}`,
+    {
+      tags: {
+        "external.system": "paystack",
+        "external.operation": operation,
+        ...tags,
+      },
+    },
+    callback,
+  );
+}
 
 /**
  * Convert amount from major units to minor units (multiply by 100)
@@ -62,14 +79,22 @@ async function initializePayment(params) {
     // Convert to minor units
     const amountInMinorUnits = toMinorUnits(amount);
 
-    const response = await paystack.transaction.initialize({
-      email,
-      amount: amountInMinorUnits,
-      reference,
-      currency,
-      metadata,
-      callback_url: `${process.env.APP_URL || "http://localhost:5000"}/api/v1/payments/callback`,
-    });
+    const response = await tracePaystackCall(
+      "transaction.initialize",
+      {
+        "payment.reference": reference,
+        "payment.currency": currency,
+      },
+      () =>
+        paystack.transaction.initialize({
+          email,
+          amount: amountInMinorUnits,
+          reference,
+          currency,
+          metadata,
+          callback_url: `${process.env.API_URL || "http://localhost:5000"}/api/v1/payments/callback`,
+        }),
+    );
 
     if (!response.status || !response.data) {
       throw new Error("Invalid Paystack response");
@@ -121,9 +146,14 @@ async function verifyPayment(reference) {
       throw new Error("Payment reference is required");
     }
 
-    const response = await paystack.transaction.verify({
-      reference,
-    });
+    const response = await tracePaystackCall(
+      "transaction.verify",
+      { "payment.reference": reference },
+      () =>
+        paystack.transaction.verify({
+          reference,
+        }),
+    );
 
     if (!response || !response.data) {
       return {
@@ -192,9 +222,14 @@ async function getTransaction(reference) {
       throw new Error("Payment reference is required");
     }
 
-    const response = await paystack.transaction.fetch({
-      reference,
-    });
+    const response = await tracePaystackCall(
+      "transaction.fetch",
+      { "payment.reference": reference },
+      () =>
+        paystack.transaction.fetch({
+          reference,
+        }),
+    );
 
     if (!response.status) {
       throw new Error("Transaction not found");

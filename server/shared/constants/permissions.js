@@ -34,6 +34,12 @@ module.exports = {
     INVITE: "employee:invite",
     MANAGE: "employee:manage",
   },
+  ONBOARDING: {
+    CREATE: "onboarding:create",
+    READ: "onboarding:read",
+    UPDATE: "onboarding:update",
+    BUDGET_OVERRIDE: "onboarding:budget_override",
+  },
   EXCHANGE_RATES: {
     READ: "exchange-rate:read",
     CREATE: "exchange-rate:create",

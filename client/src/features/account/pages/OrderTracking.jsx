@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { trackOrderThunk } from "@/features/orders/ordersThunks";
@@ -12,6 +12,8 @@ import { EmptyState, ErrorState } from "@/components/common/AsyncState";
 import { TextBlockSkeleton } from "@/components/common/Skeleton";
 import { Card, Badge } from "@/components/ui";
 import { useAppPreferences } from "@/contexts/AppPreferencesContext";
+import useOrderRealtime from "@/features/orders/hooks/useOrderRealtime";
+import { notifyInfo } from "@/utils/toast";
 
 export default function OrderTracking() {
   const dispatch = useAppDispatch();
@@ -20,13 +22,30 @@ export default function OrderTracking() {
   const isLoading = useAppSelector(selectOrdersIsLoading);
   const error = useAppSelector(selectOrdersError);
   const { t } = useAppPreferences();
+  const orderId = id ? Number(id) : null;
 
   useEffect(() => {
     if (!id) return;
     dispatch(trackOrderThunk(Number(id)));
   }, [dispatch, id]);
 
-  const tracking = id ? trackingByOrderId[id] || trackingByOrderId[Number(id)] : null;
+  const handleRealtimeUpdate = useCallback(
+    (event) => {
+      if (!orderId) {
+        return;
+      }
+
+      dispatch(trackOrderThunk(orderId));
+      notifyInfo(`Tracking updated: order #${orderId} is now ${event?.newStatus || "updated"}`);
+    },
+    [dispatch, orderId],
+  );
+
+  useOrderRealtime(orderId, handleRealtimeUpdate);
+
+  const tracking = id
+    ? trackingByOrderId[id] || trackingByOrderId[Number(id)]
+    : null;
 
   return (
     <div className="landing-container section-wrap">

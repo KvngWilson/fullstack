@@ -7,7 +7,7 @@ export const authService = {
   resetPassword: (token, newPassword) =>
     authApi.resetPassword(token, newPassword),
   verifyEmail: (token) => authApi.verifyEmail(token),
-  refreshToken: (refreshToken) => authApi.refreshToken(refreshToken),
+  refreshToken: () => authApi.refreshToken(),
   me: (config) => authApi.me(config),
   logout: () => authApi.logout(),
 };

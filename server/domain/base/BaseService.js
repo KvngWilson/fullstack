@@ -112,11 +112,26 @@ class BaseService {
    */
   async auditLog(employeeId, action, resource, resourceId, metadata = {}) {
     try {
+      const normalizedMetadata = { ...metadata };
+
+      if (normalizedMetadata.resource_type == null && resource) {
+        normalizedMetadata.resource_type = resource;
+      }
+
+      if (normalizedMetadata.resource_id == null && resourceId != null) {
+        normalizedMetadata.resource_id = String(resourceId);
+      }
+
       await pool.query(
         `INSERT INTO security_audit_log 
          (event_type, actor_id, description, metadata)
          VALUES ($1, $2, $3, $4)`,
-        [`${resource}:${action}`, employeeId, `${action} ${resource}`, JSON.stringify(metadata)]
+        [
+          `${resource}:${action}`,
+          employeeId,
+          `${action} ${resource}`,
+          JSON.stringify(normalizedMetadata),
+        ],
       );
     } catch (error) {
       logger.error("Audit log failed", { error: error.message });

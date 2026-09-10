@@ -20,12 +20,6 @@ const DEFAULT_EXCLUDE_PATHS = [
   "/auth/verify-email",
   "/auth/forgot-password",
   "/auth/reset-password",
-  "/users/login",
-  "/users/register",
-  "/users/refresh-token",
-  "/identity/users/login",
-  "/identity/users/register",
-  "/identity/users/refresh-token",
 ];
 
 /**

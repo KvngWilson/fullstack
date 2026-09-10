@@ -40,6 +40,7 @@ docker compose up -d postgres redis rabbitmq mailhog
 cd server
 npm install
 npm run migrate
+npm run personas:seed
 npm run dev
 ```
 
@@ -58,6 +59,18 @@ docker compose up --build
 ```
 
 The backend expects PostgreSQL, Redis, RabbitMQ, and MailHog for a representative local environment.
+
+To prepare deterministic browser/demo accounts after the database is ready:
+
+```bash
+cd server
+npm run personas:seed
+
+# optional: with the API running, capture authenticated cookie/session files
+npm run personas:login:all
+```
+
+Persona manifests and authenticated session artifacts are written to `server/.persona-sessions/` for local use only.
 
 ## Key URLs
 

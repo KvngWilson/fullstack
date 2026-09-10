@@ -1,6 +1,7 @@
 const nodemailer = require("nodemailer");
 const logger = require("../../shared/utils/logger");
 const emailTemplates = require("./emailTemplates");
+const { withChildSpan } = require("../observability/tracing/tracingScope");
 
 const {
   EMAIL_HOST,
@@ -51,7 +52,17 @@ const sendEmail = async ({ to, subject, html, text }) => {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
+    await withChildSpan(
+      "external.email.send",
+      {
+        tags: {
+          "external.system": "smtp",
+          "external.operation": "sendMail",
+          "email.to": validatedEmail,
+        },
+      },
+      () => transporter.sendMail(mailOptions),
+    );
     logger.info("Email sent successfully", { to: validatedEmail, subject });
     return { success: true };
   } catch (error) {

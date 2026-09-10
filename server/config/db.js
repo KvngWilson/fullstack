@@ -1,5 +1,6 @@
 const { Pool } = require("pg");
 const logger = require("../shared/utils/logger");
+const { withChildSpan } = require("../infrastructure/observability/tracing/tracingScope");
 
 const shouldUseSsl =
   process.env.DB_SSL_ENABLED === "true" ||
@@ -43,6 +44,47 @@ const poolConfig = {
 };
 
 const pool = new Pool(poolConfig);
+const originalPoolQuery = pool.query.bind(pool);
+
+function parseOperation(sqlText) {
+  if (!sqlText || typeof sqlText !== "string") {
+    return "unknown";
+  }
+
+  const [firstToken] = sqlText.trim().split(/\s+/, 1);
+  return (firstToken || "unknown").toLowerCase();
+}
+
+async function tracedPoolQuery(...args) {
+  const sqlText = args[0];
+  const operation = parseOperation(sqlText);
+  const truncatedStatement =
+    typeof sqlText === "string" ? sqlText.slice(0, 240) : "unknown";
+  const start = process.hrtime.bigint();
+
+  return withChildSpan(
+    "db.query",
+    {
+      tags: {
+        "db.system": "postgresql",
+        "db.operation": operation,
+        "db.statement": truncatedStatement,
+      },
+    },
+    async () => {
+      const result = await originalPoolQuery(...args);
+      const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
+      logger.debug("Traced database query", {
+        operation,
+        durationMs: Number(durationMs.toFixed(2)),
+        rowCount: result.rowCount ?? 0,
+      });
+      return result;
+    },
+  );
+}
+
+pool.query = tracedPoolQuery;
 
 /**
  * Monitor pool health and log statistics periodically

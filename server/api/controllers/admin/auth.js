@@ -6,10 +6,9 @@
 const logger = require("../../../shared/utils/logger");
 const domain = require("../../../domain");
 const AuthTokenManager = require("../../../infrastructure/security/AuthTokenManager");
+const { isInternalAdminRole } = require("../../../shared/constants/userRoles");
 
 const AuthenticationService = domain.identity.services.AuthenticationService;
-
-const ALLOWED_ADMIN_ROLES = ["admin", "employee"];
 
 function setAuthCookie(res, token) {
   res.cookie("token", token, {
@@ -98,7 +97,7 @@ function validateAdminRole(user) {
     return { valid: false, error: "User role not found" };
   }
 
-  if (!ALLOWED_ADMIN_ROLES.includes(user.role)) {
+  if (!isInternalAdminRole(user.role)) {
     return {
       valid: false,
       error: "Access denied. This login is for administrative staff only.",

@@ -16,6 +16,7 @@ import { addToCartThunk } from "@/features/cart/cartThunks";
 import WishlistButton from "@/features/wishlist/components/WishlistButton";
 import { ProductGridSkeleton } from "@/components/common/Skeleton";
 import { EmptyState, ErrorState } from "@/components/common/AsyncState";
+import { resolveAssetUrl } from "@/utils/resolveAssetUrl";
 import { notifyInfo, notifySuccess } from "@/utils/toast";
 import { Button, Card } from "@/components/ui";
 
@@ -146,22 +147,18 @@ export default function ProductList() {
         </div>
       </div>
 
-      {isLoading && (
+      {isLoading ? (
         <div className="mt-8">
           <ProductGridSkeleton count={8} />
         </div>
-      )}
-
-      {error && (
+      ) : error ? (
         <ErrorState
           title="Unable to load products"
           message={error}
           onRetry={handleRetry}
           className="mt-8"
         />
-      )}
-
-      {!isLoading && (
+      ) : (
         <>
           <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
             {displayProducts.map((product) => (
@@ -170,7 +167,7 @@ export default function ProductList() {
                   <div className="relative aspect-square overflow-hidden rounded-surface bg-slate-100">
                     <img
                       src={
-                        product.image_url ||
+                        resolveAssetUrl(product.image_url) ||
                         "https://via.placeholder.com/300x300?text=No+Image"
                       }
                       alt={product.name}
@@ -209,7 +206,7 @@ export default function ProductList() {
             ))}
           </div>
 
-          {!products.length && !error && (
+          {!products.length && (
             <EmptyState
               title="No products found"
               message="Try changing category filters or search terms."

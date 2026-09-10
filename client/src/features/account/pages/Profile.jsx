@@ -55,7 +55,9 @@ export default function Profile() {
             </h2>
             <p className="mt-3 text-sm text-slate-500">{profile.email}</p>
             <div className="mt-5">
-              <Badge variant="secondary">Role: {profile.role || "customer"}</Badge>
+              <Badge variant="secondary">
+                Role: {profile.role || "customer"}
+              </Badge>
             </div>
           </Card>
 
@@ -66,15 +68,21 @@ export default function Profile() {
             <div className="mt-4 space-y-4 text-sm text-slate-600">
               <div className="flex justify-between gap-4">
                 <span>First name</span>
-                <span className="font-medium text-slate-900">{profile.first_name || "N/A"}</span>
+                <span className="font-medium text-slate-900">
+                  {profile.first_name || "N/A"}
+                </span>
               </div>
               <div className="flex justify-between gap-4">
                 <span>Last name</span>
-                <span className="font-medium text-slate-900">{profile.last_name || "N/A"}</span>
+                <span className="font-medium text-slate-900">
+                  {profile.last_name || "N/A"}
+                </span>
               </div>
               <div className="flex justify-between gap-4">
                 <span>Email</span>
-                <span className="font-medium text-slate-900">{profile.email || "N/A"}</span>
+                <span className="font-medium text-slate-900">
+                  {profile.email || "N/A"}
+                </span>
               </div>
             </div>
           </Card>

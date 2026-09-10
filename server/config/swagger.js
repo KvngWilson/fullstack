@@ -23,6 +23,14 @@ const yaml = require('js-yaml');
 const fs = require('fs');
 const path = require('path');
 
+function trimTrailingSlash(url) {
+  return url.replace(/\/+$/, '');
+}
+
+function buildDocsUrl(baseUrl, pathname) {
+  return new URL(pathname, `${trimTrailingSlash(baseUrl)}/`).toString();
+}
+
 /**
  * Setup Swagger UI middleware
  * @param {Express} app - Express application instance
@@ -32,6 +40,24 @@ function setupSwagger(app) {
     // Load the Swagger YAML file
     const swaggerPath = path.join(__dirname, '..', 'swagger.yml');
     const swaggerDocument = yaml.load(fs.readFileSync(swaggerPath, 'utf8'));
+    const appUrl = trimTrailingSlash(process.env.API_URL || `http://localhost:${process.env.PORT || 5000}`);
+    const adminUrl = trimTrailingSlash(process.env.ADMIN_URL || `http://admin.localhost:${process.env.PORT || 5000}`);
+
+    swaggerDocument.servers = [
+      {
+        url: appUrl,
+        description: process.env.NODE_ENV === 'production'
+          ? 'Public application gateway (API + client routes)'
+          : 'Development gateway (API + CSR app routes)',
+      },
+      {
+        url: adminUrl,
+        description: 'Admin subdomain (SSR app host)',
+      },
+    ];
+    swaggerDocument.info.description = swaggerDocument.info.description
+      .replace(/`http:\/\/localhost:5000\/admin`/g, `\`${buildDocsUrl(appUrl, '/admin')}\``)
+      .replace(/`http:\/\/admin\.localhost:5000`/g, `\`${adminUrl}\``);
 
     // Swagger UI options
     const options = {
@@ -75,9 +101,9 @@ function setupSwagger(app) {
     });
 
     console.log('[OK] Swagger UI configured successfully');
-    console.log('  → Documentation: http://localhost:5000/api-docs');
-    console.log('  → Swagger YAML: http://localhost:5000/swagger.yml');
-    console.log('  → Swagger JSON: http://localhost:5000/swagger.json');
+    console.log(`  → Documentation: ${buildDocsUrl(appUrl, '/api-docs')}`);
+    console.log(`  → Swagger YAML: ${buildDocsUrl(appUrl, '/swagger.yml')}`);
+    console.log(`  → Swagger JSON: ${buildDocsUrl(appUrl, '/swagger.json')}`);
 
   } catch (error) {
     console.error('[FAILED] Failed to setup Swagger UI:', error.message);
@@ -136,7 +162,8 @@ function setupRedoc(app) {
     }));
 
     console.log('[OK] Redoc configured successfully');
-    console.log('  → Documentation: http://localhost:5000/docs');
+    const appUrl = trimTrailingSlash(process.env.API_URL || `http://localhost:${process.env.PORT || 5000}`);
+    console.log(`  → Documentation: ${buildDocsUrl(appUrl, '/docs')}`);
 
   } catch (error) {
     console.error('[FAILED] Failed to setup Redoc:', error.message);

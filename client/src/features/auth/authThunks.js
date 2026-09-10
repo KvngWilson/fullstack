@@ -91,7 +91,15 @@ export const fetchCurrentUserThunk = createAsyncThunk(
         skipAuthRefresh: true,
         skipErrorLogging: true,
       });
-      return { user: response.user };
+
+      const user =
+        response?.user ||
+        response?.data?.user ||
+        response?.data ||
+        response ||
+        null;
+
+      return user ? { user } : null;
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }

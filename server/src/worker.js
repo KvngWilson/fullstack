@@ -7,19 +7,25 @@
 require("dotenv").config();
 
 const { logger } = require("../shared/utils/logger");
+const { sendEmailJob } = require("../infrastructure/email/email");
+const RabbitMQEventBus = require("../infrastructure/messaging/rabbitMqEventBus");
+const {
+  initializeJobQueues,
+} = require("../infrastructure/jobs/initializeQueues");
 const {
   setJobQueuesRuntime,
   clearJobQueuesRuntime,
 } = require("../infrastructure/jobs/runtime");
 const dispatcher = require("../domain/shared/events/dispatcher");
-const { createWebhookHandlers } = require("../infrastructure/jobs/handlers/webhookHandlers");
+const {
+  createWebhookHandlers,
+} = require("../infrastructure/jobs/handlers/webhookHandlers");
 
 let isShuttingDown = false;
 let _rabbitMQBus = null;
 
 // Mirror the email adapter from setup.js so the worker can process email jobs
 function createEmailServiceAdapter() {
-  const { sendEmailJob } = require("../infrastructure/email/email");
   return {
     async send({ to, subject, template, data }) {
       const result = await sendEmailJob({
@@ -30,7 +36,8 @@ function createEmailServiceAdapter() {
       });
 
       if (!result?.success) {
-        const message = result?.error?.message || result?.error || "Email send failed";
+        const message =
+          result?.error?.message || result?.error || "Email send failed";
         throw new Error(message);
       }
 
@@ -46,16 +53,18 @@ async function initRabbitMQ() {
     return;
   }
   try {
-    const RabbitMQEventBus = require("../infrastructure/messaging/rabbitMqEventBus");
     const bus = new RabbitMQEventBus({ url });
     await bus.connect();
     dispatcher.init(bus);
     _rabbitMQBus = bus;
     logger.info("RabbitMQ EventBus active (worker)");
   } catch (err) {
-    logger.warn("RabbitMQ unavailable in worker; falling back to in-memory EventBus", {
-      error: err.message,
-    });
+    logger.warn(
+      "RabbitMQ unavailable in worker; falling back to in-memory EventBus",
+      {
+        error: err.message,
+      },
+    );
   }
 }
 
@@ -88,9 +97,7 @@ async function startWorker() {
 
     // Initialize Bull queues (Bull manages its own Redis connections)
     logger.info("Initializing Bull queues...");
-    const {
-      initializeJobQueues,
-    } = require("../infrastructure/jobs/initializeQueues");
+
     const queues = await initializeJobQueues(
       createEmailServiceAdapter(),
       createWebhookHandlers(),
@@ -115,12 +122,17 @@ async function startWorker() {
       try {
         await emailJobQueue.clearOldFailedJobs(FAILED_JOB_MAX_AGE_MS);
       } catch (err) {
-        logger.warn("Failed to clear old email failed jobs", { error: err.message });
+        logger.warn("Failed to clear old email failed jobs", {
+          error: err.message,
+        });
       }
     };
     // Run once on startup then every 24 h
     cleanupFailedJobs();
-    const failedJobCleanupTimer = setInterval(cleanupFailedJobs, 24 * 60 * 60 * 1000);
+    const failedJobCleanupTimer = setInterval(
+      cleanupFailedJobs,
+      24 * 60 * 60 * 1000,
+    );
     failedJobCleanupTimer.unref(); // Don't keep process alive for this alone
 
     /**

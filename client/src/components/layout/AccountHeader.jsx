@@ -22,7 +22,11 @@ export default function AccountHeader({
     <div className="rounded-section border border-white/70 bg-white/82 p-6 shadow-[0_26px_90px_-52px_rgba(15,23,42,0.28)] backdrop-blur-xl lg:p-8">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-3xl">
-          {badge ? <Badge className="mb-4" variant="secondary">{badge}</Badge> : null}
+          {badge ? (
+            <Badge className="mb-4" variant="secondary">
+              {badge}
+            </Badge>
+          ) : null}
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-600">
             {eyebrow}
           </p>
@@ -30,7 +34,9 @@ export default function AccountHeader({
             {title}
           </h1>
           {description ? (
-            <p className="mt-4 text-sm leading-7 text-slate-500 sm:text-base">{description}</p>
+            <p className="mt-4 text-sm leading-7 text-slate-500 sm:text-base">
+              {description}
+            </p>
           ) : null}
         </div>
 
@@ -61,9 +67,7 @@ export default function AccountHeader({
             key={link.to}
             to={link.to}
             className={({ isActive }) =>
-              isActive
-                ? "pill pill-active"
-                : "pill"
+              isActive ? "pill pill-active" : "pill"
             }
             end={link.to === "/dashboard"}
           >

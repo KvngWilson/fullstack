@@ -51,12 +51,12 @@ exports.verifyEmail = async (req, res) => {
       });
     }
 
-    const result = await AuthenticationService.verifyEmail(token);
+    const result = await AuthenticationService.verifyEmailToken(token);
 
     return successResponse(res, {
       data: {
         email: result.email,
-        verified: result.verified,
+        verified: true,
       },
       message: "Email verified successfully",
     });
@@ -79,7 +79,6 @@ exports.verifyEmail = async (req, res) => {
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    const ipAddress = req.ip || req.connection.remoteAddress;
 
     if (!email) {
       return errorResponse(res, {
@@ -88,7 +87,7 @@ exports.forgotPassword = async (req, res) => {
       });
     }
 
-    await AuthenticationService.requestPasswordReset(email, ipAddress);
+    await AuthenticationService.sendPasswordReset(email);
 
     // Always return success to prevent email enumeration
     return successResponse(res, {
@@ -111,8 +110,9 @@ exports.forgotPassword = async (req, res) => {
  */
 exports.resetPassword = async (req, res) => {
   try {
-    const { token, password, confirmPassword } = req.body;
+    const { token, password, confirm_password, confirmPassword } = req.body;
     const ipAddress = req.ip || req.connection.remoteAddress;
+    const confirmedPassword = confirm_password || confirmPassword;
 
     if (!token || !password) {
       return errorResponse(res, {
@@ -121,7 +121,7 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    if (password !== confirmPassword) {
+    if (password !== confirmedPassword) {
       return errorResponse(res, {
         message: "Passwords do not match",
         status: 400,
@@ -135,7 +135,7 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    const result = await AuthenticationService.resetPassword(
+    await AuthenticationService.resetPassword(
       token,
       password,
       ipAddress

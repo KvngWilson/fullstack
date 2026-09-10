@@ -1,11 +1,11 @@
 x-server-env: &server-env
-  NODE_ENV: ${NODE_ENV:-development}
+  NODE_ENV: ${NODE_ENV:-production}
   PORT: 5000
 
   # Database Configuration
   DB_HOST: postgres
   DB_PORT: 5432
-  DB_NAME: ${DB_NAME:-ecommerce_db}
+  DB_NAME: ${DB_NAME:-platform_db}
   DB_USER: ${DB_USER:-postgres}
   DB_PASSWORD: ${DB_PASSWORD:-postgres}
   DB_SSL_CERT: ${DB_SSL_CERT:-}
@@ -24,19 +24,20 @@ x-server-env: &server-env
   SESSION_SECRET: ${SESSION_SECRET:-abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789}
 
   # Application
-  APP_URL: ${APP_URL:-http://localhost:5000}
+  API_URL: ${API_URL:-http://localhost:5000}
   FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
-  ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5000,http://admin.localhost:5000}
+  ADMIN_URL: ${ADMIN_URL:-http://admin.localhost:5000}
+  ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
   LOG_LEVEL: ${LOG_LEVEL:-info}
 
-  # Email Configuration (MailHog for development)
-  EMAIL_HOST: ${EMAIL_HOST:-mailhog}
-  EMAIL_PORT: ${EMAIL_PORT:-1025}
+  # Email Configuration (Postfix relay + Dovecot mailbox/auth)
+  EMAIL_HOST: ${EMAIL_HOST:-postfix}
+  EMAIL_PORT: ${EMAIL_PORT:-25}
   EMAIL_SECURE: ${EMAIL_SECURE:-false}
-  EMAIL_SERVICE: ${EMAIL_SERVICE:-mailhog}
+  EMAIL_SERVICE: ${EMAIL_SERVICE:-smtp}
   EMAIL_USER: ${EMAIL_USER:-dev@example.com}
   EMAIL_PASS: ${EMAIL_PASS:-}
-  EMAIL_FROM: ${EMAIL_FROM:-E-Commerce Team <noreply@localhost>}
+  EMAIL_FROM: ${EMAIL_FROM:-Platform Team <noreply@localhost>}
 
   # Payment Processors
   STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_dev_mode}
@@ -86,27 +87,25 @@ x-server-common: &server-common
     - ./server/policies:/app/policies
   restart: unless-stopped
   networks:
-    - fullstack-network
+    - platform-network
   healthcheck: *server-healthcheck
 
 services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: fullstack-postgres
+    container_name: platform-postgres
     labels:
-      description: "PostgreSQL database for e-commerce application"
+      description: "PostgreSQL database for the platform"
     environment:
-      POSTGRES_DB: ${DB_NAME:-ecommerce_db}
+      POSTGRES_DB: ${DB_NAME:-platform_db}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
     ports:
-      - "54322:5432"
+      - "127.0.0.1:54322:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./data/queries.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./server/infrastructure/database/migrations:/docker-entrypoint-initdb.d/migrations:ro
       - ./nginx/ssl/db_ssl.pem:/var/lib/postgresql/server.crt:ro
       - ./nginx/ssl/db_ssl-key.pem:/var/lib/postgresql/server.key:ro
     command: >
@@ -117,7 +116,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-ecommerce_db}",
+          "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-platform_db}",
         ]
       interval: 10s
       timeout: 5s
@@ -125,17 +124,17 @@ services:
       start_period: 30s
     restart: unless-stopped
     networks:
-      - fullstack-network
-  
+      - platform-network
+
   # RabbitMQ Message Broker
   rabbitmq:
     image: rabbitmq:3-management-alpine
-    container_name: fullstack-rabbitmq
+    container_name: platform-rabbitmq
     labels:
       description: "RabbitMQ message broker for background jobs and messaging"
     ports:
-      - "15672:15672" # Management UI
-      - "5672:5672"   # AMQP
+      - "127.0.0.1:15672:15672" # Management UI
+      - "127.0.0.1:5672:5672" # AMQP
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -144,19 +143,19 @@ services:
       start_period: 20s
     restart: unless-stopped
     networks:
-      - fullstack-network
+      - platform-network
 
   # Redis Cache & Session Store
   redis:
     image: redis:7-alpine
-    container_name: fullstack-redis
+    container_name: platform-redis
     labels:
       description: "Redis cache and session store"
     command: sh -c 'redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"'
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_1234567890abcdef}
     ports:
-      - "63799:6379"
+      - "127.0.0.1:63799:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -168,35 +167,127 @@ services:
       start_period: 15s
     restart: unless-stopped
     networks:
-      - fullstack-network
+      - platform-network
 
-  # SMTP Email Service
-  mailhog:
-    image: tophfr/mailhog:latest
-    container_name: fullstack-mailhog
+  # Mailbox/auth service (IMAP/POP3 + SASL auth socket for Postfix)
+  dovecot:
+    image: dovecot/dovecot:2.3.21
+    container_name: platform-dovecot
     labels:
-      description: "MailHog SMTP server for email testing"
+      description: "Dovecot mailbox and auth service"
     ports:
-      - "1025:1025" # SMTP
-      - "8025:8025" # Web UI
+      - "127.0.0.1:1143:143" # IMAP
+      - "127.0.0.1:1993:993" # IMAPS
+      - "127.0.0.1:1110:110" # POP3
+      - "127.0.0.1:1995:995" # POP3S
+    volumes:
+      - ./nginx/mail/dovecot.conf:/etc/dovecot/dovecot.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - mail_data:/tmp/vhosts
+      - postfix_auth_socket:/var/spool/postfix/private
     restart: unless-stopped
     networks:
-      - fullstack-network
+      - platform-network
+
+  # SMTP relay for application email delivery
+  postfix:
+    image: boky/postfix:latest
+    container_name: platform-postfix
+    labels:
+      description: "Postfix SMTP relay for platform email"
+    ports:
+      - "127.0.0.1:1026:25" # SMTP
+      - "127.0.0.1:1587:587" # Submission
+    depends_on:
+      dovecot:
+        condition: service_started
+    environment:
+      ALLOWED_SENDER_DOMAINS: ${DOMAIN_NAME:-localhost}
+      POSTFIX_smtpd_tls_security_level: may
+      POSTFIX_smtp_tls_security_level: may
+    volumes:
+      - ./nginx/mail:/etc/postfix
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - mail_data:/tmp/vhosts
+      - postfix_auth_socket:/var/spool/postfix/private
+    restart: unless-stopped
+    networks:
+      - platform-network
+
+  # Redis Exporter for Prometheus
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.55.0
+    container_name: platform-redis-exporter
+    ports:
+      - "19121:9121"
+    environment:
+      - REDIS_ADDR=redis://:${REDIS_PASSWORD:-redis_dev_password_1234567890}@redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - platform-network
+
+  # Prometheus Monitoring & Metrics
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: platform-prometheus
+    ports:
+      - "19091:9090"
+    volumes:
+      - ./telemetry/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./telemetry/monitoring/rules.yml:/etc/prometheus/rules/rules.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--storage.tsdb.retention.time=7d"
+    networks:
+      - platform-network
+
+  # Grafana Dashboard & Visualization
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: platform-grafana
+    ports:
+      - "3300:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_INSTALL_PLUGINS=grafana-clock-panel
+    volumes:
+      - ./telemetry/monitoring/grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./telemetry/monitoring/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+      - ./telemetry/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - server
+    networks:
+      - platform-network
+
+  # Certbot for SSL Certificate Management
+  certbot:
+    image: certbot/certbot
+    container_name: platform-certbot
+    labels:
+      description: "Certbot for obtaining and renewing SSL certificates"
+    volumes:
+      - ./nginx/certbot:/etc/letsencrypt
+      - ./nginx/certbot:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do sleep 6h & wait $${!}; certbot renew; done;'"
+    restart: unless-stopped
+    networks:
+      - platform-network
 
   # Node.js API Server (primary)
   server:
     <<: *server-common
-    container_name: fullstack-server-1
+    container_name: platform-server
     labels:
       description: "Node.js Express API server"
-      version: "1.0.0"
-
-  # Node.js API Server (replica)
-  server-replica:
-    <<: *server-common
-    container_name: fullstack-server-2
-    labels:
-      description: "Node.js Express API server replica"
       version: "1.0.0"
 
   # Bull Queue Worker (processes background jobs)
@@ -206,7 +297,7 @@ services:
       dockerfile: Dockerfile
       args:
         NODE_ENV: ${NODE_ENV:-production}
-    container_name: fullstack-worker
+    container_name: platform-worker
     labels:
       description: "Node.js Bull queue worker for background jobs"
       version: "1.0.0"
@@ -232,29 +323,35 @@ services:
       start_period: 20s
     restart: unless-stopped
     networks:
-      - fullstack-network
+      - platform-network
 
   # NGINX reverse proxy and load balancer for backend APIs
   gateway:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: fullstack-gateway
+    container_name: platform-gateway
     labels:
       description: "NGINX reverse proxy and load balancer"
     depends_on:
       server:
         condition: service_healthy
-      server-replica:
-        condition: service_healthy
       client:
         condition: service_healthy
+    environment:
+      DOMAIN_NAME: ${DOMAIN_NAME:-localhost}
+      WWW_DOMAIN_NAME: ${WWW_DOMAIN_NAME:-www.localhost}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:-admin.localhost}
+      TLS_CERT_PATH: ${TLS_CERT_PATH:-/etc/nginx/ssl/localhost.crt}
+      TLS_KEY_PATH: ${TLS_KEY_PATH:-/etc/nginx/ssl/localhost.key}
+      ADMIN_TLS_CERT_PATH: ${ADMIN_TLS_CERT_PATH:-/etc/nginx/ssl/localhost+1.pem}
+      ADMIN_TLS_KEY_PATH: ${ADMIN_TLS_KEY_PATH:-/etc/nginx/ssl/localhost+1-key.pem}
     ports:
-      - "5000:80"
-      - "5443:443"
+      - "${PUBLIC_HTTP_PORT:-80}:80"
+      - "${PUBLIC_HTTPS_PORT:-443}:443"
     restart: unless-stopped
     networks:
-      - fullstack-network
+      - platform-network
     healthcheck:
       test:
         [
@@ -271,6 +368,8 @@ services:
       start_period: 20s
     volumes:
       - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/certbot/:/var/www/certbot:ro
+      - ./nginx/certbot/:/etc/letsencrypt:ro
 
   # React Frontend
   client:
@@ -280,15 +379,13 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:5000}
         VITE_API_VERSION: ${VITE_API_VERSION:-v1}
-    container_name: fullstack-client
+    container_name: platform-client
     labels:
       description: "React frontend application via Nginx"
       version: "1.0.0"
-    ports:
-      - "5173:80"
     restart: unless-stopped
     networks:
-      - fullstack-network
+      - platform-network
     healthcheck:
       test:
         ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/"]
@@ -302,7 +399,17 @@ volumes:
     driver: local
   redis_data:
     driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  mail_data:
+    driver: local
+  postfix_auth_socket:
+    driver: local
+  certbot-data:
+    driver: local
 
 networks:
-  fullstack-network:
+  platform-network:
     driver: bridge

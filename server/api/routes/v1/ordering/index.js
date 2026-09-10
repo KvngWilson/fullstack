@@ -11,7 +11,7 @@ const ordersRoutes = require("./orders");
 const checkoutRoutes = require("./checkout");
 const shippingRoutes = require("./shipping");
 
-router.use("/cart", cartRoutes);
+router.use("/carts", cartRoutes);
 router.use("/orders", ordersRoutes);
 router.use("/checkout", checkoutRoutes);
 router.use("/shipping", shippingRoutes);

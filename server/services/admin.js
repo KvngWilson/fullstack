@@ -87,26 +87,46 @@ class AdminDashboardService {
   async getUsers(query = {}) {
     const { page, pageSize, offset } = parsePagination(query);
 
-    const countResult = await pool.query("SELECT COUNT(*) as count FROM users");
-    const total = Number.parseInt(countResult.rows[0]?.count ?? "0", 10);
-
-    const usersResult = await pool.query(
-      `
+    const [countResult, usersResult, summaryResult] = await Promise.all([
+      pool.query("SELECT COUNT(*) as count FROM users"),
+      pool.query(
+        `
+          SELECT
+            id,
+            email,
+            role,
+            created_at,
+            last_login
+          FROM users
+          ORDER BY created_at DESC
+          LIMIT $1 OFFSET $2
+        `,
+        [pageSize, offset],
+      ),
+      pool.query(`
         SELECT
-          id,
-          email,
-          role,
-          created_at,
-          last_login
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (
+            WHERE last_login IS NOT NULL
+              AND last_login >= NOW() - INTERVAL '7 days'
+          )::int AS active,
+          COUNT(*) FILTER (
+            WHERE created_at >= NOW() - INTERVAL '30 days'
+          )::int AS new_last_30,
+          COUNT(*) FILTER (WHERE role = 'admin')::int AS admins
         FROM users
-        ORDER BY created_at DESC
-        LIMIT $1 OFFSET $2
-      `,
-      [pageSize, offset],
-    );
+      `),
+    ]);
+    const total = Number.parseInt(countResult.rows[0]?.count ?? "0", 10);
 
     return {
       data: usersResult.rows || [],
+      summary: summaryResult.rows[0] || {
+        total: 0,
+        active: 0,
+        new_last_30: 0,
+        admins: 0,
+      },
       pagination: {
         page,
         pageSize,
@@ -130,6 +150,35 @@ class AdminDashboardService {
       countParams.push(status);
     }
 
+    const summaryResult = await pool.query(`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
+        COUNT(*) FILTER (WHERE status = 'paid')::int AS paid,
+        COUNT(*) FILTER (WHERE status = 'shipped')::int AS shipped,
+        COUNT(*) FILTER (WHERE status = 'delivered')::int AS delivered,
+        COUNT(*) FILTER (WHERE status = 'cancelled')::int AS cancelled,
+        COUNT(*) FILTER (WHERE status = 'refunded')::int AS refunded,
+        COUNT(*) FILTER (
+          WHERE status IN ('shipped', 'delivered')
+        )::int AS shippable_total,
+        COUNT(*) FILTER (
+          WHERE status IN ('shipped', 'delivered')
+            AND tracking_number IS NOT NULL
+            AND tracking_number <> ''
+        )::int AS tracked_shipments,
+        COUNT(*) FILTER (
+          WHERE status = 'shipped'
+            AND estimated_delivery_date IS NOT NULL
+            AND estimated_delivery_date < CURRENT_DATE
+        )::int AS overdue_shipments,
+        COUNT(*) FILTER (
+          WHERE status IN ('shipped', 'delivered')
+            AND updated_at >= NOW() - INTERVAL '24 hours'
+        )::int AS dispatched_last_24h,
+        COALESCE(SUM(total_cents), 0) / 100.0 AS total_revenue
+      FROM orders
+    `);
     const countResult = await pool.query(countQuery, countParams);
     const total = Number.parseInt(countResult.rows[0]?.count ?? "0", 10);
 
@@ -138,8 +187,16 @@ class AdminDashboardService {
         o.id,
         o.user_id,
         o.status,
+        o.payment_status,
+        o.fulfillment_status,
         COALESCE(o.total_cents, 0) / 100.0 AS total_amount,
         o.created_at,
+        o.updated_at,
+        o.shipping_carrier,
+        o.shipping_service,
+        o.tracking_number,
+        o.estimated_delivery_date,
+        o.shipping_country,
         u.email AS user_email
       FROM orders o
       LEFT JOIN users u ON o.user_id = u.id
@@ -163,6 +220,20 @@ class AdminDashboardService {
     return {
       data: ordersResult.rows || [],
       filter: { status },
+      summary: summaryResult.rows[0] || {
+        total: 0,
+        pending: 0,
+        paid: 0,
+        shipped: 0,
+        delivered: 0,
+        cancelled: 0,
+        refunded: 0,
+        shippable_total: 0,
+        tracked_shipments: 0,
+        overdue_shipments: 0,
+        dispatched_last_24h: 0,
+        total_revenue: 0,
+      },
       pagination: {
         page,
         pageSize,

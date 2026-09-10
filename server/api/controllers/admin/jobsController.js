@@ -100,17 +100,7 @@ const getSpecificJobStatus = asyncHandler(async (req, res) => {
   throw new BadRequestError(`Job not found: ${jobName}`);
 });
 
-/**
- * Manually trigger a job
- * POST /api/v1/admin/jobs/:jobName/trigger
- */
-const triggerJob = asyncHandler(async (req, res) => {
-  const { jobName } = req.params;
-  const user = req.user;
-  const payload = req.body || {};
-
-  logger.info('Manual job trigger requested', { jobName, userId: user?.id });
-
+async function enqueueManualJob(jobName, payload = {}, user = null) {
   const runtime = getJobQueuesRuntime();
 
   if (!runtime) {
@@ -125,7 +115,7 @@ const triggerJob = asyncHandler(async (req, res) => {
         { jobId: `exchange-rate-refresh:manual:${Date.now()}` },
       );
 
-      return res.json({ success: true, message: `Job ${jobName} queued`, jobId: job.id });
+      return job;
     }
 
     // Generic queue trigger: attempt to find a queue by name
@@ -133,7 +123,7 @@ const triggerJob = asyncHandler(async (req, res) => {
       const queue = runtime.queueManager.getQueue(jobName);
       if (queue) {
         const job = await queue.add(payload, { jobId: `${jobName}:manual:${Date.now()}` });
-        return res.json({ success: true, message: `Job ${jobName} queued`, jobId: job.id });
+        return job;
       }
     }
 
@@ -142,6 +132,21 @@ const triggerJob = asyncHandler(async (req, res) => {
     logger.error('Failed to trigger job', { jobName, error: error.message, userId: user?.id });
     throw new BadRequestError(`Failed to trigger job: ${error.message}`);
   }
+}
+
+/**
+ * Manually trigger a job
+ * POST /api/v1/admin/jobs/:jobName/trigger
+ */
+const triggerJob = asyncHandler(async (req, res) => {
+  const { jobName } = req.params;
+  const user = req.user;
+  const payload = req.body || {};
+
+  logger.info('Manual job trigger requested', { jobName, userId: user?.id });
+
+  const job = await enqueueManualJob(jobName, payload, user);
+  return res.json({ success: true, message: `Job ${jobName} queued`, jobId: job.id });
 });
 
 /**
@@ -176,6 +181,7 @@ const refreshExchangeRatesManually = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  enqueueManualJob,
   getJobStatus,
   getSpecificJobStatus,
   triggerJob,

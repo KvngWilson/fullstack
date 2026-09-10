@@ -98,6 +98,8 @@ export const uploadClient = axios.create({
 });
 
 // Apply same interceptor chain to upload client
+const uploadAuthInterceptor = createAuthInterceptor(uploadClient);
+
 uploadClient.interceptors.request.use(
   (config) => {
     const headers = getRequestPreferenceHeaders();
@@ -105,9 +107,19 @@ uploadClient.interceptors.request.use(
       ...(config.headers || {}),
       ...headers,
     };
-    return csrfInterceptor.request(config);
+    return uploadAuthInterceptor.request(csrfInterceptor.request(config));
   },
   (error) => Promise.reject(error),
+);
+
+uploadClient.interceptors.response.use(
+  uploadAuthInterceptor.response,
+  uploadAuthInterceptor.error,
+);
+
+uploadClient.interceptors.response.use(
+  csrfInterceptor.response,
+  csrfInterceptor.error,
 );
 
 uploadClient.interceptors.response.use(

@@ -14,6 +14,8 @@ export const selectAuthLoading = (state) => state.auth.isLoading;
 export const selectError = (state) => state.auth.error;
 export const selectAuthError = (state) => state.auth.error;
 export const selectUserRole = (state) => state.auth.user?.role;
+export const selectUserPermissions = (state) =>
+  Array.isArray(state.auth.user?.permissions) ? state.auth.user.permissions : [];
 export const selectAuthIsHydrated = (state) => state.auth.isHydrated;
 
 // Alias for compatibility
